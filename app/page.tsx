@@ -3,10 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { initiateReport } from "@/app/actions";
+import { initiateReport, getReports } from "@/app/actions";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Search, Mail, Users, LineChart, Sparkles, ArrowRight, CheckCircle } from "lucide-react";
+import { useState, useTransition, useEffect } from "react";
+import { Search, Mail, Users, LineChart, Sparkles, ArrowRight, CheckCircle, LayoutDashboard, History, Settings, CheckCircle2 } from "lucide-react";
 import { MeetingDetailsForm } from '@/components/ui/input';
 
 export default function Home() {
@@ -14,6 +14,43 @@ export default function Home() {
   const [isPending, startTransition] = useTransition();
   const [isLoading, setIsLoading] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [activeTab, setActiveTab] = useState('generate');
+  const [reports, setReports] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const loadReports = async () => {
+      try {
+        const data = await getReports();
+        setReports(data);
+      } catch (error) {
+        console.error('Failed to load reports:', error);
+      }
+    };
+
+    loadReports();
+  }, []);
+
+  const getMeetingStatus = (meetingDate: string) => {
+    if (!meetingDate) return 'pending';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const meeting = new Date(meetingDate);
+    meeting.setHours(0, 0, 0, 0);
+    return meeting < today ? 'completed' : 'scheduled';
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const filteredReports = reports.filter(report => 
+    report.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   async function handleGenerateReport(formData: FormData) {
     setIsLoading(true);
@@ -33,6 +70,9 @@ export default function Home() {
         if (result.success) {
           window.open(`/report/${result.reportId}`, '_blank');
           setIsLoading(false);
+          // Refresh reports after generating a new one
+          const updatedReports = await getReports();
+          setReports(updatedReports);
         }
       } catch (error) {
         console.error("Failed to generate report:", error);
@@ -42,155 +82,120 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 relative overflow-hidden">
-      {/* Background Patterns */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-[1000px] h-[1000px] rounded-full bg-gradient-to-b from-blue-100/20 to-purple-100/20 dark:from-blue-900/20 dark:to-purple-900/20 blur-3xl transform rotate-12"></div>
-        <div className="absolute -bottom-1/2 -left-1/2 w-[1000px] h-[1000px] rounded-full bg-gradient-to-t from-blue-100/20 to-purple-100/20 dark:from-blue-900/20 dark:to-purple-900/20 blur-3xl transform -rotate-12"></div>
-      </div>
-
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Loading Overlay */}
       {(isLoading || isPending) && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-md mx-4">
             <div className="relative">
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent"></div>
-              <Sparkles className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-blue-600 h-8 w-8" />
+              <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-600 border-t-transparent"></div>
+              <Sparkles className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-blue-600 h-10 w-10" />
             </div>
-            <div className="space-y-3 text-center mt-6">
+            <div className="space-y-4 text-center mt-8">
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
                 Generating Lead Report
               </h3>
-              <p className="text-gray-500 dark:text-gray-400">
-                Please wait while we analyze the data and generate your comprehensive report...
-              </p>
+              <div className="space-y-2">
+                <p className="text-gray-600 dark:text-gray-400">
+                  We're analyzing the data and generating your comprehensive report...
+                </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="animate-pulse">•</div>
+                  <div className="animate-pulse delay-100">•</div>
+                  <div className="animate-pulse delay-200">•</div>
+                </div>
+              </div>
+              <div className="mt-6 space-y-2">
+                <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 rounded-full animate-[progress_2s_ease-in-out_infinite]"></div>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">This may take a few moments</p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="border-b bg-white/80 dark:bg-gray-900/80 backdrop-blur-md fixed w-full z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-8">
-              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800">
+      <div className="flex h-screen">
+        {/* Sidebar */}
+        <div className="w-72 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-r border-blue-700/50">
+          <div className="p-6 border-b border-blue-700/50">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20">
+                <span className="text-xl font-bold text-white">LR</span>
+              </div>
+              <span className="text-2xl font-bold text-white">
                 LeadRepo
               </span>
-             
-            </div>
-            <div className="flex items-center gap-4">
-              <Button 
-                onClick={() => {
-                  setIsNavigating(true);
-                  router.push('/history');
-                }}
-                className="bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-medium px-6 py-2 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg"
-                disabled={isNavigating}
-              >
-                {isNavigating ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    View History
-                  </>
-                )}
-              </Button>
             </div>
           </div>
-        </div>
-      </nav>
-
-      <main>
-        {/* Hero Section */}
-        <div className="pt-28 pb-16 px-4">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-              {/* Left Column - Content */}
-              <div className="space-y-10">
-                <div className="space-y-6">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium">
-                    <Sparkles className="h-4 w-4" />
-                    <span>AI-Powered Lead Intelligence</span>
-                  </div>
-                  <h1 className="text-5xl sm:text-6xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
-                    Generate Professional{" "}
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800">
-                      Lead Reports
-                    </span>{" "}
-                    in Seconds
-                  </h1>
-                  <p className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed max-w-xl">
-                    Transform email addresses into comprehensive lead reports with verified data, insights, and engagement strategies.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-                    <div className="h-14 w-14 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                      <Users className="h-7 w-7 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        10M+
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Verified Contacts
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-                    <div className="h-14 w-14 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                      <LineChart className="h-7 w-7 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        99%
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Data Accuracy
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Real-time data verification</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>AI-powered insights</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                    <span>Engagement strategies</span>
-                  </div>
+          <div className="p-4">
+            <div className="space-y-1">
+              <div className="px-3 py-2">
+                
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setActiveTab('generate')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      activeTab === 'generate'
+                        ? 'bg-white/10 backdrop-blur-sm text-white shadow-lg ring-1 ring-white/20'
+                        : 'text-blue-100 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <LayoutDashboard className={`h-5 w-5 ${activeTab === 'generate' ? 'text-white' : 'text-blue-300'}`} />
+                    <span className="font-medium">Generate Lead</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('pipeline')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      activeTab === 'pipeline'
+                        ? 'bg-white/10 backdrop-blur-sm text-white shadow-lg ring-1 ring-white/20'
+                        : 'text-blue-100 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <History className={`h-5 w-5 ${activeTab === 'pipeline' ? 'text-white' : 'text-blue-300'}`} />
+                    <span className="font-medium">Pipeline</span>
+                  </button>
                 </div>
               </div>
+              <div className="px-3 py-2">
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      activeTab === 'settings'
+                        ? 'bg-white/10 backdrop-blur-sm text-white shadow-lg ring-1 ring-white/20'
+                        : 'text-blue-100 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <Settings className={`h-5 w-5 ${activeTab === 'settings' ? 'text-white' : 'text-blue-300'}`} />
+                    <span className="font-medium">Preferences</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
 
-              {/* Right Column - Form */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/30 to-purple-500/30 rounded-3xl blur-3xl"></div>
-                <div className="relative">
-                  <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-0 shadow-2xl relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5"></div>
-                    <CardContent className="p-8 relative">
-                      <div className="mb-8">
-                        <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Generate Your Report</h2>
-                        <p className="text-gray-600 dark:text-gray-300">Fill in the details below to get started</p>
-                      </div>
-                      <form action={handleGenerateReport} className="space-y-6">
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-8">
+            {activeTab === 'generate' && (
+              <div className="max-w-2xl mx-auto px-2 sm:px-4 py-8">
+                <div className="mb-8 text-center">
+                  <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">Generate Lead Report</h1>
+                  <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                    Create comprehensive lead reports with AI-powered insights and professional analysis
+                  </p>
+                </div>
+                <Card className="bg-white dark:bg-gray-800 border-0 shadow-xl rounded-2xl overflow-hidden">
+                  <CardContent className="p-8">
+                    <form action={handleGenerateReport} className="space-y-8">
+                      <div className="space-y-6">
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <Mail className="h-5 w-5 text-gray-400" />
+                            <Mail className="h-5 w-5 text-blue-600" />
                           </div>
                           <Input
                             type="email"
@@ -198,99 +203,157 @@ export default function Home() {
                             placeholder="Enter business email address"
                             required
                             disabled={isLoading || isPending}
-                            className="pl-12 h-14 text-lg rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900"
+                            className="pl-12 h-14 text-lg rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 shadow-sm"
                           />
                         </div>
-                        <MeetingDetailsForm />
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                          <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">What you'll get:</h3>
+                          <ul className="space-y-2 text-sm text-blue-700 dark:text-blue-300">
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Comprehensive lead profile and company analysis</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>AI-powered insights and recommendations</span>
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Professional engagement strategy</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                      <MeetingDetailsForm />
+                      <div className="pt-4">
                         <Button
                           type="submit"
-                          className="w-full h-14 text-lg rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 transition-all duration-200 shadow-lg hover:shadow-xl"
                           disabled={isLoading || isPending}
+                          className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                         >
                           {isLoading || isPending ? (
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center gap-2">
                               <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                               <span>Generating Report...</span>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center gap-2">
-                              <span>Generate Report</span>
-                              <ArrowRight className="h-5 w-5" />
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-5 w-5" />
+                              <span>Generate Lead Report</span>
                             </div>
                           )}
                         </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-                </div>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
+            )}
+
+            {activeTab === 'pipeline' && (
+              <div className="max-w-7xl mx-auto">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Lead Pipeline</h1>
+                  <p className="text-gray-600 dark:text-gray-300">Track and manage your lead reports</p>
+                </div>
+                <div className="mb-6">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search by email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900"
+                    />
+                  </div>
+                </div>
+                <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg">
+                  <CardContent className="p-8">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-gray-200 dark:border-gray-700">
+                            <th className="text-left py-4 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">Date</th>
+                            <th className="text-left py-4 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">Email</th>
+                            <th className="text-left py-4 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">Meeting Date</th>
+                            <th className="text-left py-4 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">Platform</th>
+                            <th className="text-left py-4 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">Status</th>
+                            <th className="text-left py-4 px-6 text-sm font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredReports.map((report) => {
+                            const meetingStatus = getMeetingStatus(report.meetingDate);
+                            return (
+                              <tr key={report._id.toString()} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                                  {formatDate(report.createdAt)}
+                                </td>
+                                <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                                  {report.email}
+                                </td>
+                                <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                                  {report.meetingDate ? formatDate(report.meetingDate) : '-'}
+                                </td>
+                                <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                                  {report.meetingPlatform || '-'}
+                                </td>
+                                <td className="py-4 px-6">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    meetingStatus === 'completed'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                      : meetingStatus === 'scheduled'
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                  }`}>
+                                    {meetingStatus === 'completed' ? 'Completed' : meetingStatus === 'scheduled' ? 'Scheduled' : 'Pending'}
+                                  </span>
+                                </td>
+                                <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                    onClick={() => window.open(`/report/${report._id}`, '_blank')}
+                                  >
+                                    View Report
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {filteredReports.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-gray-500 dark:text-gray-400">
+                                No reports found matching your search.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <div className="max-w-4xl mx-auto">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Settings</h1>
+                  <p className="text-gray-600 dark:text-gray-300">Configure your account settings</p>
+                </div>
+                <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg">
+                  <CardContent className="p-8">
+                    <p className="text-gray-600 dark:text-gray-300">Settings content will go here</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Features Section */}
-        <div className="py-5 bg-gradient-to-b from-white to-blue-50 dark:from-gray-800 dark:to-gray-900">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-                Everything you need to convert leads
-              </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-300">
-                Powerful features to help you understand and engage with your leads more effectively.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="group p-8 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-200">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-200">
-                  <Search className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
-                  Instant Analysis
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Get detailed lead information and analysis powered by AI in seconds.
-                </p>
-                <div className="mt-6 flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                  <span className="text-sm font-medium">Learn more</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-
-              <div className="group p-8 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-200">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-200">
-                  <Users className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
-                  Verified Data
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Access accurate contact information and professional profiles.
-                </p>
-                <div className="mt-6 flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                  <span className="text-sm font-medium">Learn more</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-
-              <div className="group p-8 rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-lg hover:shadow-xl transition-all duration-200">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-200">
-                  <LineChart className="h-6 w-6" />
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
-                  Smart Insights
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Get actionable insights and engagement strategies.
-                </p>
-                <div className="mt-6 flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-                  <span className="text-sm font-medium">Learn more</span>
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
