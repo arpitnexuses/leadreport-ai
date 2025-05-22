@@ -9,6 +9,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'static.licdn.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'ui-avatars.com',
         pathname: '/**',
       },
