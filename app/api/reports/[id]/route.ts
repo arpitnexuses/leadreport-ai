@@ -40,20 +40,43 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
+    console.log("Received update data:", body);
+    
     await client.connect();
     const db = client.db('lead-reports');
     const reports = db.collection('reports');
 
-    const updateData = {
+    // Create update data object
+    const updateData: any = {
       $set: {
-        'leadData.notes': body.notes,
-        'leadData.tags': body.tags,
-        'leadData.status': body.status,
-        'leadData.nextFollowUp': body.nextFollowUp,
-        'leadData.customFields': body.customFields,
         updatedAt: new Date(),
       },
     };
+    
+    // Handle full leadData replacement if provided
+    if (body.leadData) {
+      updateData.$set.leadData = body.leadData;
+      console.log("Updating lead data with:", body.leadData);
+    } else {
+      // Handle individual field updates
+      if (body.notes) updateData.$set['leadData.notes'] = body.notes;
+      if (body.tags) updateData.$set['leadData.tags'] = body.tags;
+      if (body.status) updateData.$set['leadData.status'] = body.status;
+      if (body.nextFollowUp) updateData.$set['leadData.nextFollowUp'] = body.nextFollowUp;
+      if (body.customFields) updateData.$set['leadData.customFields'] = body.customFields;
+    }
+    
+    // Handle skills and languages if provided
+    if (body.skills) updateData.$set.skills = body.skills;
+    if (body.languages) updateData.$set.languages = body.languages;
+    
+    // Handle AI content if provided
+    if (body.aiContent) {
+      updateData.$set.aiContent = body.aiContent;
+      console.log("Updating AI content:", body.aiContent);
+    }
+    
+    console.log("Final update data:", updateData);
 
     const result = await reports.updateOne(
       { _id: new ObjectId(params.id) },
