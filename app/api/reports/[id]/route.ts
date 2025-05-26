@@ -8,6 +8,31 @@ if (!MONGODB_URI) {
 
 const client = new MongoClient(MONGODB_URI);
 
+// Helper function to serialize MongoDB documents
+function serializeDocument(doc: any): any {
+  if (doc === null || typeof doc !== 'object') {
+    return doc;
+  }
+
+  if (Array.isArray(doc)) {
+    return doc.map(serializeDocument);
+  }
+
+  const serialized: any = {};
+  for (const [key, value] of Object.entries(doc)) {
+    if (value instanceof ObjectId) {
+      serialized[key] = value.toString();
+    } else if (value instanceof Date) {
+      serialized[key] = value.toISOString();
+    } else if (typeof value === 'object' && value !== null) {
+      serialized[key] = serializeDocument(value);
+    } else {
+      serialized[key] = value;
+    }
+  }
+  return serialized;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -22,7 +47,9 @@ export async function GET(
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
-    return NextResponse.json(report);
+    // Serialize the report before sending it
+    const serializedReport = serializeDocument(report);
+    return NextResponse.json(serializedReport);
   } catch (error) {
     console.error('Error fetching report:', error);
     return NextResponse.json(
@@ -88,7 +115,9 @@ export async function PATCH(
     }
 
     const updatedReport = await reports.findOne({ _id: new ObjectId(params.id) });
-    return NextResponse.json(updatedReport);
+    // Serialize the updated report before sending it
+    const serializedReport = serializeDocument(updatedReport);
+    return NextResponse.json(serializedReport);
   } catch (error) {
     console.error('Error updating report:', error);
     return NextResponse.json(

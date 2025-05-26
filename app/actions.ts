@@ -134,11 +134,12 @@ interface LeadData {
     updatedAt: Date;
   }[];
   tags: string[];
-  status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'closed';
+  status: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
   nextFollowUp: Date | null;
   customFields: {
     [key: string]: string;
   };
+  project?: string;
 }
 
 // interface LeadReport {
@@ -283,7 +284,6 @@ async function generateAIReport(apolloData: ApolloResponse) {
       website: org.website_url || 'N/A',
       industry: org.industry || 'N/A',
       employees: org.estimated_num_employees || 'N/A'
-
     },
     leadScoring: {
       rating: '⭐⭐⭐⭐⭐',
@@ -294,7 +294,12 @@ async function generateAIReport(apolloData: ApolloResponse) {
         need: 'YES'
       }
     },
-    notes: []
+    project: 'N/A',
+    notes: [],
+    status: 'warm',
+    tags: [],
+    nextFollowUp: null,
+    customFields: {}
   }
 
   const reportPrompt = `
@@ -377,6 +382,7 @@ export async function initiateReport(formData: FormData) {
   const meetingTime = formData.get("meetingTime") as string
   const meetingPlatform = formData.get("meetingPlatform") as string
   const problemPitch = formData.get("problemPitch") as string
+  const project = formData.get("project") as string
 
   if (!email || !email.includes('@')) {
     throw new Error("Please provide a valid email address")
@@ -396,7 +402,8 @@ export async function initiateReport(formData: FormData) {
       photo: null,
       contactDetails: { email: "", phone: "", linkedin: "" },
       companyDetails: { industry: "", employees: "", headquarters: "", website: "" },
-      leadScoring: { rating: "", qualificationCriteria: {} }
+      leadScoring: { rating: "", qualificationCriteria: {} },
+      project: project || "N/A"
     },
     meetingDate,
     meetingTime,
@@ -420,7 +427,7 @@ async function processReport(email: string, reportId: string) {
   const { reports } = await getDb()
   
   try {
-    // Get the existing report to preserve meeting details
+    // Get the existing report to preserve meeting details and project
     const existingReport = await reports.findOne({ _id: new ObjectId(reportId) })
     
     // Step 1: Fetch Apollo Data
@@ -431,17 +438,22 @@ async function processReport(email: string, reportId: string) {
         $set: { 
           apolloData, 
           status: "fetching_apollo",
-          // Preserve meeting details
+          // Preserve meeting details and project
           meetingDate: existingReport?.meetingDate,
           meetingTime: existingReport?.meetingTime,
           meetingPlatform: existingReport?.meetingPlatform,
-          problemPitch: existingReport?.problemPitch
+          problemPitch: existingReport?.problemPitch,
+          'leadData.project': existingReport?.leadData?.project || 'N/A'
         } 
       }
     )
 
     // Step 2: Generate AI Report
     const { report: aiReport, leadData } = await generateAIReport(apolloData)
+    
+    // Preserve the project field from the existing report
+    leadData.project = existingReport?.leadData?.project || leadData.project || 'N/A'
+    
     await reports.updateOne(
       { _id: new ObjectId(reportId) },
       {
@@ -528,6 +540,31 @@ async function generateAIContentForAllSections(reportId: string, leadData: any, 
   }
 }
 
+// Helper function to serialize MongoDB documents
+function serializeDocument(doc: any): any {
+  if (doc === null || typeof doc !== 'object') {
+    return doc;
+  }
+
+  if (Array.isArray(doc)) {
+    return doc.map(serializeDocument);
+  }
+
+  const serialized: any = {};
+  for (const [key, value] of Object.entries(doc)) {
+    if (value instanceof ObjectId) {
+      serialized[key] = value.toString();
+    } else if (value instanceof Date) {
+      serialized[key] = value.toISOString();
+    } else if (typeof value === 'object' && value !== null) {
+      serialized[key] = serializeDocument(value);
+    } else {
+      serialized[key] = value;
+    }
+  }
+  return serialized;
+}
+
 export async function getReportStatus(reportId: string) {
   const { reports } = await getDb()
   const report = await reports.findOne({ _id: new ObjectId(reportId) })
@@ -536,7 +573,7 @@ export async function getReportStatus(reportId: string) {
   
   return {
     status: report.status,
-    data: report.status === "completed" ? report : null,
+    data: report.status === "completed" ? serializeDocument(report) : null,
     error: report.error
   }
 }
@@ -559,6 +596,32 @@ export async function deleteReport(formData: FormData) {
 
 export async function getReports() {
   const { reports } = await getDb()
-  return await reports.find({}).sort({ createdAt: -1 }).toArray()
+  const allReports = await reports.find({}).sort({ createdAt: -1 }).toArray()
+  return serializeDocument(allReports)
+}
+
+export async function updateLeadStatus(reportId: string, status: string) {
+  try {
+    const { reports } = await getDb()
+    
+    const result = await reports.updateOne(
+      { _id: new ObjectId(reportId) },
+      { 
+        $set: { 
+          'leadData.status': status,
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      throw new Error('Report not found')
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to update lead status:', error)
+    throw new Error('Failed to update lead status')
+  }
 }
 

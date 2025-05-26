@@ -1,9 +1,4 @@
-import { MongoClient } from "mongodb";
-
-const MONGODB_URI = process.env.MONGODB_URI;
-const client = new MongoClient(MONGODB_URI);
-const db = client.db("lead-reports");
-const reports = db.collection("reports");
+import clientPromise from "@/lib/mongodb";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
@@ -11,7 +6,10 @@ export default async function handler(req, res) {
     const skipRecords = (page - 1) * limit;
 
     try {
-      await client.connect();
+      const client = await clientPromise;
+      const db = client.db("lead-reports");
+      const reports = db.collection("reports");
+      
       const reportsList = await reports.find({})
         .sort({ createdAt: -1 })
         .skip(skipRecords)
@@ -23,8 +21,6 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error("Error fetching reports:", error);
       res.status(500).json({ error: "Failed to fetch reports" });
-    } finally {
-      await client.close();
     }
   } else {
     res.setHeader("Allow", ["GET"]);

@@ -14,7 +14,8 @@ export {
   TechStackSection,
   NewsSection,
   NextStepsSection,
-  AISectionContent,
   CompanyInfoCard,
   ReportGridLayout
-} from './Sections'; 
+} from './Sections';
+
+export { AISectionContent } from './AISectionContent'; 

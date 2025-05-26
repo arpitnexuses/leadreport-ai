@@ -7,42 +7,42 @@ interface SectionProps {
   children: React.ReactNode;
 }
 
-export function OverviewSection({ visible = true, children }: SectionProps) {
+export function OverviewSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section overview-section mb-8">{children}</div>;
 }
 
-export function CompanySection({ visible = true, children }: SectionProps) {
+export function CompanySection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section company-section mb-8">{children}</div>;
 }
 
-export function MeetingSection({ visible = true, children }: SectionProps) {
+export function MeetingSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section meeting-section mb-8">{children}</div>;
 }
 
-export function InteractionsSection({ visible = true, children }: SectionProps) {
+export function InteractionsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section interactions-section mb-8">{children}</div>;
 }
 
-export function CompetitorsSection({ visible = true, children }: SectionProps) {
+export function CompetitorsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section competitors-section mb-8">{children}</div>;
 }
 
-export function TechStackSection({ visible = true, children }: SectionProps) {
+export function TechStackSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section tech-stack-section mb-8">{children}</div>;
 }
 
-export function NewsSection({ visible = true, children }: SectionProps) {
+export function NewsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section news-section mb-8">{children}</div>;
 }
 
-export function NextStepsSection({ visible = true, children }: SectionProps) {
+export function NextStepsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
   return <div className="section next-steps-section mb-8">{children}</div>;
 }
@@ -223,10 +223,10 @@ export function CompanyInfoCard({
   employees: string;
   headquarters: string;
   website: string;
-  companyLogo: string;
-  companyDescription: string;
-  fundingStage: string;
-  fundingTotal: string | number;
+  companyLogo?: string;
+  companyDescription?: string;
+  fundingStage?: string;
+  fundingTotal?: string | number;
   isEditing?: boolean;
   onUpdate?: (field: string, value: string) => void;
 }) {

@@ -142,6 +142,7 @@ export function AISectionContent({
             </p>
             <p className="text-xs mt-2 text-amber-600">
               Rather than presenting potentially incorrect information, we&apos;ve limited the AI content for this section.
+              Rather than presenting potentially incorrect information, we&apos;ve limited the AI content for this section.
             </p>
           </div>
         </div>
