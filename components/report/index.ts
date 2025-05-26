@@ -6,6 +6,6 @@ export * from './ReportDetailCard';
 export * from './ReportInfoSection';
 export * from './MeetingDetailsCard';
 export * from './SectionToggle';
-export * from './AISectionContent';
+export { AISectionContent as StandaloneAISectionContent } from './AISectionContent';
 export * from './AIAssistant';
 export * from './CompanyAnalysis'; 
