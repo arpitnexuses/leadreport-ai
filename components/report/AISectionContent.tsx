@@ -79,7 +79,7 @@ export function AISectionContent({
               {content.message || "Not enough specific information about the company's market position, competitors, products, or challenges to provide meaningful insights."}
             </p>
             <p className="text-xs mt-2 text-amber-600">
-              Rather than presenting potentially incorrect information, we've limited the AI content for this section.
+              Rather than presenting potentially incorrect information, we&apos;ve limited the AI content for this section.
             </p>
           </div>
         </div>
@@ -504,7 +504,7 @@ export function AISectionContent({
           
           {content.dosDonts && (
             <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Dos and Don'ts</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Dos and Don&apos;ts</h3>
               <p className="text-sm bg-gray-50 p-3 rounded">{content.dosDonts}</p>
             </div>
           )}

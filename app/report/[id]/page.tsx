@@ -183,7 +183,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   }>({
     notes: [],
     tags: [],
-    status: "new",
+    status: "warm",
     nextFollowUp: "",
     customFields: {},
   });
@@ -234,7 +234,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       setEditedData({
         notes: report.leadData.notes || [],
         tags: report.leadData.tags || [],
-        status: report.leadData.status || "new",
+        status: report.leadData.status || "warm",
         nextFollowUp: report.leadData.nextFollowUp
           ? new Date(report.leadData.nextFollowUp).toISOString().split("T")[0]
           : "",
@@ -510,17 +510,17 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 </div>
                 <Badge
                   className={`text-sm ${
-                    report.leadData.status === "qualified"
-                      ? "bg-green-500 hover:bg-green-600"
-                      : report.leadData.status === "disqualified"
+                    report.leadData.status === "hot"
                       ? "bg-red-500 hover:bg-red-600"
+                      : report.leadData.status === "meeting_done"
+                      ? "bg-green-500 hover:bg-green-600"
                       : "bg-blue-500 hover:bg-blue-600"
                   }`}
                 >
                   {report.leadData.status
                     ? report.leadData.status.charAt(0).toUpperCase() +
-                      report.leadData.status.slice(1)
-                    : "New"}
+                      report.leadData.status.slice(1).replace('_', ' ')
+                    : "Warm"}
                 </Badge>
               </div>
             </div>

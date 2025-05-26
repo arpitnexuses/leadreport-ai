@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { ImageIcon, User, Building } from 'lucide-react';
 
 interface ImagePlaceholderProps {
