@@ -258,8 +258,8 @@ export function CompanyInfoCard({
           <p><strong>Website:</strong> <EditableField value={website} onChange={(value) => handleUpdate('website', value)} isEditing={isEditing} /></p>
         </div>
         <div>
-          <p><strong>Funding Stage:</strong> <EditableField value={fundingStage} onChange={(value) => handleUpdate('fundingStage', value)} isEditing={isEditing} /></p>
-          <p><strong>Funding Total:</strong> <EditableField value={typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : fundingTotal} onChange={(value) => handleUpdate('fundingTotal', value)} isEditing={isEditing} /></p>
+          <p><strong>Funding Stage:</strong> <EditableField value={fundingStage || ''} onChange={(value) => handleUpdate('fundingStage', value)} isEditing={isEditing} /></p>
+          <p><strong>Funding Total:</strong> <EditableField value={typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : (fundingTotal || '')} onChange={(value) => handleUpdate('fundingTotal', value)} isEditing={isEditing} /></p>
         </div>
       </div>
       {companyDescription && (
