@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AIAssistant } from './AIAssistant';
+import { EditableField } from './EditableField';
 
 interface SectionProps {
   visible?: boolean;
@@ -204,7 +205,19 @@ export function AISectionContent({
   );
 }
 
-export function CompanyInfoCard({ companyName, industry, employees, headquarters, website, companyLogo, companyDescription, fundingStage, fundingTotal }: { 
+export function CompanyInfoCard({ 
+  companyName, 
+  industry, 
+  employees, 
+  headquarters, 
+  website, 
+  companyLogo, 
+  companyDescription, 
+  fundingStage, 
+  fundingTotal,
+  isEditing = false,
+  onUpdate
+}: { 
   companyName: string;
   industry: string;
   employees: string;
@@ -214,26 +227,51 @@ export function CompanyInfoCard({ companyName, industry, employees, headquarters
   companyDescription: string;
   fundingStage: string;
   fundingTotal: string | number;
+  isEditing?: boolean;
+  onUpdate?: (field: string, value: string) => void;
 }) {
+  const handleUpdate = (field: string, value: string) => {
+    if (onUpdate) {
+      onUpdate(field, value);
+    }
+  };
+  
   return (
-    <div className="border rounded-lg p-4 shadow-sm">
-      <h3 className="font-semibold text-lg mb-2">Company Info: {companyName}</h3>
+    <div>
+      <div className="flex items-center gap-4 mb-4">
+        {companyLogo && (
+          <div className="h-16 w-16 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
+            <img 
+              src={companyLogo} 
+              alt={`${companyName} logo`} 
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        )}
+        <h3 className="font-semibold text-lg">Company Info: {companyName}</h3>
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p><strong>Industry:</strong> {industry}</p>
-          <p><strong>Employees:</strong> {employees}</p>
-          <p><strong>Headquarters:</strong> {headquarters}</p>
-          <p><strong>Website:</strong> {website}</p>
+          <p><strong>Industry:</strong> <EditableField value={industry} onChange={(value) => handleUpdate('industry', value)} isEditing={isEditing} /></p>
+          <p><strong>Employees:</strong> <EditableField value={employees} onChange={(value) => handleUpdate('employees', value)} isEditing={isEditing} /></p>
+          <p><strong>Headquarters:</strong> <EditableField value={headquarters} onChange={(value) => handleUpdate('headquarters', value)} isEditing={isEditing} /></p>
+          <p><strong>Website:</strong> <EditableField value={website} onChange={(value) => handleUpdate('website', value)} isEditing={isEditing} /></p>
         </div>
         <div>
-          <p><strong>Funding Stage:</strong> {fundingStage}</p>
-          <p><strong>Funding Total:</strong> {typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : fundingTotal}</p>
+          <p><strong>Funding Stage:</strong> <EditableField value={fundingStage} onChange={(value) => handleUpdate('fundingStage', value)} isEditing={isEditing} /></p>
+          <p><strong>Funding Total:</strong> <EditableField value={typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : fundingTotal} onChange={(value) => handleUpdate('fundingTotal', value)} isEditing={isEditing} /></p>
         </div>
       </div>
       {companyDescription && (
         <div className="mt-4">
           <h4 className="font-medium">Description</h4>
-          <p className="text-sm">{companyDescription}</p>
+          <EditableField 
+            value={companyDescription} 
+            onChange={(value) => handleUpdate('companyDescription', value)} 
+            isEditing={isEditing}
+            multiline={true}
+            className="text-sm"
+          />
         </div>
       )}
     </div>

@@ -56,7 +56,7 @@ async function generateWithAI(
           {
             role: "system",
             content:
-              "You are a sales intelligence assistant that provides concise, actionable insights for sales professionals. Your responses must be in valid JSON format. IMPORTANT: For specific company details, only provide information that is DIRECTLY SUPPORTED by the data provided. However, you should provide general industry insights based on the company's industry, size, and other contextual clues. Distinguish clearly between specific company information and general industry knowledge in your responses. If there isn't enough information to generate meaningful content about the specific company, focus on providing valuable industry insights instead."
+              "You are a sales intelligence assistant providing highly focused, concise insights. Keep all content exceptionally brief - summaries under 2 sentences, lists limited to 3 items max. Avoid vague generalizations and provide only specific, actionable information. Your responses must be formatted as valid JSON. Only include information directly supported by the provided data. For industry insights, focus on the most relevant points without broad generalizations. Prioritize specificity and brevity above all. IMPORTANT: Only provide recommendations, suggestions, or tips for the 'nextSteps' and 'interactions' sections. For all other sections, focus solely on factual information without suggestions or recommendations."
           },
           {
             role: "user",
@@ -125,28 +125,32 @@ function createPromptForSection(
   `;
 
   const dataQualityPrompt = `
-    INSTRUCTION: Balance factual accuracy with providing valuable insights.
+    INSTRUCTION: Keep all content extremely brief, specific, and actionable.
+    
+    Content length limits:
+    - Summaries: 1-2 sentences maximum
+    - Lists: 2-3 items maximum
+    - Descriptions: Short, concise phrases only
+    
+    Avoid:
+    - Vague, generic statements
+    - Extended explanations
+    - Obvious information
     
     For specific company details:
-    - Do not fabricate company statistics, financial data, or specific metrics
-    - Do not make up names of competitors, products, or technologies
-    - Do not fabricate historical events or future predictions about the specific company
+    - Only include information directly from the data provided
+    - Do not fabricate statistics, names, or events
     
     For general industry insights:
-    - Provide valuable context based on standard industry knowledge
-    - Include typical challenges, opportunities, and trends for the industry
-    - Offer general insights that would be valuable for sales conversations
+    - Focus only on the most relevant points
+    - Keep industry observations extremely specific
     
-    Only use 'insufficient_data: true' when you cannot provide ANY meaningful insights, even general ones.
-    
-    Your response MUST be valid JSON. For example:
+    Your response MUST be valid JSON. Example:
     {
-      "summary": "Based on the available information, this lead works at a medium-sized company in the healthcare industry. Healthcare companies typically focus on patient care, regulatory compliance, and technology integration.",
+      "summary": "Medium-sized healthcare company focused on patient care and compliance.",
       "keyPoints": [
-        "Company operates in healthcare sector", 
-        "Medium-sized organization", 
-        "Industry typically faces challenges with regulatory compliance",
-        "Healthcare organizations often prioritize patient data security"
+        "Operating in regulated healthcare sector", 
+        "Likely needs solutions for data security"
       ],
       "insufficient_data": false
     }
@@ -157,151 +161,86 @@ function createPromptForSection(
       return `${baseInfo}
         ${dataQualityPrompt}
         Based ONLY on the above information, provide a brief overview of this lead.
-        Include a summary that directly reflects the provided data and 3-5 key points that would be relevant for a sales conversation.
-        DO NOT add any specific details that aren't included in the provided information.
+        Include a 1-2 sentence summary and MAXIMUM 3 key points most relevant for sales.
+        Keep all content extremely concise and focused on actionable insights.
         Format the response as JSON with 'summary' and 'keyPoints' fields.
         If you don't have enough information, include 'insufficient_data: true' in your JSON response.
       `;
     case "company":
       return `${baseInfo}
         ${dataQualityPrompt}
-        Based on the above information about the company and industry standards, provide meaningful insights about the company.
+        Provide a brief, focused analysis of this company based on available data.
         
-        Even if specific company details are limited, provide general industry insights based on:
-        1. The company's industry (${leadData.companyDetails?.industry || "Unknown"})
-        2. Company size (${leadData.companyDetails?.employees || "Unknown"})
-        3. The lead's position (${leadData.position || "Unknown"})
+        Include only:
+        - A 1-2 sentence description combining company data with essential industry knowledge
+        - A 1 sentence market positioning statement
+        - MAXIMUM 2-3 specific challenges likely faced based on industry
         
-        Include:
-        - A description that combines available company data with general industry knowledge
-        - An analysis of typical market positioning for companies in this industry and size range
-        - Common challenges faced by companies in this industry
+        Format as JSON with 'description', 'marketPosition', and 'challenges' fields.
+        All content must be extremely concise and specific with no vague generalizations.
         
-        Format the response as JSON with 'description', 'marketPosition', and 'challenges' fields.
-        Each field should provide valuable insights even if based on general industry knowledge.
-        
-        Example format for limited data:
-        {
-          "description": "Based on available information, [Company] operates in the [Industry] sector. Companies in this industry typically focus on [general industry description].",
-          "marketPosition": "Companies of this size in the [Industry] sector often compete in [market segment] and differentiate through [typical differentiators].",
-          "challenges": ["Challenge 1 typical for this industry", "Challenge 2 typical for this industry", "Challenge 3 typical for this industry"],
-          "insufficient_data": false
-        }
-        
-        Only use 'insufficient_data: true' if there is absolutely no information about the industry or company size.
+        Only use 'insufficient_data: true' if there is absolutely no industry information.
       `;
     case "competitors":
       return `${baseInfo}
         ${dataQualityPrompt}
-        Based on the company's industry (${leadData.companyDetails?.industry || "Unknown"}) and size (${leadData.companyDetails?.employees || "Unknown"}), provide insights about competitive landscape.
+        Provide a concise competitive analysis for this company's industry.
         
-        Even with limited specific company information, provide:
-        1. Types of competitors typically found in this industry
-        2. General competitive dynamics in this industry
-        3. Potential competitive advantages that could be relevant
+        Include only:
+        - MAXIMUM 3 competitor types or categories most relevant to this company
+        - A single sentence about key competitive advantage opportunities 
+        - A single sentence about market dynamics
         
-        Format the response as JSON with:
-        - 'mainCompetitors' as an array of strings describing competitor types or categories
-        - 'competitiveAdvantage' as a string describing potential competitive advantages
-        - 'marketDynamics' as a string describing the competitive landscape
+        Format as JSON with 'mainCompetitors', 'competitiveAdvantage', and 'marketDynamics' fields.
+        Keep all content extremely brief and specific with no generalizations.
         
-        Example format:
-        {
-          "mainCompetitors": ["Enterprise software providers", "Specialized consulting firms", "Industry-specific solution providers"],
-          "competitiveAdvantage": "Companies can differentiate through industry expertise, technology innovation, and customer service quality.",
-          "marketDynamics": "The market is characterized by rapid consolidation, increasing focus on AI-driven solutions, and growing demand for integrated platforms.",
-          "insufficient_data": false
-        }
-        
-        Only use 'insufficient_data: true' if there is absolutely no information about the industry.
+        Only use 'insufficient_data: true' if there is absolutely no industry information.
       `;
     case "techStack":
       return `${baseInfo}
         ${dataQualityPrompt}
-        Based on the company's industry (${leadData.companyDetails?.industry || "Unknown"}) and size (${leadData.companyDetails?.employees || "Unknown"}), provide insights about their likely technology stack and needs.
+        Provide a concise technology analysis for this company based on industry.
         
-        Even with limited specific company information, provide:
-        1. Common technologies used in this industry and by companies of this size
-        2. Typical technology pain points for companies in this industry
-        3. Opportunities for technology improvement or innovation
+        Include only:
+        - 2-3 most relevant technology categories likely used
+        - 1-2 specific pain points related to technology
+        - 1-2 focused opportunities for improvement
+        - 1-2 specific technology recommendations
         
-        Format the response as JSON with:
-        - 'currentTechnologies' as an array of strings with likely technology categories
-        - 'painPoints' as an array of strings describing common technology challenges
-        - 'opportunities' as an array of strings describing potential areas for improvement
-        - 'recommendations' as an array of strings with specific technology recommendations
+        Format as JSON with 'currentTechnologies', 'painPoints', 'opportunities', and 'recommendations' fields.
+        All content must be extremely brief and specific.
         
-        Example format:
-        {
-          "currentTechnologies": ["CRM Systems", "ERP Software", "Cloud Infrastructure", "Data Analytics Tools"],
-          "painPoints": [
-            "Legacy system integration issues",
-            "Data silos preventing unified customer view",
-            "Security concerns with remote work infrastructure"
-          ],
-          "opportunities": [
-            "AI-powered customer insights could improve retention",
-            "Cloud migration would enhance operational flexibility",
-            "Integrated data platform would improve decision making"
-          ],
-          "recommendations": [
-            "Evaluate current data integration strategy",
-            "Assess security posture for cloud applications",
-            "Consider AI-augmented analytics solutions"
-          ],
-          "insufficient_data": false
-        }
-        
-        Only use 'insufficient_data: true' if there is absolutely no information about the industry.
+        Only use 'insufficient_data: true' if absolutely no industry information.
       `;
     case "news":
       return `${baseInfo}
         ${dataQualityPrompt}
-        Based ONLY on the above information, identify relevant industry trends that might affect this company.
-        DO NOT reference specific news articles, dates, or events unless they are mentioned in the provided data.
-        Instead, focus on general industry trends that would be relevant based on the company's industry.
-        DO NOT make up specific news items, statistics, or events.
-        Format the response as JSON with 'relevantIndustryTrends' as an array of general industry trends.
-        If you don't have enough information, include 'insufficient_data: true' in your JSON response.
+        Identify MAXIMUM 2-3 key industry trends most relevant to this company.
+        Keep each trend to a single, specific sentence.
+        DO NOT reference specific news articles or events.
+        Format as JSON with 'relevantIndustryTrends' field containing an array.
+        Only use 'insufficient_data: true' if no industry information.
       `;
     case "nextSteps":
       return `${baseInfo}
         ${dataQualityPrompt}
-        Based on the company's industry (${leadData.companyDetails?.industry || "Unknown"}), size (${leadData.companyDetails?.employees || "Unknown"}), and the lead's position (${leadData.position || "Unknown"}), recommend actionable next steps for engaging with this lead.
+        Provide MAXIMUM 2 highly specific next action recommendations for interacting with the lead.
         
-        Even with limited specific company information, provide:
-        1. Specific, actionable recommendations for follow-up
-        2. Tailored talking points based on industry knowledge
-        3. Resources or materials that would be valuable to share
+        Focus strictly on business action recommendations:
+        - DO NOT include any personal information about who's viewing the report
+        - DO NOT reference names of people viewing the report
+        - DO NOT reference company names of people viewing the report
+        - DO NOT include details about the viewer's position or background
         
-        Format the response as JSON with 'recommendedActions' as an array of objects, each containing:
-        - 'description': A specific, actionable recommendation
-        - 'rationale': Brief explanation of why this action is recommended
-        - 'priority': "High", "Medium", or "Low"
+        For each action, include only:
+        - A brief, specific action description (1 sentence)
+        - A very short rationale (under 10 words)
+        - Priority level
         
-        Example format:
-        {
-          "recommendedActions": [
-            {
-              "description": "Schedule a discovery call focused on their technology infrastructure challenges",
-              "rationale": "Companies in this industry often struggle with legacy system integration",
-              "priority": "High"
-            },
-            {
-              "description": "Share industry-specific case study highlighting ROI improvements",
-              "rationale": "Demonstrates value proposition with relevant examples",
-              "priority": "Medium"
-            },
-            {
-              "description": "Connect with other stakeholders in the IT department",
-              "rationale": "Decisions in this industry typically involve multiple technical stakeholders",
-              "priority": "Medium"
-            }
-          ],
-          "insufficient_data": false
-        }
+        Format as JSON with 'recommendedActions' as an array of objects containing
+        'description', 'rationale', and 'priority' fields.
         
-        Only use 'insufficient_data: true' if there is absolutely no information about the industry or lead position.
+        Only use 'insufficient_data: true' if no position or industry information.
       `;
     case "meeting":
       return `${baseInfo}

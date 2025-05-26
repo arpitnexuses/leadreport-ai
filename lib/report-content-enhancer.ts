@@ -50,6 +50,14 @@ export async function enhanceReportContent(
  */
 
 /**
+ * Truncates text to a specified length
+ */
+export const truncateText = (text: string, maxLength: number = 200): string => {
+  if (!text || typeof text !== 'string') return '';
+  return text.length > maxLength ? text.substring(0, maxLength - 3) + '...' : text;
+};
+
+/**
  * Determines if a string appears to contain a list
  */
 export const isStringList = (str: string): boolean => {
@@ -115,6 +123,143 @@ export const enhanceAIContent = (section: string, content: any): any => {
       }
       break;
       
+    case 'interactions':
+      // Ensure personalizationTips is always an array
+      if (content.personalizationTips && !Array.isArray(content.personalizationTips)) {
+        enhanced.personalizationTips = ensureArray(content.personalizationTips);
+      }
+      // Initialize with empty array if not present
+      if (!content.personalizationTips) {
+        enhanced.personalizationTips = [];
+      }
+      // Ensure other fields exist
+      if (!content.communicationPreferences) {
+        enhanced.communicationPreferences = "";
+      }
+      
+      // Process dosDonts field
+      if (!content.dosDonts) {
+        enhanced.dosDonts = "";
+      } else if (typeof content.dosDonts === 'string') {
+        // Check if the dosDonts field is a string with square brackets (like an array)
+        if (content.dosDonts.trim().startsWith('[') && content.dosDonts.trim().endsWith(']')) {
+          try {
+            // Try to parse it as JSON
+            const parsedArray = JSON.parse(content.dosDonts);
+            if (Array.isArray(parsedArray)) {
+              // If successfully parsed as array, process items into do/dont
+              const doItems: string[] = [];
+              const dontItems: string[] = [];
+              
+              parsedArray.forEach((item: string) => {
+                const itemStr = item.toString().trim();
+                if (itemStr.toLowerCase().startsWith("do ") || 
+                    itemStr.toLowerCase().startsWith("always ") || 
+                    itemStr.toLowerCase().startsWith("use ")) {
+                  doItems.push(itemStr);
+                } else if (itemStr.toLowerCase().startsWith("don't ") || 
+                           itemStr.toLowerCase().startsWith("avoid ") || 
+                           itemStr.toLowerCase().startsWith("never ")) {
+                  dontItems.push(itemStr);
+                } else {
+                  // If can't clearly determine, put in do section
+                  doItems.push(itemStr);
+                }
+              });
+              
+              enhanced.dosDonts = {
+                do: doItems,
+                dont: dontItems
+              };
+              
+              return enhanced;
+            }
+          } catch (e) {
+            // If JSON parsing fails, continue with regular string processing
+            console.log("Failed to parse dosDonts as array:", e);
+          }
+        }
+        
+        // Regular string processing for non-array strings
+        // If it's a string, try to extract do's and don'ts
+        const doString = content.dosDonts.match(/do:([^]*?)(?:don'?t|shouldn'?t|avoid):/i);
+        const dontString = content.dosDonts.match(/(?:don'?t|shouldn'?t|avoid):([^]*?)(?:$)/i);
+        
+        // If we can extract structured do's and don'ts, convert to object format
+        if (doString || dontString) {
+          enhanced.dosDonts = {
+            do: doString ? doString[1].trim() : "",
+            dont: dontString ? dontString[1].trim() : ""
+          };
+        } else {
+          // Try to extract do/don't items by splitting the string
+          const lines = content.dosDonts.split(/[\n,]+/);
+          const doItems: string[] = [];
+          const dontItems: string[] = [];
+          
+          lines.forEach((line: string) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine.toLowerCase().startsWith("do ") || 
+                trimmedLine.toLowerCase().startsWith("always ") || 
+                trimmedLine.toLowerCase().startsWith("use ")) {
+              doItems.push(trimmedLine);
+            } else if (trimmedLine.toLowerCase().startsWith("don't ") || 
+                      trimmedLine.toLowerCase().startsWith("avoid ") || 
+                      trimmedLine.toLowerCase().startsWith("never ")) {
+              dontItems.push(trimmedLine);
+            }
+          });
+          
+          if (doItems.length > 0 || dontItems.length > 0) {
+            enhanced.dosDonts = {
+              do: doItems,
+              dont: dontItems
+            };
+          }
+          // Otherwise keep as string
+        }
+      } else if (typeof content.dosDonts === 'object' && content.dosDonts !== null) {
+        // Ensure the object has the right structure
+        if (!content.dosDonts.do && !content.dosDonts.dont) {
+          // If neither property exists, try to convert from array format if that's what we have
+          if (Array.isArray(content.dosDonts)) {
+            // If it's an array, try to split into do/dont sections
+            const doItems: string[] = [];
+            const dontItems: string[] = [];
+            
+            content.dosDonts.forEach((item: string) => {
+              if (item.toLowerCase().startsWith("do ") || 
+                  item.toLowerCase().startsWith("always ") || 
+                  item.toLowerCase().startsWith("use ")) {
+                doItems.push(item);
+              } else if (item.toLowerCase().startsWith("don't ") || 
+                         item.toLowerCase().startsWith("avoid ") || 
+                         item.toLowerCase().startsWith("never ")) {
+                dontItems.push(item);
+              } else {
+                // If can't clearly determine, put in do section
+                doItems.push(item);
+              }
+            });
+            
+            enhanced.dosDonts = {
+              do: doItems.length > 0 ? doItems : "",
+              dont: dontItems.length > 0 ? dontItems : ""
+            };
+          } else {
+            // If it's an object but without do/dont properties, convert to string
+            enhanced.dosDonts = JSON.stringify(content.dosDonts);
+          }
+        } else {
+          // Make sure both properties exist
+          enhanced.dosDonts = {
+            do: content.dosDonts.do || "",
+            dont: content.dosDonts.dont || ""
+          };
+        }
+      }
+      break;
+      
     case 'nextSteps':
       // Convert string actions to structured format if needed
       if (content.recommendedActions && Array.isArray(content.recommendedActions)) {
@@ -151,9 +296,117 @@ export const processAIResponse = (section: string, response: any): any => {
     // First enhance the content
     const enhancedContent = enhanceAIContent(section, response);
     
-    // Add a disclaimer flag for general insights
-    if (section === 'company' || section === 'competitors' || section === 'techStack') {
-      enhancedContent.isGeneralInsight = true;
+    // Remove isGeneralInsight flag if it exists
+    delete enhancedContent.isGeneralInsight;
+    
+    // Enforce content limits for conciseness
+    if (enhancedContent.summary && typeof enhancedContent.summary === 'string') {
+      enhancedContent.summary = truncateText(enhancedContent.summary, 200);
+    }
+    
+    // Truncate text fields
+    if (enhancedContent.description && typeof enhancedContent.description === 'string') {
+      enhancedContent.description = truncateText(enhancedContent.description, 200);
+    }
+    
+    if (enhancedContent.marketPosition && typeof enhancedContent.marketPosition === 'string') {
+      enhancedContent.marketPosition = truncateText(enhancedContent.marketPosition, 150);
+    }
+    
+    if (enhancedContent.competitiveAdvantage && typeof enhancedContent.competitiveAdvantage === 'string') {
+      enhancedContent.competitiveAdvantage = truncateText(enhancedContent.competitiveAdvantage, 150);
+    }
+    
+    if (enhancedContent.marketDynamics && typeof enhancedContent.marketDynamics === 'string') {
+      enhancedContent.marketDynamics = truncateText(enhancedContent.marketDynamics, 150);
+    }
+    
+    if (enhancedContent.communicationPreferences && typeof enhancedContent.communicationPreferences === 'string') {
+      enhancedContent.communicationPreferences = truncateText(enhancedContent.communicationPreferences, 150);
+    }
+    
+    if (enhancedContent.dosDonts && typeof enhancedContent.dosDonts === 'string') {
+      enhancedContent.dosDonts = truncateText(enhancedContent.dosDonts, 200);
+    }
+    
+    if (enhancedContent.suggestedAgenda && typeof enhancedContent.suggestedAgenda === 'string') {
+      enhancedContent.suggestedAgenda = truncateText(enhancedContent.suggestedAgenda, 200);
+    }
+    
+    // Truncate array items too
+    if (enhancedContent.keyPoints && Array.isArray(enhancedContent.keyPoints)) {
+      enhancedContent.keyPoints = enhancedContent.keyPoints.slice(0, 3).map((point: any) => 
+        typeof point === 'string' ? truncateText(point, 100) : point
+      );
+    }
+    
+    if (enhancedContent.challenges && Array.isArray(enhancedContent.challenges)) {
+      enhancedContent.challenges = enhancedContent.challenges.slice(0, 3).map((item: any) => 
+        typeof item === 'string' ? truncateText(item, 100) : item
+      );
+    }
+    
+    if (enhancedContent.mainCompetitors && Array.isArray(enhancedContent.mainCompetitors)) {
+      enhancedContent.mainCompetitors = enhancedContent.mainCompetitors.slice(0, 3).map((item: any) => 
+        typeof item === 'string' ? truncateText(item, 100) : item
+      );
+    }
+    
+    if (enhancedContent.currentTechnologies && Array.isArray(enhancedContent.currentTechnologies)) {
+      enhancedContent.currentTechnologies = enhancedContent.currentTechnologies.slice(0, 3).map((item: any) => 
+        typeof item === 'string' ? truncateText(item, 100) : item
+      );
+    }
+    
+    // Only keep suggestions/tips for next-steps and interactions sections
+    if (section !== 'nextSteps' && section !== 'interactions') {
+      // Remove any recommendations, suggestions, or tips
+      delete enhancedContent.recommendations;
+      delete enhancedContent.recommendedActions;
+      delete enhancedContent.suggestedApproach;
+      delete enhancedContent.personalizationTips;
+      delete enhancedContent.preparationTips;
+      delete enhancedContent.tips;
+      delete enhancedContent.suggestions;
+    } else {
+      // For next-steps and interactions, keep the tips but still truncate them
+      if (enhancedContent.painPoints && Array.isArray(enhancedContent.painPoints)) {
+        enhancedContent.painPoints = enhancedContent.painPoints.slice(0, 2).map((item: any) => 
+          typeof item === 'string' ? truncateText(item, 100) : item
+        );
+      }
+      
+      if (enhancedContent.opportunities && Array.isArray(enhancedContent.opportunities)) {
+        enhancedContent.opportunities = enhancedContent.opportunities.slice(0, 2).map((item: any) => 
+          typeof item === 'string' ? truncateText(item, 100) : item
+        );
+      }
+      
+      if (enhancedContent.recommendations && Array.isArray(enhancedContent.recommendations)) {
+        enhancedContent.recommendations = enhancedContent.recommendations.slice(0, 2);
+      }
+      
+      if (enhancedContent.recommendedActions && Array.isArray(enhancedContent.recommendedActions)) {
+        enhancedContent.recommendedActions = enhancedContent.recommendedActions.slice(0, 2);
+      }
+      
+      if (enhancedContent.keyQuestions && Array.isArray(enhancedContent.keyQuestions)) {
+        enhancedContent.keyQuestions = enhancedContent.keyQuestions.slice(0, 3).map((item: any) => 
+          typeof item === 'string' ? truncateText(item, 100) : item
+        );
+      }
+      
+      if (enhancedContent.personalizationTips && Array.isArray(enhancedContent.personalizationTips)) {
+        enhancedContent.personalizationTips = enhancedContent.personalizationTips.slice(0, 2).map((item: any) => 
+          typeof item === 'string' ? truncateText(item, 100) : item
+        );
+      }
+    }
+    
+    if (enhancedContent.relevantIndustryTrends && Array.isArray(enhancedContent.relevantIndustryTrends)) {
+      enhancedContent.relevantIndustryTrends = enhancedContent.relevantIndustryTrends.slice(0, 3).map((item: any) => 
+        typeof item === 'string' ? truncateText(item, 100) : item
+      );
     }
     
     return enhancedContent;
@@ -185,7 +438,6 @@ export const createCompanyFallbackContent = (companyName: string, industry: stri
       `Market competition and customer acquisition can be significant challenges.`
     ],
     marketPosition: `Companies in the ${industry} sector typically compete based on service quality, technological innovation, and operational efficiency.`,
-    isGeneralInsight: true,
     insufficient_data: false
   };
 }; 

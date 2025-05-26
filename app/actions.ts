@@ -457,6 +457,9 @@ async function processReport(email: string, reportId: string) {
         }
       }
     )
+    
+    // After the report is completed, generate AI content for all sections
+    await generateAIContentForAllSections(reportId, leadData, apolloData);
   } catch (error) {
     console.error('Error processing report:', error)
     await reports.updateOne(
@@ -468,6 +471,60 @@ async function processReport(email: string, reportId: string) {
         }
       }
     )
+  }
+}
+
+// Function to generate AI content for all sections of a report
+async function generateAIContentForAllSections(reportId: string, leadData: any, apolloData: any) {
+  console.log(`Automatically generating AI content for report: ${reportId}`);
+  
+  // Define the sections to generate content for
+  const sections = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'];
+  const newContent: Record<string, any> = {};
+  
+  try {
+    // We need an API route to handle the AI generation
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
+    // Generate content for each section
+    for (const section of sections) {
+      const response = await fetch(`${baseUrl}/api/ai-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          section,
+          leadData,
+          apolloData
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        newContent[section] = result;
+        console.log(`Successfully generated AI content for ${section} section`);
+      } else {
+        console.error(`Failed to generate content for ${section} section`);
+      }
+    }
+    
+    // Update the report with the generated AI content
+    const { reports } = await getDb();
+    await reports.updateOne(
+      { _id: new ObjectId(reportId) },
+      {
+        $set: {
+          aiContent: newContent
+        }
+      }
+    );
+    
+    console.log(`Successfully saved AI content for report: ${reportId}`);
+    return newContent;
+  } catch (error) {
+    console.error('Error generating AI content:', error);
+    return null;
   }
 }
 
