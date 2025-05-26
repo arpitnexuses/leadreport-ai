@@ -67,10 +67,19 @@ import {
   Cpu,
   Newspaper,
   ArrowRight,
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AIGenerateAll } from "@/components/report/AIGenerateAll";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface LeadData {
   name: string;
@@ -213,6 +222,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [aiContent, setAiContent] = useState<Record<string, any>>({});
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   useEffect(() => {
     if (report) {
@@ -265,6 +276,87 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
   const handleReportReady = (loadedReport: LeadReport) => {
     setReport(loadedReport);
+    
+    // Check if the report doesn't have AI content yet
+    if (loadedReport && (!loadedReport.aiContent || Object.keys(loadedReport.aiContent).length === 0)) {
+      setIsGeneratingAI(true);
+      generateAllAIContent(loadedReport);
+    }
+  };
+
+  // Function to automatically generate AI content for all sections
+  const generateAllAIContent = async (reportData: LeadReport) => {
+    if (!reportData || !reportData.leadData) return;
+    
+    setIsGeneratingAI(true);
+    console.log("Automatically generating AI content for all sections");
+    
+    // Get list of active sections - ensure they are valid section keys
+    const validSectionKeys = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'] as const;
+    type SectionKey = typeof validSectionKeys[number];
+    
+    const sectionKeys = Object.keys(sections)
+      .filter(key => validSectionKeys.includes(key as SectionKey) && sections[key as keyof typeof sections]);
+    
+    const totalSections = sectionKeys.length;
+    
+    if (totalSections === 0) {
+      setIsSaving(false);
+      setIsGeneratingAI(false);
+      return;
+    }
+    
+    const newContent: Record<string, any> = {};
+    
+    try {
+      // Generate content for each section
+      for (const section of sectionKeys) {
+        // Call the AI generate endpoint for each section
+        const response = await fetch('/api/ai-generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            section,
+            leadData: reportData.leadData,
+            apolloData: reportData.apolloData
+          })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          newContent[section] = result;
+        } else {
+          console.error(`Failed to generate content for ${section} section`);
+        }
+      }
+      
+      // Update the state with all generated content
+      setAiContent(newContent);
+      
+      // Save the generated content to the database
+      const saveResponse = await fetch(`/api/reports/${reportData._id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          aiContent: newContent
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error("Failed to save AI content");
+      }
+      
+      console.log("Successfully generated and saved AI content for all sections");
+    } catch (error) {
+      console.error('Error in automatic AI generation:', error);
+    } finally {
+      setIsSaving(false);
+      setIsGeneratingAI(false);
+    }
   };
 
   const handleSave = async () => {
@@ -346,6 +438,79 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     }));
   };
 
+  // Create a function to handle sharing
+  const handleShare = () => {
+    const shareUrl = `${window.location.origin}/shared-report/${params.id}`;
+    
+    // Copy the URL to clipboard
+    navigator.clipboard.writeText(shareUrl);
+    setShowShareTooltip(true);
+    setTimeout(() => setShowShareTooltip(false), 2000);
+    
+    // Open the URL in a new tab
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // Fix the handleCompanyInfoUpdate function
+  const handleCompanyInfoUpdate = (field: string, value: string) => {
+    if (!isEditing || !editedLeadData) return;
+    
+    const updatedData = {...editedLeadData};
+    
+    // Update the appropriate field based on the field name
+    switch (field) {
+      case 'industry':
+        updatedData.companyDetails.industry = value;
+        break;
+      case 'employees':
+        updatedData.companyDetails.employees = value;
+        break;
+      case 'headquarters':
+        updatedData.companyDetails.headquarters = value;
+        break;
+      case 'website':
+        updatedData.companyDetails.website = value;
+        break;
+      // Other fields like fundingStage and fundingTotal might need to be 
+      // handled differently as they're from Apollo data
+      default:
+        break;
+    }
+    
+    setEditedLeadData(updatedData);
+  };
+
+  // Fix the handleMeetingUpdate function
+  const handleMeetingUpdate = (field: string, value: string | any[]) => {
+    if (!isEditing || !report) return;
+    
+    // Create a properly typed copy of the report
+    const updatedReport: LeadReport = { ...report };
+    
+    // Update the appropriate field
+    switch (field) {
+      case 'date':
+        updatedReport.meetingDate = value as string;
+        break;
+      case 'time':
+        updatedReport.meetingTime = value as string;
+        break;
+      case 'platform':
+        updatedReport.meetingPlatform = value as string;
+        break;
+      case 'agenda':
+        updatedReport.meetingAgenda = value as string;
+        break;
+      case 'participants':
+        updatedReport.participants = value as any[];
+        break;
+      default:
+        break;
+    }
+    
+    setReport(updatedReport);
+  };
+
   if (!report) {
     return (
       <ReportLoader reportId={params.id} onReportReady={handleReportReady} />
@@ -402,6 +567,27 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         isSaving={isSaving}
       />
       <main className="flex-1 p-8">
+        {/* AI Generation Banner */}
+        {isGeneratingAI && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-full">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-medium text-blue-800">AI Content is Being Generated</h3>
+              <p className="text-sm text-blue-600">
+                We&apos;re creating AI-powered insights for your report. This may take a minute...
+              </p>
+            </div>
+            <div className="ml-auto">
+              <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          </div>
+        )}
+
         {/* Header Section with Actions */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -423,10 +609,35 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
           <div className="flex items-center gap-3">
             <SectionToggle sections={sections} onToggle={handleSectionToggle} />
-            <Button variant="outline" className="gap-2" onClick={() => {}}>
-              <Share2 className="h-4 w-4" />
-              Share
-            </Button>
+            
+            <AIGenerateAll 
+              sections={sections}
+              leadData={leadData}
+              apolloData={report?.apolloData}
+              onContentGenerated={(newContent) => setAiContent(prevContent => ({...prevContent, ...newContent}))}
+              onSave={handleSave}
+              isEditing={isEditing}
+              isGeneratingInitial={isGeneratingAI}
+            />
+            
+            <TooltipProvider>
+              <Tooltip open={showShareTooltip}>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2" 
+                    onClick={handleShare}
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Share link copied and opened in new tab!</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
             <Button variant="outline" className="gap-2" onClick={() => {}}>
               <Download className="h-4 w-4" />
               Export
@@ -680,17 +891,27 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
         <CompanySection visible={sections.company}>
           <div className="space-y-6">
-            <CompanyInfoCard
-              companyName={leadData.companyName}
-              industry={leadData.companyDetails.industry}
-              employees={leadData.companyDetails.employees}
-              headquarters={leadData.companyDetails.headquarters}
-              website={leadData.companyDetails.website}
-              companyLogo={apolloPerson?.organization?.logo_url || ""}
-              companyDescription={apolloPerson?.organization?.description || ""}
-              fundingStage={apolloPerson?.organization?.funding_stage || ""}
-              fundingTotal={apolloPerson?.organization?.funding_total || ""}
-            />
+            <Card className="shadow-sm border">
+              <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
+                <span className="text-blue-600"><Building2 className="h-5 w-5" /></span>
+                <CardTitle className="text-xl">Company Information</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <CompanyInfoCard
+                  companyName={isEditing && editedLeadData ? editedLeadData.companyName : leadData.companyName}
+                  industry={isEditing && editedLeadData ? editedLeadData.companyDetails.industry : leadData.companyDetails.industry}
+                  employees={isEditing && editedLeadData ? editedLeadData.companyDetails.employees : leadData.companyDetails.employees}
+                  headquarters={isEditing && editedLeadData ? editedLeadData.companyDetails.headquarters : leadData.companyDetails.headquarters}
+                  website={isEditing && editedLeadData ? editedLeadData.companyDetails.website : leadData.companyDetails.website}
+                  companyLogo={apolloPerson?.organization?.logo_url || ""}
+                  companyDescription={apolloPerson?.organization?.description || ""}
+                  fundingStage={apolloPerson?.organization?.funding_stage || ""}
+                  fundingTotal={apolloPerson?.organization?.funding_total || ""}
+                  isEditing={isEditing}
+                  onUpdate={handleCompanyInfoUpdate}
+                />
+              </CardContent>
+            </Card>
             
             {/* AI Company Content */}
             <CompanyAnalysis
@@ -710,30 +931,51 @@ export default function ReportPage({ params }: { params: { id: string } }) {
             platform={report.meetingPlatform || "Not specified"}
             agenda={report.meetingAgenda || "No agenda specified"}
             participants={report.participants || []}
+            isEditing={isEditing}
+            onUpdate={handleMeetingUpdate}
           />
         </MeetingSection>
 
         <InteractionsSection visible={sections.interactions}>
-                        <div className="space-y-4">
-            {report.talkingPoints && report.talkingPoints.length > 0 ? (
-              <div className="space-y-4">
-                {report.talkingPoints.map((point, index) => (
-                  <Card key={index} className="overflow-hidden">
-                    <CardHeader className="bg-gray-50 p-4">
-                      <CardTitle className="text-lg">{point.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      <p>{point.content}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+          <Card className="shadow-sm border">
+            <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
+              <span className="text-blue-600"><Users className="h-5 w-5" /></span>
+              <CardTitle className="text-xl">Interactions</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <AISectionContent 
+                section="interactions" 
+                leadData={leadData} 
+                apolloData={apolloPerson}
+                isEditing={isEditing}
+                showSectionHeader={false}
+                existingContent={aiContent?.interactions}
+                onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('interactions', content)}
+              />
+              
+              <div className="mt-6 space-y-4">
+                {report.talkingPoints && report.talkingPoints.length > 0 ? (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">Talking Points</h3>
+                    {report.talkingPoints.map((point, index) => (
+                      <Card key={index} className="overflow-hidden">
+                        <CardHeader className="bg-gray-50 p-4">
+                          <CardTitle className="text-lg">{point.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <p>{point.content}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 ) : (
-              <div className="text-gray-500 italic py-4">
-                No interaction data available
+                  <div className="text-gray-500 italic py-4">
+                    No talking points available
                   </div>
                 )}
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </InteractionsSection>
 
         <CompetitorsSection visible={sections.competitors}>

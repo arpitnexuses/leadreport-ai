@@ -5,7 +5,13 @@ import { verify } from 'jsonwebtoken';
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
-                    request.nextUrl.pathname.startsWith('/signup');
+                     request.nextUrl.pathname.startsWith('/signup');
+  const isPublicPage = request.nextUrl.pathname.startsWith('/shared-report');
+  
+  // Skip middleware for public shared report pages
+  if (isPublicPage) {
+    return NextResponse.next();
+  }
 
   // If trying to access auth pages while logged in, redirect to home
   if (isAuthPage && token) {
@@ -36,7 +42,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - shared-report (public report pages)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|shared-report).*)',
   ],
 }; 
