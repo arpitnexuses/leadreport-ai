@@ -165,6 +165,10 @@ let client: MongoClient | null = null
 let db: Db | null = null
 let reports: Collection | null = null
 
+// Simple in-memory cache for Apollo data with expiration
+const apolloCache: Record<string, { data: any, timestamp: number }> = {};
+const APOLLO_CACHE_TTL = 1000 * 60 * 60; // 1 hour in milliseconds
+
 async function getDb() {
   if (!client) {
     client = await clientPromise
@@ -178,8 +182,17 @@ async function getDb() {
 }
 
 export async function fetchApolloData(email: string) {
+  // Check cache first
+  const cachedData = apolloCache[email];
+  const now = Date.now();
+  
+  if (cachedData && (now - cachedData.timestamp < APOLLO_CACHE_TTL)) {
+    console.log(`Using cached Apollo data for ${email}`);
+    return cachedData.data;
+  }
+
   if (!APOLLO_API_KEY) {
-    throw new Error("Apollo API key is not configured")
+    throw new Error("Apollo API key is not configured");
   }
 
   const response = await fetch("https://api.apollo.io/api/v1/people/match", {
@@ -195,77 +208,83 @@ export async function fetchApolloData(email: string) {
       reveal_phone_number: false,
       enrich_profiles: true
     }),
-  })
+  });
 
   if (!response.ok) {
-    const errorText = await response.text()
+    const errorText = await response.text();
     console.error('Apollo fetch failed:', {
       status: response.status,
       statusText: response.statusText,
       error: errorText,
       email: email
-    })
+    });
     
     if (response.status === 429) {
-      throw new Error("Apollo API rate limit exceeded. Please try again later.")
+      throw new Error("Apollo API rate limit exceeded. Please try again later.");
     } else if (response.status === 401) {
-      throw new Error("Invalid Apollo API key. Please check your configuration.")
+      throw new Error("Invalid Apollo API key. Please check your configuration.");
     } else if (response.status === 400) {
-      throw new Error("Invalid request to Apollo API. Please check the email format.")
+      throw new Error("Invalid request to Apollo API. Please check the email format.");
     } else if (response.status === 404) {
-      throw new Error("No data found for the provided email address.")
+      throw new Error("No data found for the provided email address.");
     }
     
-    throw new Error(`Failed to fetch Apollo data: ${response.status} ${response.statusText}`)
+    throw new Error(`Failed to fetch Apollo data: ${response.status} ${response.statusText}`);
   }
 
-  const data = await response.json()
+  const data = await response.json();
   
   if (!data.person) {
-    throw new Error("No person data found in Apollo API response")
+    throw new Error("No person data found in Apollo API response");
   }
 
   // Try to get profile picture from Apollo data
-  let photoUrl = null
+  let photoUrl = null;
   if (data.person.photo_url) {
-    photoUrl = data.person.photo_url
+    photoUrl = data.person.photo_url;
   } else if (data.person.facebook_url) {
     // Try to extract Facebook profile picture if available
     try {
-      const fbUsername = data.person.facebook_url.split('facebook.com/')[1]?.split('?')[0]
+      const fbUsername = data.person.facebook_url.split('facebook.com/')[1]?.split('?')[0];
       if (fbUsername) {
-        photoUrl = `https://graph.facebook.com/${fbUsername}/picture?type=large`
+        photoUrl = `https://graph.facebook.com/${fbUsername}/picture?type=large`;
       }
     } catch (error) {
-      console.error('Failed to parse Facebook URL:', error)
+      console.error('Failed to parse Facebook URL:', error);
     }
   }
 
   // If no photo found, generate an avatar
   if (!photoUrl) {
-    const name = data.person.name || email.split('@')[0]
+    const name = data.person.name || email.split('@')[0];
     const colors = [
       { bg: '2563eb', fg: 'ffffff' }, // Blue
       { bg: '4f46e5', fg: 'ffffff' }, // Indigo
       { bg: '7c3aed', fg: 'ffffff' }, // Violet
       { bg: '0891b2', fg: 'ffffff' }, // Cyan
       { bg: '0284c7', fg: 'ffffff' }  // Light Blue
-    ]
-    const colorIndex = Math.floor(Math.random() * colors.length)
-    const { bg, fg } = colors[colorIndex]
+    ];
+    const colorIndex = Math.floor(Math.random() * colors.length);
+    const { bg, fg } = colors[colorIndex];
     
-    photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${fg}&bold=true&size=200&length=2&font-size=0.4`
+    photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${fg}&bold=true&size=200&length=2&font-size=0.4`;
   }
   
   // Add the photo URL to the response
-  data.person.photo_url = photoUrl
+  data.person.photo_url = photoUrl;
+  
+  // Store in cache
+  apolloCache[email] = {
+    data,
+    timestamp: now
+  };
 
-  return data
+  return data;
 }
 
 async function generateAIReport(apolloData: ApolloResponse) {
-  const personData = apolloData.person || {}
-  const org = personData.organization || {}
+  const personData = apolloData.person || {};
+  const org = personData.organization || {};
   
   const leadData = {
     companyName: org.name || 'N/A',
@@ -300,7 +319,7 @@ async function generateAIReport(apolloData: ApolloResponse) {
     tags: [],
     nextFollowUp: null,
     customFields: {}
-  }
+  };
 
   const reportPrompt = `
 Create a professional lead report with the following structure:
@@ -338,7 +357,10 @@ Please provide specific recommendations for engaging with this lead based on the
 
 ### Notes
 - Initial contact made through Apollo.io lead generation
-`
+`;
+
+  // Use a faster model for the initial report generation
+  const model = "gpt-3.5-turbo";
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -347,7 +369,7 @@ Please provide specific recommendations for engaging with this lead based on the
       Authorization: `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-4",
+      model,
       messages: [
         {
           role: "system",
@@ -361,19 +383,19 @@ Please provide specific recommendations for engaging with this lead based on the
       temperature: 0.7,
       max_tokens: 1500,
     }),
-  })
+  });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null)
-    console.error('OpenAI API error:', errorData)
-    throw new Error("Failed to generate AI report. Please try again later.")
+    const errorData = await response.json().catch(() => null);
+    console.error('OpenAI API error:', errorData);
+    throw new Error("Failed to generate AI report. Please try again later.");
   }
 
-  const data = await response.json()
+  const data = await response.json();
   return {
     report: data.choices[0].message.content,
     leadData: leadData
-  }
+  };
 }
 
 export async function initiateReport(formData: FormData) {
@@ -424,56 +446,97 @@ export async function initiateReport(formData: FormData) {
 
 // Separate function to handle the processing
 async function processReport(email: string, reportId: string) {
-  const { reports } = await getDb()
+  const { reports } = await getDb();
   
   try {
     // Get the existing report to preserve meeting details and project
-    const existingReport = await reports.findOne({ _id: new ObjectId(reportId) })
+    const existingReport = await reports.findOne({ _id: new ObjectId(reportId) });
+    
+    if (!existingReport) {
+      throw new Error(`Report with ID ${reportId} not found`);
+    }
     
     // Step 1: Fetch Apollo Data
-    const apolloData = await fetchApolloData(email)
-    await reports.updateOne(
-      { _id: new ObjectId(reportId) },
-      { 
-        $set: { 
-          apolloData, 
-          status: "fetching_apollo",
-          // Preserve meeting details and project
-          meetingDate: existingReport?.meetingDate,
-          meetingTime: existingReport?.meetingTime,
-          meetingPlatform: existingReport?.meetingPlatform,
-          problemPitch: existingReport?.problemPitch,
-          'leadData.project': existingReport?.leadData?.project || 'N/A'
-        } 
-      }
-    )
-
-    // Step 2: Generate AI Report
-    const { report: aiReport, leadData } = await generateAIReport(apolloData)
-    
-    // Preserve the project field from the existing report
-    leadData.project = existingReport?.leadData?.project || leadData.project || 'N/A'
-    
-    await reports.updateOne(
-      { _id: new ObjectId(reportId) },
-      {
-        $set: {
-          report: aiReport,
-          leadData,
-          status: "completed",
-          // Preserve meeting details
-          meetingDate: existingReport?.meetingDate,
-          meetingTime: existingReport?.meetingTime,
-          meetingPlatform: existingReport?.meetingPlatform,
-          problemPitch: existingReport?.problemPitch
+    console.log(`Fetching Apollo data for ${email}`);
+    let apolloData;
+    try {
+      apolloData = await fetchApolloData(email);
+      await reports.updateOne(
+        { _id: new ObjectId(reportId) },
+        { 
+          $set: { 
+            apolloData, 
+            status: "fetching_apollo",
+            // Preserve meeting details and project
+            meetingDate: existingReport?.meetingDate,
+            meetingTime: existingReport?.meetingTime,
+            meetingPlatform: existingReport?.meetingPlatform,
+            problemPitch: existingReport?.problemPitch,
+            'leadData.project': existingReport?.leadData?.project || 'N/A'
+          } 
         }
+      );
+    } catch (apolloError) {
+      console.error(`Apollo data fetch error for ${email}:`, apolloError);
+      throw new Error(`Failed to fetch lead data: ${apolloError instanceof Error ? apolloError.message : 'Unknown Apollo error'}`);
+    }
+
+    // Step 2: Generate AI Report and AI Content for all sections in parallel
+    console.log(`Starting parallel report generation for ${reportId}`);
+    try {
+      // Start both processes in parallel
+      const reportPromise = generateAIReport(apolloData);
+      const aiContentPromise = generateAIContentForAllSections(reportId, apolloData.person || {}, apolloData);
+      
+      // Wait for the main report to be generated
+      const { report: aiReport, leadData } = await reportPromise;
+      
+      // Preserve the project field from the existing report
+      leadData.project = existingReport?.leadData?.project || leadData.project || 'N/A';
+      
+      // Update status to indicate we're generating AI sections
+      await reports.updateOne(
+        { _id: new ObjectId(reportId) },
+        {
+          $set: {
+            status: "generating_ai"
+          }
+        }
+      );
+      
+      // Update the report with the generated content
+      await reports.updateOne(
+        { _id: new ObjectId(reportId) },
+        {
+          $set: {
+            report: aiReport,
+            leadData,
+            status: "completed",
+            // Preserve meeting details
+            meetingDate: existingReport?.meetingDate,
+            meetingTime: existingReport?.meetingTime,
+            meetingPlatform: existingReport?.meetingPlatform,
+            problemPitch: existingReport?.problemPitch
+          }
+        }
+      );
+      
+      // Wait for AI content generation to complete (which is happening in parallel)
+      // If this fails, we'll still have a valid report, just without the AI sections
+      try {
+        await aiContentPromise;
+      } catch (aiContentError) {
+        console.error(`AI content generation error for ${reportId}:`, aiContentError);
+        // We don't throw here to avoid failing the whole report
+        // The report is still valid without AI content
       }
-    )
-    
-    // After the report is completed, generate AI content for all sections
-    await generateAIContentForAllSections(reportId, leadData, apolloData);
+    } catch (reportGenError) {
+      console.error(`Report generation error for ${reportId}:`, reportGenError);
+      throw new Error(`Failed to generate report: ${reportGenError instanceof Error ? reportGenError.message : 'Unknown generation error'}`);
+    }
   } catch (error) {
-    console.error('Error processing report:', error)
+    console.error('Error processing report:', error);
+    // Update the report with the error status
     await reports.updateOne(
       { _id: new ObjectId(reportId) },
       {
@@ -482,7 +545,7 @@ async function processReport(email: string, reportId: string) {
           error: error instanceof Error ? error.message : "Unknown error"
         }
       }
-    )
+    );
   }
 }
 
@@ -492,34 +555,34 @@ async function generateAIContentForAllSections(reportId: string, leadData: any, 
   
   // Define the sections to generate content for
   const sections = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'];
-  const newContent: Record<string, any> = {};
   
   try {
     // We need an API route to handle the AI generation
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
     
-    // Generate content for each section
-    for (const section of sections) {
-      const response = await fetch(`${baseUrl}/api/ai-generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          section,
-          leadData,
-          apolloData
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        newContent[section] = result;
-        console.log(`Successfully generated AI content for ${section} section`);
-      } else {
-        console.error(`Failed to generate content for ${section} section`);
-      }
+    // Use the batch endpoint to generate all content in a single API call
+    console.log(`Making batch request to ${baseUrl}/api/ai-generate`);
+    const response = await fetch(`${baseUrl}/api/ai-generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        batchSections: sections,
+        leadData,
+        apolloData
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Could not get error text');
+      console.error(`Failed to generate batch content: ${response.status} ${response.statusText}`);
+      console.error(`Error details: ${errorText}`);
+      return null;
     }
+    
+    const newContent = await response.json();
+    console.log(`Successfully generated AI content for all sections`);
     
     // Update the report with the generated AI content
     const { reports } = await getDb();
@@ -536,6 +599,20 @@ async function generateAIContentForAllSections(reportId: string, leadData: any, 
     return newContent;
   } catch (error) {
     console.error('Error generating AI content:', error);
+    // Try to update the report to indicate the error in AI content generation
+    try {
+      const { reports } = await getDb();
+      await reports.updateOne(
+        { _id: new ObjectId(reportId) },
+        {
+          $set: {
+            aiContentError: error instanceof Error ? error.message : "Unknown error generating AI content"
+          }
+        }
+      );
+    } catch (dbError) {
+      console.error('Failed to update report with AI content error:', dbError);
+    }
     return null;
   }
 }

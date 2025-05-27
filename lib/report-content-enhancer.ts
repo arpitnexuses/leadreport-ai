@@ -290,7 +290,37 @@ export const enhanceAIContent = (section: string, content: any): any => {
  * Processes raw AI response to ensure consistent data structure
  */
 export const processAIResponse = (section: string, response: any): any => {
-  if (!response) return { insufficient_data: true, message: "No response received" };
+  console.log(`Processing AI response for section: ${section}`, { 
+    responseType: typeof response,
+    hasData: !!response,
+    isInsufficient: response?.insufficient_data,
+    responseKeys: response ? Object.keys(response) : []
+  });
+  
+  // Handle missing or invalid responses
+  if (!response) {
+    console.error(`No response received for section: ${section}`);
+    return { 
+      insufficient_data: true, 
+      message: "No response received" 
+    };
+  }
+  
+  // If the response is already marked as insufficient data, return it
+  if (response.insufficient_data === true) {
+    console.log(`Section ${section} has insufficient data flag set`);
+    return response;
+  }
+  
+  // If the response is an error object, return as insufficient data
+  if (response.error) {
+    console.error(`Error in response for section ${section}:`, response.error);
+    return { 
+      insufficient_data: true, 
+      message: response.error || "Error in AI content generation",
+      error: response.error
+    };
+  }
   
   try {
     // First enhance the content
@@ -409,12 +439,36 @@ export const processAIResponse = (section: string, response: any): any => {
       );
     }
     
+    // Verify we have actual content after all the processing
+    const hasContent = Object.keys(enhancedContent).some(key => 
+      key !== 'insufficient_data' && 
+      key !== 'message' && 
+      key !== 'error' && 
+      enhancedContent[key] !== null && 
+      enhancedContent[key] !== undefined && 
+      enhancedContent[key] !== '' && 
+      (typeof enhancedContent[key] !== 'object' || Object.keys(enhancedContent[key]).length > 0) &&
+      (!Array.isArray(enhancedContent[key]) || enhancedContent[key].length > 0)
+    );
+    
+    if (!hasContent) {
+      console.warn(`Section ${section} has no actual content after processing`);
+      return { 
+        insufficient_data: true, 
+        message: "Unable to generate sufficient content for this section"
+      };
+    }
+    
+    // Set the insufficient_data flag to false explicitly
+    enhancedContent.insufficient_data = false;
+    
     return enhancedContent;
   } catch (error) {
-    console.error("Error processing AI response:", error);
+    console.error(`Error processing AI response for section ${section}:`, error);
     return { 
       insufficient_data: true, 
-      message: "Error processing AI content"
+      message: "Error processing AI content",
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 };

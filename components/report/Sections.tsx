@@ -9,42 +9,42 @@ interface SectionProps {
 
 export function OverviewSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section overview-section mb-8">{children}</div>;
+  return <div id="overview-section" className="section overview-section mb-8">{children}</div>;
 }
 
 export function CompanySection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section company-section mb-8">{children}</div>;
+  return <div id="company-section" className="section company-section mb-8">{children}</div>;
 }
 
 export function MeetingSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section meeting-section mb-8">{children}</div>;
+  return <div id="meeting-section" className="section meeting-section mb-8">{children}</div>;
 }
 
 export function InteractionsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section interactions-section mb-8">{children}</div>;
+  return <div id="interactions-section" className="section interactions-section mb-8">{children}</div>;
 }
 
 export function CompetitorsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section competitors-section mb-8">{children}</div>;
+  return <div id="competitors-section" className="section competitors-section mb-8">{children}</div>;
 }
 
 export function TechStackSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section tech-stack-section mb-8">{children}</div>;
+  return <div id="techStack-section" className="section tech-stack-section mb-8">{children}</div>;
 }
 
 export function NewsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section news-section mb-8">{children}</div>;
+  return <div id="news-section" className="section news-section mb-8">{children}</div>;
 }
 
 export function NextStepsSection({ children, visible = true }: { children: React.ReactNode; visible?: boolean }) {
   if (!visible) return null;
-  return <div className="section next-steps-section mb-8">{children}</div>;
+  return <div id="nextSteps-section" className="section next-steps-section mb-8">{children}</div>;
 }
 
 interface AISectionContentProps {

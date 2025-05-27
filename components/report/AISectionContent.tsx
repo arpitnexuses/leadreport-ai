@@ -84,6 +84,48 @@ export function AISectionContent({
     }
   };
 
+  // Add this helper function before the renderOverviewContent function
+  const renderSafeObject = (obj: any) => {
+    if (!obj) return null;
+    
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return (
+        <ul className="space-y-1 pl-1">
+          {obj.map((item, index) => (
+            <li key={index} className="flex items-start">
+              <span className="text-blue-500 mr-2">•</span>
+              <span>{typeof item === 'string' ? item : renderSafeObject(item)}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    
+    // Handle objects (including those with numeric keys)
+    if (typeof obj === 'object') {
+      return (
+        <div className="bg-white p-3 rounded border">
+          {Object.entries(obj).map(([key, value], index) => (
+            <div key={index} className="mb-1">
+              <span className="font-medium text-sm">{key.charAt(0).toUpperCase() + key.slice(1)}: </span>
+              <span>{typeof value === 'string' ? value : renderSafeObject(value)}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    // For primitive types
+    return String(obj);
+  };
+
+  // Helper function to check if an object has numeric keys (like {"0": "value1", "1": "value2"})
+  const hasNumericKeys = (obj: any): boolean => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+    return Object.keys(obj).every(key => !isNaN(Number(key)));
+  };
+
   if (isLoading) {
     return (
       <div className="bg-gray-50 p-6 rounded-lg">
@@ -138,10 +180,9 @@ export function AISectionContent({
           <div>
             <h4 className="font-medium text-amber-800 mb-1">Insufficient Data</h4>
             <p className="text-sm">
-              {content.message || "Not enough specific information about the company's market position, competitors, products, or challenges to provide meaningful insights."}
+              {content.message || "The AI analysis is based on limited information and may not be fully accurate."}
             </p>
             <p className="text-xs mt-2 text-amber-600">
-              Rather than presenting potentially incorrect information, we&apos;ve limited the AI content for this section.
               Rather than presenting potentially incorrect information, we&apos;ve limited the AI content for this section.
             </p>
           </div>
@@ -177,7 +218,11 @@ export function AISectionContent({
       {content.summary && (
         <div className="bg-blue-50/50 p-4 rounded-lg">
           <EditableField
-            value={content.summary}
+            value={typeof content.summary === 'string' 
+              ? content.summary
+              : typeof content.summary === 'object' && !Array.isArray(content.summary)
+                ? JSON.stringify(content.summary)
+                : String(content.summary)}
             onChange={(value) => handleContentChange('summary', value)}
             isEditing={isEditing}
             multiline={true}
@@ -186,10 +231,25 @@ export function AISectionContent({
         </div>
       )}
       
+      {/* Handle specific case of insufficient_data flag */}
+      {content.insufficient_data && (
+        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mb-4">
+          <p className="text-amber-700 font-medium flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+              <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
+            </svg>
+            Limited Information
+          </p>
+          <p className="text-amber-700 text-sm mt-2">
+            {content.message || "The AI analysis is based on limited information and may not be fully accurate."}
+          </p>
+        </div>
+      )}
+      
       {content.keyPoints && content.keyPoints.length > 0 && (
         <div>
           <h3 className="text-sm font-medium text-gray-500 mb-2">Key Points</h3>
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {content.keyPoints.map((point: string, index: number) => (
               <li key={index} className="flex items-start">
                 <span className="text-blue-500 mr-2">•</span>
@@ -203,6 +263,68 @@ export function AISectionContent({
             ))}
           </ul>
         </div>
+      )}
+      
+      {content.keyPoints && !Array.isArray(content.keyPoints) && typeof content.keyPoints === 'object' && content.keyPoints !== null && hasNumericKeys(content.keyPoints) && (
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-2">Key Points</h3>
+          <ul className="space-y-2">
+            {Object.values(content.keyPoints).map((point: any, index: number) => (
+              <li key={index} className="flex items-start">
+                <span className="text-blue-500 mr-2">•</span>
+                <span>{typeof point === 'string' ? point.replace(/^\d+:\s*/, '') : point}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {content.keyPoints && typeof content.keyPoints === 'string' && content.keyPoints.startsWith('[') && content.keyPoints.endsWith(']') && (
+        (() => {
+          try {
+            // Try to parse the string as JSON array
+            const parsedPoints = JSON.parse(content.keyPoints);
+            if (Array.isArray(parsedPoints)) {
+              return (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">Key Points</h3>
+                  <ul className="space-y-2">
+                    {parsedPoints.map((point, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="text-blue-500 mr-2">•</span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            }
+          } catch (e) {
+            console.error("Failed to parse keyPoints as JSON array:", e);
+          }
+          return null;
+        })()
+      )}
+      
+      {/* Use specialized components for specific sections */}
+      {section === 'techStack' && (
+        <TechStackContent 
+          content={content} 
+          isEditing={isEditing}
+          onContentChange={handleContentChange}
+          onArrayItemChange={handleArrayItemChange}
+          onNestedContentChange={handleNestedContentChange}
+        />
+      )}
+      
+      {section === 'news' && (
+        <NewsContent 
+          content={content}
+          isEditing={isEditing}
+          onContentChange={handleContentChange}
+          onArrayItemChange={handleArrayItemChange}
+          onNestedContentChange={handleNestedContentChange}
+        />
       )}
       
       {/* Company-specific content */}
@@ -255,6 +377,49 @@ export function AISectionContent({
                     </li>
                   ))}
                 </ul>
+              ) : hasNumericKeys(content.challenges) ? (
+                <ul className="space-y-1 pl-1">
+                  {Object.values(content.challenges).map((challenge: any, index: number) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{typeof challenge === 'string' ? challenge.replace(/^\d+:\s*/, '') : challenge}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : typeof content.challenges === 'string' && (content.challenges.startsWith('[') && content.challenges.endsWith(']')) ? (
+                (() => {
+                  try {
+                    // Try to parse the string as JSON array
+                    const parsedChallenges = JSON.parse(content.challenges);
+                    if (Array.isArray(parsedChallenges)) {
+                      return (
+                        <ul className="space-y-1 pl-1">
+                          {parsedChallenges.map((challenge, index) => (
+                            <li key={index} className="flex items-start">
+                              <span className="text-blue-500 mr-2">•</span>
+                              <span>{challenge}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    }
+                  } catch (e) {
+                    // If parsing fails, fall back to regular string display
+                    console.error("Failed to parse challenges as JSON array:", e);
+                  }
+                  // Default fallback
+                  return (
+                    <div className="bg-white p-4 rounded border">
+                      <EditableField
+                        value={content.challenges}
+                        onChange={(value) => handleContentChange('challenges', value)}
+                        isEditing={isEditing}
+                        multiline={true}
+                        className="text-gray-800"
+                      />
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="bg-white p-4 rounded border">
                   <EditableField
@@ -280,70 +445,173 @@ export function AISectionContent({
                 {content.mainCompetitors ? 'Main Competitors' : 'Competitors'}
               </h3>
               
-              {/* Handle case where competitors is an array of strings */}
-              {((content.competitors || content.mainCompetitors) && 
-                Array.isArray(content.competitors || content.mainCompetitors) && 
-                (content.competitors || content.mainCompetitors).length > 0 &&
-                typeof (content.competitors || content.mainCompetitors)[0] === 'string') ? (
-                <ul className="space-y-1 pl-1">
-                  {(content.competitors || content.mainCompetitors).map((competitor: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-blue-500 mr-2">•</span>
-                      <EditableField
-                        value={competitor}
-                        onChange={(value) => handleArrayItemChange(content.mainCompetitors ? 'mainCompetitors' : 'competitors', index, value)}
-                        isEditing={isEditing}
-                        className="flex-1"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="space-y-3">
-                  {(content.competitors || content.mainCompetitors || []).map((competitor: any, index: number) => (
-                    <div key={index} className="bg-white p-3 rounded border">
-                      <h4 className="font-medium">
+              {/* Get the appropriate competitor data, ensuring it's an array */}
+              {(() => {
+                const competitorsData = content.mainCompetitors || content.competitors;
+                const competitorsKey = content.mainCompetitors ? 'mainCompetitors' : 'competitors';
+                
+                // Check if it's array-like but not actually an array (possibly the cause of the error)
+                if (competitorsData && typeof competitorsData === 'object' && !Array.isArray(competitorsData)) {
+                  // Could be an object with numeric keys - convert to array
+                  if (Object.keys(competitorsData).every(key => !isNaN(Number(key)))) {
+                    const asArray = Object.values(competitorsData);
+                    
+                    // Render as string array or object array
+                    if (asArray.length > 0 && typeof asArray[0] === 'string') {
+                      return (
+                        <ul className="space-y-1 pl-1">
+                          {asArray.map((competitor, index) => (
+                            <li key={index} className="flex items-start">
+                              <span className="text-blue-500 mr-2">•</span>
+                              <EditableField
+                                value={competitor as string}
+                                onChange={(value) => handleArrayItemChange(competitorsKey, index, value)}
+                                isEditing={isEditing}
+                                className="flex-1"
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    } else {
+                      return (
+                        <div className="space-y-3">
+                          {(asArray as any[]).map((competitor, index) => (
+                            <div key={index} className="bg-white p-3 rounded border">
+                              <h4 className="font-medium">
+                                <EditableField
+                                  value={competitor.name}
+                                  onChange={(value) => handleNestedContentChange(competitorsKey, index, 'name', value)}
+                                  isEditing={isEditing}
+                                />
+                              </h4>
+                              <EditableField
+                                value={competitor.description}
+                                onChange={(value) => handleNestedContentChange(competitorsKey, index, 'description', value)}
+                                isEditing={isEditing}
+                                multiline={true}
+                                className="text-sm text-gray-600"
+                              />
+                              {competitor.strengths && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-medium text-gray-500">Strengths:</p>
+                                  <EditableField
+                                    value={competitor.strengths}
+                                    onChange={(value) => handleNestedContentChange(competitorsKey, index, 'strengths', value)}
+                                    isEditing={isEditing}
+                                    multiline={true}
+                                    className="text-sm text-gray-600"
+                                  />
+                                </div>
+                              )}
+                              {competitor.weaknesses && (
+                                <div className="mt-2">
+                                  <p className="text-xs font-medium text-gray-500">Weaknesses:</p>
+                                  <EditableField
+                                    value={competitor.weaknesses}
+                                    onChange={(value) => handleNestedContentChange(competitorsKey, index, 'weaknesses', value)}
+                                    isEditing={isEditing}
+                                    multiline={true}
+                                    className="text-sm text-gray-600"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                  } else {
+                    // Just a regular non-array object, render as is
+                    return (
+                      <div className="bg-white p-3 rounded border">
                         <EditableField
-                          value={competitor.name}
-                          onChange={(value) => handleNestedContentChange(content.mainCompetitors ? 'mainCompetitors' : 'competitors', index, 'name', value)}
+                          value={competitorsData}
+                          onChange={(value) => handleContentChange(competitorsKey, value)}
                           isEditing={isEditing}
+                          multiline={true}
+                          className="text-gray-800"
                         />
-                      </h4>
-                      <EditableField
-                        value={competitor.description}
-                        onChange={(value) => handleNestedContentChange(content.mainCompetitors ? 'mainCompetitors' : 'competitors', index, 'description', value)}
-                        isEditing={isEditing}
-                        multiline={true}
-                        className="text-sm text-gray-600"
-                      />
-                      {competitor.strengths && (
-                        <div className="mt-2">
-                          <p className="text-xs font-medium text-gray-500">Strengths:</p>
-                          <EditableField
-                            value={competitor.strengths}
-                            onChange={(value) => handleNestedContentChange(content.mainCompetitors ? 'mainCompetitors' : 'competitors', index, 'strengths', value)}
-                            isEditing={isEditing}
-                            multiline={true}
-                            className="text-sm text-gray-600"
-                          />
-                        </div>
-                      )}
-                      {competitor.weaknesses && (
-                        <div className="mt-2">
-                          <p className="text-xs font-medium text-gray-500">Weaknesses:</p>
-                          <EditableField
-                            value={competitor.weaknesses}
-                            onChange={(value) => handleNestedContentChange(content.mainCompetitors ? 'mainCompetitors' : 'competitors', index, 'weaknesses', value)}
-                            isEditing={isEditing}
-                            multiline={true}
-                            className="text-sm text-gray-600"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                      </div>
+                    );
+                  }
+                }
+                
+                // Handle properly formed arrays
+                if (Array.isArray(competitorsData) && competitorsData.length > 0) {
+                  if (typeof competitorsData[0] === 'string') {
+                    return (
+                      <ul className="space-y-1 pl-1">
+                        {competitorsData.map((competitor, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="text-blue-500 mr-2">•</span>
+                            <EditableField
+                              value={competitor as string}
+                              onChange={(value) => handleArrayItemChange(competitorsKey, index, value)}
+                              isEditing={isEditing}
+                              className="flex-1"
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  } else {
+                    return (
+                      <div className="space-y-3">
+                        {(competitorsData as any[]).map((competitor, index) => (
+                          <div key={index} className="bg-white p-3 rounded border">
+                            <h4 className="font-medium">
+                              <EditableField
+                                value={competitor.name}
+                                onChange={(value) => handleNestedContentChange(competitorsKey, index, 'name', value)}
+                                isEditing={isEditing}
+                              />
+                            </h4>
+                            <EditableField
+                              value={competitor.description}
+                              onChange={(value) => handleNestedContentChange(competitorsKey, index, 'description', value)}
+                              isEditing={isEditing}
+                              multiline={true}
+                              className="text-sm text-gray-600"
+                            />
+                            {competitor.strengths && (
+                              <div className="mt-2">
+                                <p className="text-xs font-medium text-gray-500">Strengths:</p>
+                                <EditableField
+                                  value={competitor.strengths}
+                                  onChange={(value) => handleNestedContentChange(competitorsKey, index, 'strengths', value)}
+                                  isEditing={isEditing}
+                                  multiline={true}
+                                  className="text-sm text-gray-600"
+                                />
+                              </div>
+                            )}
+                            {competitor.weaknesses && (
+                              <div className="mt-2">
+                                <p className="text-xs font-medium text-gray-500">Weaknesses:</p>
+                                <EditableField
+                                  value={competitor.weaknesses}
+                                  onChange={(value) => handleNestedContentChange(competitorsKey, index, 'weaknesses', value)}
+                                  isEditing={isEditing}
+                                  multiline={true}
+                                  className="text-sm text-gray-600"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                }
+                
+                // Fallback for empty or invalid data
+                return (
+                  <div className="text-gray-500 italic py-2">
+                    No competitor information available
+                  </div>
+                );
+              })()}
             </div>
           )}
           
@@ -374,188 +642,6 @@ export function AISectionContent({
                   className="text-gray-800"
                 />
               </div>
-            </div>
-          )}
-        </>
-      )}
-      
-      {section === 'techStack' && (
-        <>
-          {content.currentTechnologies && content.currentTechnologies.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Current Technologies</h3>
-              <div className="flex flex-wrap gap-2">
-                {content.currentTechnologies.map((tech: string, index: number) => (
-                  <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                    <EditableField
-                      value={tech}
-                      onChange={(value) => handleArrayItemChange('currentTechnologies', index, value)}
-                      isEditing={isEditing}
-                      className="flex-1"
-                    />
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {content.painPoints && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Pain Points</h3>
-              {typeof content.painPoints === 'string' && !isStringList(content.painPoints) ? (
-                <p className="text-sm bg-gray-50 p-3 rounded">{content.painPoints}</p>
-              ) : (
-                <ul className="space-y-1 pl-1">
-                  {ensureArray(content.painPoints).map((point: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-red-500 mr-2">•</span>
-                      <EditableField
-                        value={point}
-                        onChange={(value) => handleArrayItemChange('painPoints', index, value)}
-                        isEditing={isEditing}
-                        className="flex-1"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          
-          {canShowRecommendations && content.opportunities && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Opportunities</h3>
-              {typeof content.opportunities === 'string' && !isStringList(content.opportunities) ? (
-                <p className="text-sm bg-gray-50 p-3 rounded">{content.opportunities}</p>
-              ) : (
-                <ul className="space-y-1 pl-1">
-                  {ensureArray(content.opportunities).map((opportunity: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-green-500 mr-2">•</span>
-                      <EditableField
-                        value={opportunity}
-                        onChange={(value) => handleArrayItemChange('opportunities', index, value)}
-                        isEditing={isEditing}
-                        className="flex-1"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          
-          {canShowRecommendations && content.recommendations && content.recommendations.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommendations</h3>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <ul className="space-y-1 pl-1">
-                  {content.recommendations.map((rec: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-blue-600 mr-2">→</span>
-                      <EditableField
-                        value={rec}
-                        onChange={(value) => handleArrayItemChange('recommendations', index, value)}
-                        isEditing={isEditing}
-                        className="text-sm flex-1"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
-          
-          {content.technologies && content.technologies.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Technologies</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {content.technologies.map((tech: any, index: number) => (
-                  <div key={index} className="bg-white p-3 rounded border">
-                    <h4 className="font-medium">
-                      <EditableField
-                        value={tech.name}
-                        onChange={(value) => handleNestedContentChange('technologies', index, 'name', value)}
-                        isEditing={isEditing}
-                      />
-                    </h4>
-                    <EditableField
-                      value={tech.description}
-                      onChange={(value) => handleNestedContentChange('technologies', index, 'description', value)}
-                      isEditing={isEditing}
-                      multiline={true}
-                      className="text-sm text-gray-600"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-      
-      {section === 'news' && (
-        <>
-          {content.recentNews && content.recentNews.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recent News</h3>
-              <div className="space-y-3">
-                {content.recentNews.map((news: any, index: number) => (
-                  <div key={index} className="bg-white p-3 rounded border">
-                    <h4 className="font-medium">
-                      <EditableField
-                        value={news.title}
-                        onChange={(value) => handleNestedContentChange('recentNews', index, 'title', value)}
-                        isEditing={isEditing}
-                      />
-                    </h4>
-                    {news.date && (
-                      <EditableField
-                        value={news.date}
-                        onChange={(value) => handleNestedContentChange('recentNews', index, 'date', value)}
-                        isEditing={isEditing}
-                        className="text-xs text-gray-500"
-                      />
-                    )}
-                    {news.source && (
-                      <EditableField
-                        value={`Source: ${news.source}`}
-                        onChange={(value) => handleNestedContentChange('recentNews', index, 'source', value.replace('Source: ', ''))}
-                        isEditing={isEditing}
-                        className="text-xs text-gray-500"
-                      />
-                    )}
-                    {news.summary && (
-                      <EditableField
-                        value={news.summary}
-                        onChange={(value) => handleNestedContentChange('recentNews', index, 'summary', value)}
-                        isEditing={isEditing}
-                        multiline={true}
-                        className="text-sm text-gray-600 mt-1"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {content.relevantIndustryTrends && content.relevantIndustryTrends.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Industry Trends</h3>
-              <ul className="space-y-1">
-                {content.relevantIndustryTrends.map((trend: string, index: number) => (
-                  <li key={index} className="flex items-start">
-                    <span className="text-blue-500 mr-2">•</span>
-                    <EditableField
-                      value={trend}
-                      onChange={(value) => handleArrayItemChange('relevantIndustryTrends', index, value)}
-                      isEditing={isEditing}
-                      className="flex-1"
-                    />
-                  </li>
-                ))}
-              </ul>
             </div>
           )}
         </>
@@ -647,6 +733,99 @@ export function AISectionContent({
                     />
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+          
+          {/* For object with numeric keys (like {"0": {...}, "1": {...}}) */}
+          {!Array.isArray(content.recommendedActions) && 
+           typeof content.recommendedActions === 'object' && 
+           content.recommendedActions !== null &&
+           hasNumericKeys(content.recommendedActions) && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
+              <div className="space-y-3">
+                {Object.values(content.recommendedActions)
+                  .filter((action: any) => 
+                    typeof action === 'object' &&
+                    !action.description?.includes('Ekansh') && 
+                    !action.description?.includes('Kandulna') && 
+                    !action.description?.includes('Software Engineer') &&
+                    !action.description?.includes('Nexuses') &&
+                    !action.description?.includes('B2B Growth Agency')
+                  )
+                  .map((action: any, index: number) => (
+                  <div key={index} className="bg-white p-4 rounded border">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-medium text-gray-900">
+                        {action.description}
+                      </h4>
+                      {action.priority && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          action.priority.toLowerCase() === 'high' 
+                            ? 'bg-red-100 text-red-800' 
+                            : action.priority.toLowerCase() === 'medium'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {action.priority}
+                        </span>
+                      )}
+                    </div>
+                    {action.rationale && !action.rationale.includes('Ekansh') && !action.rationale.includes('Kandulna') && (
+                      <p className="text-sm text-gray-600 mt-2">
+                        {action.rationale}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* For other object formats (not array, not numeric keys) */}
+          {!Array.isArray(content.recommendedActions) && 
+           typeof content.recommendedActions === 'object' && 
+           content.recommendedActions !== null &&
+           !hasNumericKeys(content.recommendedActions) && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
+              <div className="space-y-3">
+                {Object.entries(content.recommendedActions).map(([key, value], index) => {
+                  // Value could be a string, an object, or any other type
+                  if (typeof value === 'object' && value !== null) {
+                    // Format similar to the object rendering above
+                    return (
+                      <div key={index} className="bg-white p-4 rounded border">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-medium text-gray-900">
+                            {(value as any).description || key}
+                          </h4>
+                          {(value as any).priority && (
+                            <span className={`text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800`}>
+                              {(value as any).priority}
+                            </span>
+                          )}
+                        </div>
+                        {(value as any).rationale && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            {(value as any).rationale}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    // For simple key-value pairs
+                    return (
+                      <div key={index} className="bg-white p-3 rounded border">
+                        <div className="font-medium">{key}</div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {typeof value === 'string' ? value : JSON.stringify(value)}
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
               </div>
             </div>
           )}
@@ -764,12 +943,26 @@ export function AISectionContent({
                 ))}
               </ul>
             </div>
+          ) : hasNumericKeys(content.personalizationTips) ? (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Personalization Tips</h3>
+              <ul className="space-y-1">
+                {Object.values(content.personalizationTips).map((tip: any, index: number) => (
+                  <li key={index} className="flex items-start">
+                    <span className="text-blue-500 mr-2">•</span>
+                    <span>{typeof tip === 'string' ? tip : JSON.stringify(tip)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : content.personalizationTips ? (
             <div className="mt-4">
               <h3 className="text-sm font-medium text-gray-500 mb-2">Personalization Tips</h3>
               <div className="bg-white p-4 rounded border">
                 <EditableField
-                  value={content.personalizationTips}
+                  value={typeof content.personalizationTips === 'string' 
+                    ? content.personalizationTips 
+                    : JSON.stringify(content.personalizationTips)}
                   onChange={(value) => handleContentChange('personalizationTips', value)}
                   isEditing={isEditing}
                   multiline={true}
@@ -797,7 +990,7 @@ export function AISectionContent({
                           item.toLowerCase().startsWith("use ")
                         );
                         const dontItems = parsedItems.filter(item => 
-                          item.toLowerCase().startsWith("don't ") || 
+                          item.toLowerCase().startsWith("don&apos;t ") || 
                           item.toLowerCase().startsWith("avoid ") || 
                           item.toLowerCase().startsWith("never ")
                         );
@@ -811,7 +1004,7 @@ export function AISectionContent({
                                 <div className="text-sm text-gray-800">
                                   <ul className="list-disc pl-5 space-y-1">
                                     {doItems.map((item, i) => (
-                                      <li key={i}>{item}</li>
+                                      <li key={i}>{item.replace(/^do\s+/i, '')}</li>
                                     ))}
                                   </ul>
                                 </div>
@@ -823,7 +1016,7 @@ export function AISectionContent({
                                 <div className="text-sm text-gray-800">
                                   <ul className="list-disc pl-5 space-y-1">
                                     {dontItems.map((item, i) => (
-                                      <li key={i}>{item}</li>
+                                      <li key={i}>{item.replace(/^don'?t\s+|^avoid\s+|^never\s+/i, '')}</li>
                                     ))}
                                   </ul>
                                 </div>
@@ -842,6 +1035,42 @@ export function AISectionContent({
                 ) : (
                   <p className="text-sm bg-gray-50 p-3 rounded">{content.dosDonts}</p>
                 )
+              ) : hasNumericKeys(content.dosDonts) ? (
+                // Handle case where dosDonts is an object with numeric keys
+                <div className="space-y-3">
+                  {Object.entries(content.dosDonts).map(([key, value]) => {
+                    const item = String(value);
+                    const isDo = item.toLowerCase().startsWith("do ") || 
+                                  item.toLowerCase().startsWith("always ") || 
+                                  item.toLowerCase().startsWith("use ");
+                    const isDont = item.toLowerCase().startsWith("don&apos;t ") || 
+                                   item.toLowerCase().startsWith("avoid ") || 
+                                   item.toLowerCase().startsWith("never ") ||
+                                   item.toLowerCase().startsWith("don't ");
+                    
+                    if (isDo) {
+                      return (
+                        <div key={key} className="bg-green-50 p-3 rounded border border-green-100">
+                          <span className="text-green-700 font-medium">Do: </span>
+                          <span>{item.replace(/^do\s+|^always\s+|^use\s+/i, '').replace(/^\d+:\s*/, '')}</span>
+                        </div>
+                      );
+                    } else if (isDont) {
+                      return (
+                        <div key={key} className="bg-red-50 p-3 rounded border border-red-100">
+                          <span className="text-red-700 font-medium">Don&apos;t: </span>
+                          <span>{item.replace(/^don(?:'|&apos;)?t\s+|^avoid\s+|^never\s+/i, '').replace(/^\d+:\s*/, '')}</span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div key={key} className="bg-gray-50 p-3 rounded">
+                          <span>{item.replace(/^\d+:\s*/, '')}</span>
+                        </div>
+                      );
+                    }
+                  })}
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {content.dosDonts.do && (
@@ -852,10 +1081,16 @@ export function AISectionContent({
                           <p>{content.dosDonts.do}</p> : 
                           Array.isArray(content.dosDonts.do) ? 
                             <ul className="list-disc pl-5 space-y-1">
-                              {content.dosDonts.do.map((item: string, i: number) => (
-                                <li key={i}>{item}</li>
+                              {Object.values(content.dosDonts.do).map((item: any, i: number) => (
+                                <li key={i}>{typeof item === 'string' ? item.replace(/^\d+:\s*/, '') : item}</li>
                               ))}
                             </ul> : 
+                            hasNumericKeys(content.dosDonts.do) ?
+                            <ul className="list-disc pl-5 space-y-1">
+                              {Object.values(content.dosDonts.do).map((item: any, i: number) => (
+                                <li key={i}>{typeof item === 'string' ? item.replace(/^\d+:\s*/, '') : item}</li>
+                              ))}
+                            </ul> :
                             <p>{JSON.stringify(content.dosDonts.do)}</p>
                         }
                       </div>
@@ -869,10 +1104,16 @@ export function AISectionContent({
                           <p>{content.dosDonts.dont}</p> : 
                           Array.isArray(content.dosDonts.dont) ? 
                             <ul className="list-disc pl-5 space-y-1">
-                              {content.dosDonts.dont.map((item: string, i: number) => (
-                                <li key={i}>{item}</li>
+                              {Object.values(content.dosDonts.dont).map((item: any, i: number) => (
+                                <li key={i}>{typeof item === 'string' ? item.replace(/^\d+:\s*/, '') : item}</li>
                               ))}
                             </ul> : 
+                            hasNumericKeys(content.dosDonts.dont) ?
+                            <ul className="list-disc pl-5 space-y-1">
+                              {Object.values(content.dosDonts.dont).map((item: any, i: number) => (
+                                <li key={i}>{typeof item === 'string' ? item.replace(/^\d+:\s*/, '') : item}</li>
+                              ))}
+                            </ul> :
                             <p>{JSON.stringify(content.dosDonts.dont)}</p>
                         }
                       </div>
@@ -899,9 +1140,23 @@ export function AISectionContent({
           {/* Debug view for content structure */}
           <details className="text-xs mt-2 border border-gray-200 p-2 rounded">
             <summary className="text-gray-500 cursor-pointer font-medium">Debug: View Raw Content Data</summary>
-            <pre className="mt-2 p-2 bg-gray-50 overflow-auto max-h-60 rounded">
-              {JSON.stringify(content, null, 2)}
-            </pre>
+            <div className="mt-2 p-2 bg-gray-50 overflow-auto rounded">
+              <div className="mb-2">
+                <span className="font-bold">Section:</span> {section}
+              </div>
+              {content && Object.keys(content).map(key => (
+                <div key={key} className="mb-3">
+                  <div className="font-bold text-blue-600">{key}:</div>
+                  <div className="pl-4 border-l-2 border-gray-200 ml-2">
+                    <pre className="whitespace-pre-wrap">
+                      {typeof content[key] === 'object' 
+                        ? JSON.stringify(content[key], null, 2) 
+                        : content[key]}
+                    </pre>
+                  </div>
+                </div>
+              ))}
+            </div>
           </details>
         </div>
       )}
@@ -987,40 +1242,24 @@ export function AISectionContent({
               </ul>
             )}
             
-            {Array.isArray(value) && !value.every(item => typeof item === 'string') && (
-              <div className="space-y-3">
-                {value.map((item, index) => (
-                  <div key={index} className="bg-white p-3 rounded border">
-                    {Object.entries(item).map(([itemKey, itemValue]) => (
-                      <div key={itemKey} className="mb-1">
-                        <span className="font-medium text-sm">{itemKey.charAt(0).toUpperCase() + itemKey.slice(1)}: </span>
-                        <EditableField
-                          value={typeof itemValue === 'string' ? itemValue : JSON.stringify(itemValue)}
-                          onChange={(newValue) => handleNestedContentChange(key, index, itemKey, newValue)}
-                          isEditing={isEditing}
-                          className="text-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-            
             {typeof value === 'object' && !Array.isArray(value) && (
               <div className="bg-white p-3 rounded border">
-                {Object.entries(value).map(([objKey, objValue]) => (
-                  <div key={objKey} className="mb-1">
+                {Object.entries(value).map(([objKey, objValue], index) => (
+                  <div key={index} className="mb-1">
                     <span className="font-medium text-sm">{objKey.charAt(0).toUpperCase() + objKey.slice(1)}: </span>
-                    <EditableField
-                      value={typeof objValue === 'string' ? objValue : JSON.stringify(objValue)}
-                      onChange={(newValue) => {
-                        const updatedNestedObj = {...value, [objKey]: newValue};
-                        handleContentChange(key, updatedNestedObj as unknown as string);
-                      }}
-                      isEditing={isEditing}
-                      className="text-sm"
-                    />
+                    {isEditing ? (
+                      <EditableField
+                        value={typeof objValue === 'string' ? objValue : JSON.stringify(objValue)}
+                        onChange={(newValue) => {
+                          const updatedNestedObj = {...value, [objKey]: newValue};
+                          handleContentChange(key, updatedNestedObj as unknown as string);
+                        }}
+                        isEditing={isEditing}
+                        className="text-sm"
+                      />
+                    ) : (
+                      typeof objValue === 'string' ? objValue : renderSafeObject(objValue)
+                    )}
                   </div>
                 ))}
               </div>

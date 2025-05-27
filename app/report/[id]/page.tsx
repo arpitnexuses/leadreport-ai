@@ -224,6 +224,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   const [aiContent, setAiContent] = useState<Record<string, any>>({});
   const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
 
   useEffect(() => {
     if (report) {
@@ -511,6 +512,18 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     setReport(updatedReport);
   };
 
+  // Function to handle section navigation
+  const handleSectionNavigation = (sectionId: string) => {
+    // Update the active section state
+    setActiveSection(sectionId);
+    
+    // Find the section element and scroll to it
+    const sectionElement = document.getElementById(`${sectionId}-section`);
+    if (sectionElement) {
+      sectionElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   if (!report) {
     return (
       <ReportLoader reportId={params.id} onReportReady={handleReportReady} />
@@ -565,6 +578,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         onRemind={() => {}}
         onSave={handleSave}
         isSaving={isSaving}
+        onNavigate={handleSectionNavigation}
+        activeSection={activeSection}
       />
       <main className="flex-1 p-8">
         {/* AI Generation Banner */}
@@ -720,14 +735,29 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                   <span className="text-sm text-blue-100">Lead Score</span>
                 </div>
                 <Badge
-                  className={`text-sm ${
+                  className={`text-sm flex items-center gap-1.5 ${
                     report.leadData.status === "hot"
                       ? "bg-red-500 hover:bg-red-600"
+                      : report.leadData.status === "warm"
+                      ? "bg-orange-500 hover:bg-orange-600"
+                      : report.leadData.status === "cold"
+                      ? "bg-blue-500 hover:bg-blue-600"
                       : report.leadData.status === "meeting_done"
                       ? "bg-green-500 hover:bg-green-600"
+                      : report.leadData.status === "qualified"
+                      ? "bg-purple-500 hover:bg-purple-600"
+                      : report.leadData.status === "disqualified"
+                      ? "bg-gray-500 hover:bg-gray-600" 
                       : "bg-blue-500 hover:bg-blue-600"
                   }`}
                 >
+                  {report.leadData.status === "hot" && <Sparkles className="h-3.5 w-3.5" />}
+                  {report.leadData.status === "warm" && <Briefcase className="h-3.5 w-3.5" />}
+                  {report.leadData.status === "cold" && <AlertCircle className="h-3.5 w-3.5" />}
+                  {report.leadData.status === "meeting_done" && <CheckCircle2 className="h-3.5 w-3.5" />}
+                  {report.leadData.status === "qualified" && <Star className="h-3.5 w-3.5" />}
+                  {report.leadData.status === "disqualified" && <X className="h-3.5 w-3.5" />}
+                  {!report.leadData.status && <Briefcase className="h-3.5 w-3.5" />}
                   {report.leadData.status
                     ? report.leadData.status.charAt(0).toUpperCase() +
                       report.leadData.status.slice(1).replace('_', ' ')

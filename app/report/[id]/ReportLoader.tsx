@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getReportStatus } from '@/app/actions'
 import { Button } from '@/components/ui/button'
+import { LoadingOverlay } from '@/components/dashboard/LoadingOverlay'
 
 type Status = 'processing' | 'fetching_apollo' | 'completed' | 'failed'
 
@@ -73,127 +74,110 @@ interface ReportLoaderProps {
   onReportReady: (report: LeadReport) => void;
 }
 
+// Error display component when report loading fails
+function ErrorDisplay({ error, onRetry }: { error: string | null, onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px]">
+      <div className="text-red-500 text-4xl mb-4">❌</div>
+      <h3 className="text-2xl font-semibold text-red-600 mb-2">Report Generation Failed</h3>
+      <p className="text-base text-gray-600 max-w-md text-center mb-6">
+        {error || 'Failed to generate AI report. Please try again later.'}
+      </p>
+      <Button 
+        onClick={onRetry} 
+        className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+      >
+        Try Again
+      </Button>
+    </div>
+  );
+}
+
 export function ReportLoader({ reportId, onReportReady }: ReportLoaderProps) {
   const [mounted, setMounted] = useState(false)
-  const [status, setStatus] = useState<Status>('processing')
+  const [status, setStatus] = useState<string>('loading')
   const [error, setError] = useState<string | null>(null)
   const [startTime, setStartTime] = useState<number | null>(null)
-
-  useEffect(() => {
+  const [statusMessage, setStatusMessage] = useState("Initializing report loading...")
+  const [showError, setShowError] = useState(false)
+  
+  const fetchReport = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/reports/${reportId}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error || `Failed to fetch report (${response.status})`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.status === 'completed') {
+        onReportReady(data.data)
+        setStatus('completed')
+      } else if (data.status === 'failed') {
+        setStatus('failed')
+        setError(data.error || 'Unknown error occurred')
+        setShowError(true)
+      } else {
+        // Still processing
+        setStatus(data.status)
+        
+        // Update status message based on current status
+        switch (data.status) {
+          case 'processing':
+            setStatusMessage("Initializing report generation...")
+            break
+          case 'fetching_apollo':
+            setStatusMessage("Fetching lead data from Apollo...")
+            break
+          case 'generating_ai':
+            setStatusMessage("Creating AI insights for your report...")
+            break
+          default:
+            setStatusMessage("Processing your request...")
+        }
+        
+        // Poll again after a delay
+        setTimeout(fetchReport, 1500)
+      }
+    } catch (error) {
+      console.error('Error fetching report:', error)
+      setStatus('failed')
+      setError(error instanceof Error ? error.message : 'Failed to load report. Please try again.')
+      setShowError(true)
+    }
+  }, [reportId, onReportReady])
+  
+  const handleRetry = useCallback(() => {
+    setShowError(false)
+    setStatus('loading')
+    setError(null)
     setStartTime(Date.now())
-  }, [])
-
+    fetchReport()
+  }, [fetchReport])
+  
+  useEffect(() => {
+    if (!mounted) return
+    
+    setStartTime(Date.now())
+    fetchReport()
+  }, [fetchReport, mounted])
+  
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    if (!mounted) return
-
-    let timeoutId: NodeJS.Timeout
-    let isMounted = true
-
-    const pollStatus = async () => {
-      try {
-        const result = await getReportStatus(reportId) as ReportResponse
-        
-        if (!isMounted) return
-
-        if (result.status) {
-          setStatus(result.status)
-        }
-        
-        if (result.error) {
-          setError(result.error)
-          return
-        }
-        
-        if (result.status === 'completed' && result.data) {
-          onReportReady(result.data)
-          return
-        }
-        
-        // Calculate elapsed time in seconds
-        const effectiveStartTime = startTime ?? Date.now()
-        const elapsedSeconds = Math.floor((Date.now() - effectiveStartTime) / 1000)
-        
-        // If not completed and not failed, poll again in 2 seconds
-        if (result.status !== 'completed' && result.status !== 'failed') {
-          // If we've been polling for more than 60 seconds, show error
-          if (elapsedSeconds >= 60) {
-            setStatus('failed')
-            setError('Report generation is taking longer than expected. Please try again.')
-            return
-          }
-          
-          timeoutId = setTimeout(pollStatus, 2000)
-        }
-      } catch (err) {
-        if (!isMounted) return
-        setError(err instanceof Error ? err.message : 'Failed to check report status')
-        setStatus('failed')
-      }
-    }
-
-    pollStatus()
-
-    // Cleanup timeout on unmount
-    return () => {
-      isMounted = false
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-      }
-    }
-  }, [reportId, onReportReady, startTime, mounted])
-
-  const getLoadingMessage = () => {
-    switch (status) {
-      case 'processing':
-        return 'Initializing report generation...'
-      case 'fetching_apollo':
-        return 'Fetching lead data from Apollo...'
-      default:
-        return 'Processing your request...'
-    }
+  
+  // Show error display
+  if (showError) {
+    return <ErrorDisplay error={error} onRetry={handleRetry} />
   }
-
-  if (!mounted) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
-    )
+  
+  // Finished loading
+  if (status === 'completed') {
+    return null
   }
-
-  if (status !== 'completed' && status !== 'failed') {
-    const effectiveStartTime = startTime ?? Date.now()
-    const elapsedSeconds = Math.floor((Date.now() - effectiveStartTime) / 1000)
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-        <h3 className="mt-4 text-xl font-semibold text-gray-800">Generating Your Report</h3>
-        <p className="mt-2 text-sm text-gray-500">{getLoadingMessage()}</p>
-        <p className="mt-1 text-xs text-gray-400">Time elapsed: {elapsedSeconds} seconds</p>
-      </div>
-    )
-  }
-
-  if (status === 'failed') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="text-red-500 text-xl">❌</div>
-        <h3 className="mt-4 text-xl font-semibold text-red-600">Report Generation Failed</h3>
-        <p className="mt-2 text-sm text-gray-500">{error || 'An unexpected error occurred'}</p>
-        <Button 
-          onClick={() => window.location.reload()} 
-          variant="outline" 
-          className="mt-4"
-        >
-          Try Again
-        </Button>
-      </div>
-    )
-  }
-
-  return null
+  
+  // Still loading
+  return <LoadingOverlay isVisible={true} statusMessage={statusMessage} />
 } 
