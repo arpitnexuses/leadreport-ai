@@ -27,7 +27,20 @@ import {
   ExternalLink,
   Clock,
   BarChart2,
+  Download,
 } from "lucide-react";
+
+// Helper function to check if an object has numeric keys (like {"0": "value1", "1": "value2"})
+const hasNumericKeys = (obj: any): boolean => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+  return Object.keys(obj).every(key => !isNaN(Number(key)));
+};
+
+// Helper function to convert an object with numeric keys to an array
+const objectToArray = (obj: any): any[] => {
+  if (!hasNumericKeys(obj)) return [];
+  return Object.values(obj);
+};
 
 export default function SharedReportPage({ params }: { params: { id: string } }) {
   const [report, setReport] = useState<any>(null);
@@ -35,6 +48,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   const [error, setError] = useState<string | null>(null);
   const [debugContent, setDebugContent] = useState<string>("");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -145,61 +159,109 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     if (!data) return null;
     
     return (
-      <div className="space-y-4">
-        {data.summary && <div className="mb-4">{data.summary}</div>}
+      <div className="space-y-2">
+        {data.summary && <div className="mb-1">{data.summary}</div>}
         
         {/* Current Technologies */}
-        {data.currentTechnologies && Array.isArray(data.currentTechnologies) && data.currentTechnologies.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Current Technologies</h3>
-            <div className="flex flex-wrap gap-2">
-              {data.currentTechnologies.map((tech: string, index: number) => (
-                <span key={index} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-100 text-sm font-medium">{tech}</span>
-              ))}
+        {data.currentTechnologies && (
+          <div className="mb-2">
+            <h3 className="text-base font-medium text-gray-900 mb-1">Current Technologies</h3>
+            <div className="flex flex-wrap gap-1">
+              {Array.isArray(data.currentTechnologies) ? (
+                data.currentTechnologies.map((tech: string, index: number) => (
+                  <span key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-100 text-sm font-medium">{tech}</span>
+                ))
+              ) : hasNumericKeys(data.currentTechnologies) ? (
+                objectToArray(data.currentTechnologies).map((tech: string, index: number) => (
+                  <span key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-100 text-sm font-medium">{tech}</span>
+                ))
+              ) : typeof data.currentTechnologies === 'string' ? (
+                <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-100 text-sm font-medium">{data.currentTechnologies}</span>
+              ) : null}
             </div>
           </div>
         )}
         
         {/* Pain Points */}
-        {data.painPoints && Array.isArray(data.painPoints) && data.painPoints.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Pain Points</h3>
-            <div className="space-y-2">
-              {data.painPoints.map((point: string, index: number) => (
-                <div key={index} className="flex items-center">
-                  <div className="w-2 h-2 rounded-full bg-red-400 mr-3 flex-shrink-0"></div>
-                  <p className="text-gray-700">{point}</p>
+        {data.painPoints && (
+          <div className="mb-2">
+            <h3 className="text-base font-medium text-gray-900 mb-1">Pain Points</h3>
+            <div className="space-y-0">
+              {Array.isArray(data.painPoints) ? (
+                data.painPoints.map((point: string, index: number) => (
+                  <div key={index} className="flex items-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2 flex-shrink-0"></div>
+                    <p className="text-gray-700">{point}</p>
+                  </div>
+                ))
+              ) : hasNumericKeys(data.painPoints) ? (
+                objectToArray(data.painPoints).map((point: string, index: number) => (
+                  <div key={index} className="flex items-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2 flex-shrink-0"></div>
+                    <p className="text-gray-700">{point}</p>
+                  </div>
+                ))
+              ) : typeof data.painPoints === 'string' ? (
+                <div className="flex items-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 mr-2 flex-shrink-0"></div>
+                  <p className="text-gray-700">{data.painPoints}</p>
                 </div>
-              ))}
+              ) : null}
             </div>
           </div>
         )}
         
         {/* Opportunities */}
-        {data.opportunities && Array.isArray(data.opportunities) && data.opportunities.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Opportunities</h3>
-            <div className="space-y-2">
-              {data.opportunities.map((opportunity: string, index: number) => (
-                <div key={index} className="flex items-center">
-                  <div className="w-2 h-2 rounded-full bg-green-400 mr-3 flex-shrink-0"></div>
-                  <p className="text-gray-700">{opportunity}</p>
+        {data.opportunities && (
+          <div className="mb-2">
+            <h3 className="text-base font-medium text-gray-900 mb-1">Opportunities</h3>
+            <div className="space-y-0">
+              {Array.isArray(data.opportunities) ? (
+                data.opportunities.map((opportunity: string, index: number) => (
+                  <div key={index} className="flex items-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2 flex-shrink-0"></div>
+                    <p className="text-gray-700">{opportunity}</p>
+                  </div>
+                ))
+              ) : hasNumericKeys(data.opportunities) ? (
+                objectToArray(data.opportunities).map((opportunity: string, index: number) => (
+                  <div key={index} className="flex items-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2 flex-shrink-0"></div>
+                    <p className="text-gray-700">{opportunity}</p>
+                  </div>
+                ))
+              ) : typeof data.opportunities === 'string' ? (
+                <div className="flex items-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400 mr-2 flex-shrink-0"></div>
+                  <p className="text-gray-700">{data.opportunities}</p>
                 </div>
-              ))}
+              ) : null}
             </div>
           </div>
         )}
         
         {/* Recommendations */}
-        {data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0 && (
+        {data.recommendations && (
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Recommendations</h3>
-            <div className="space-y-2">
-              {data.recommendations.map((rec: string, index: number) => (
-                <div key={index} className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                  <p className="text-gray-700">{rec}</p>
+            <h3 className="text-base font-medium text-gray-900 mb-1">Recommendations</h3>
+            <div className="space-y-1">
+              {Array.isArray(data.recommendations) ? (
+                data.recommendations.map((rec: any, index: number) => (
+                  <div key={index} className="bg-blue-50 p-1.5 rounded-md border border-blue-100">
+                    <p className="text-gray-700">{typeof rec === 'string' ? rec : rec.description || rec.title || JSON.stringify(rec)}</p>
+                  </div>
+                ))
+              ) : hasNumericKeys(data.recommendations) ? (
+                objectToArray(data.recommendations).map((rec: any, index: number) => (
+                  <div key={index} className="bg-blue-50 p-1.5 rounded-md border border-blue-100">
+                    <p className="text-gray-700">{typeof rec === 'string' ? rec : rec.description || rec.title || JSON.stringify(rec)}</p>
+                  </div>
+                ))
+              ) : typeof data.recommendations === 'string' ? (
+                <div className="bg-blue-50 p-1.5 rounded-md border border-blue-100">
+                  <p className="text-gray-700">{data.recommendations}</p>
                 </div>
-              ))}
+              ) : null}
             </div>
           </div>
         )}
@@ -222,6 +284,12 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       return null; // Return null here as we'll handle the rendering with the TechStack component
     }
     
+    // For overview and company sections, always use formatSectionData to show complete data
+    if (section === 'overview' || section === 'company') {
+      const formattedContent = formatSectionData(sectionData);
+      return formattedContent || JSON.stringify(sectionData);
+    }
+    
     // Special handling for nextSteps section with recommendations
     if (section === 'nextSteps') {
       let content = '';
@@ -231,65 +299,80 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       }
       
       // Handle keyPoints if available
-      if (sectionData.keyPoints && Array.isArray(sectionData.keyPoints)) {
+      if (sectionData.keyPoints) {
         content += `<div class="mb-6">
           <h3 class="text-lg font-medium text-gray-900 mb-4">Key Points</h3>
-          <ul class="list-disc pl-5 space-y-2">
-            ${sectionData.keyPoints.map((point: string) => `<li>${point}</li>`).join('')}
-          </ul>
+          <ul class="list-disc pl-5 space-y-2">`;
+        
+        if (Array.isArray(sectionData.keyPoints)) {
+          // Standard array handling
+          content += sectionData.keyPoints.map((point: string) => `<li>${point}</li>`).join('');
+        } else if (hasNumericKeys(sectionData.keyPoints)) {
+          // Object with numeric keys - treat like an array
+          content += objectToArray(sectionData.keyPoints).map((point: string) => `<li>${point}</li>`).join('');
+        } else if (typeof sectionData.keyPoints === 'string') {
+          // Simple string
+          content += `<li>${sectionData.keyPoints}</li>`;
+        }
+        
+        content += `</ul>
         </div>`;
       }
       
       // Handle recommendedActions if available
-      if (sectionData.recommendedActions && Array.isArray(sectionData.recommendedActions)) {
+      if (sectionData.recommendedActions) {
         content += `<h3 class="text-lg font-medium text-gray-900 mb-4">Recommended Actions</h3>`;
         content += `<div class="space-y-4">`;
         
-        sectionData.recommendedActions.forEach((rec: any) => {
-          content += `
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <h4 class="font-medium text-blue-800 mb-2">${rec.description || 'Action Item'}</h4>
-              <p class="text-gray-600 mt-1"><strong>Rationale:</strong> ${rec.rationale || ''}</p>
-              <p class="text-gray-600 mt-1"><strong>Priority:</strong> <span class="font-medium ${rec.priority === 'High' ? 'text-red-600' : rec.priority === 'Medium' ? 'text-orange-600' : 'text-blue-600'}">${rec.priority || ''}</span></p>
-            </div>
-          `;
-        });
+        if (Array.isArray(sectionData.recommendedActions)) {
+          sectionData.recommendedActions.forEach((rec: any) => {
+            if (typeof rec === 'string') {
+              content += `
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <p class="text-gray-700">${rec}</p>
+                </div>
+              `;
+            } else if (typeof rec === 'object' && rec !== null) {
+              content += `
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h4 class="font-medium text-blue-800 mb-2">${rec.description || rec.title || 'Action Item'}</h4>
+                  ${rec.rationale ? `<p class="text-gray-600 mt-1"><strong>Rationale:</strong> ${rec.rationale}</p>` : ''}
+                  ${rec.priority ? `<p class="text-gray-600 mt-1"><strong>Priority:</strong> <span class="font-medium ${
+                    rec.priority === 'High' ? 'text-red-600' : 
+                    rec.priority === 'Medium' ? 'text-orange-600' : 
+                    'text-blue-600'}">${rec.priority}</span></p>` : ''}
+                </div>
+              `;
+            }
+          });
+        } else if (hasNumericKeys(sectionData.recommendedActions)) {
+          // Object with numeric keys - treat like an array
+          objectToArray(sectionData.recommendedActions).forEach((rec: any) => {
+            if (typeof rec === 'string') {
+              content += `
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <p class="text-gray-700">${rec}</p>
+                </div>
+              `;
+            } else if (typeof rec === 'object' && rec !== null) {
+              content += `
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h4 class="font-medium text-blue-800 mb-2">${rec.description || rec.title || 'Action Item'}</h4>
+                  ${rec.rationale ? `<p class="text-gray-600 mt-1"><strong>Rationale:</strong> ${rec.rationale}</p>` : ''}
+                  ${rec.priority ? `<p class="text-gray-600 mt-1"><strong>Priority:</strong> <span class="font-medium ${
+                    rec.priority === 'High' ? 'text-red-600' : 
+                    rec.priority === 'Medium' ? 'text-orange-600' : 
+                    'text-blue-600'}">${rec.priority}</span></p>` : ''}
+                </div>
+              `;
+            }
+          });
+        }
         
         content += `</div>`;
-        return content;
       }
       
-      // Legacy structure handling for recommendations array
-      if (sectionData.recommendations && Array.isArray(sectionData.recommendations)) {
-        content += `<h3 class="text-lg font-medium text-gray-900 mb-4">Recommended Actions</h3>`;
-        content += `<div class="space-y-4">`;
-        
-        sectionData.recommendations.forEach((rec: any) => {
-          if (typeof rec === 'string') {
-            content += `
-              <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <p class="text-gray-700">${rec}</p>
-              </div>
-            `;
-          } else if (typeof rec === 'object') {
-            content += `
-              <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h4 class="font-medium text-blue-800 mb-2">${rec.title || rec.description || 'Action Item'}</h4>
-                ${rec.rationale ? `<p class="text-gray-600 mt-1"><strong>Rationale:</strong> ${rec.rationale}</p>` : ''}
-                ${rec.priority ? `<p class="text-gray-600 mt-1"><strong>Priority:</strong> <span class="font-medium ${rec.priority === 'High' ? 'text-red-600' : rec.priority === 'Medium' ? 'text-orange-600' : 'text-blue-600'}">${rec.priority}</span></p>` : ''}
-              </div>
-            `;
-          }
-        });
-        
-        content += `</div>`;
-        return content;
-      }
-      
-      // If we have content but no specific recommendations structure
-      if (content) {
-        return content;
-      }
+      return content;
     }
     
     // Handle different structures
@@ -309,9 +392,36 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       return sectionData.description;
     }
     
-    // For nested structures like in the screenshot
-    if (sectionData.keyPoints && Array.isArray(sectionData.keyPoints)) {
-      return `<ul class="list-disc pl-5 space-y-2">${sectionData.keyPoints.map((point: string) => `<li>${point}</li>`).join('')}</ul>`;
+    // For nested structures with common fields
+    const sectionsToCheck = [
+      { field: 'keyPoints', title: 'Key Points' },
+      { field: 'mainCompetitors', title: 'Main Competitors' },
+      { field: 'competitiveAdvantage', title: 'Competitive Advantage' },
+      { field: 'challenges', title: 'Challenges' },
+      { field: 'relevantIndustryTrends', title: 'Relevant Industry Trends' },
+      { field: 'personalizationTips', title: 'Personalization Tips' },
+      { field: 'keyQuestions', title: 'Key Questions' }
+    ];
+    
+    for (const { field, title } of sectionsToCheck) {
+      if (sectionData[field]) {
+        let content = `<div class="mb-4"><h3 class="text-lg font-medium text-gray-900 mb-3">${title}</h3>`;
+        
+        if (Array.isArray(sectionData[field])) {
+          content += `<ul class="list-disc pl-5 space-y-2">
+            ${sectionData[field].map((item: string) => `<li>${item}</li>`).join('')}
+          </ul>`;
+        } else if (hasNumericKeys(sectionData[field])) {
+          content += `<ul class="list-disc pl-5 space-y-2">
+            ${objectToArray(sectionData[field]).map((item: string) => `<li>${item}</li>`).join('')}
+          </ul>`;
+        } else if (typeof sectionData[field] === 'string') {
+          content += `<p>${sectionData[field]}</p>`;
+        }
+        
+        content += `</div>`;
+        return content;
+      }
     }
     
     // If we can't find a known field, try to format the entire object
@@ -328,23 +438,27 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       let content = '';
       
       if (data.summary) {
-        content += `<div class="mb-6">${data.summary}</div>`;
+        content += `<div class="mb-1">${data.summary}</div>`;
       }
       
-      content += `<h3 class="text-lg font-medium text-gray-900 mb-4">Dos and Don&apos;ts</h3>`;
-      content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+      content += `<h3 class="text-base font-medium text-gray-900 mb-1">Dos and Don&apos;ts</h3>`;
+      content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-1">`;
       
       if (data.dosDonts.do) {
         content += `
-          <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-            <h4 class="font-medium text-green-700 mb-2">Do</h4>
+          <div class="bg-green-50 p-1.5 rounded-md border border-green-100">
+            <h4 class="font-medium text-green-700 mb-0.5 text-sm">Do</h4>
             <div class="text-gray-700">
               ${typeof data.dosDonts.do === 'string' ? 
                 data.dosDonts.do : 
                 Array.isArray(data.dosDonts.do) ? 
-                  `<ul class="list-disc pl-5 space-y-1">
-                    ${data.dosDonts.do.map((item: string) => `<li>${item}</li>`).join('')}
+                  `<ul class="list-disc pl-3 space-y-0">
+                    ${data.dosDonts.do.map((item: string) => `<li class="pl-0.5">${item}</li>`).join('')}
                   </ul>` : 
+                  hasNumericKeys(data.dosDonts.do) ?
+                  `<ul class="list-disc pl-3 space-y-0">
+                    ${objectToArray(data.dosDonts.do).map((item: string) => `<li class="pl-0.5">${item}</li>`).join('')}
+                  </ul>` :
                   JSON.stringify(data.dosDonts.do)
               }
             </div>
@@ -354,15 +468,19 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       
       if (data.dosDonts.dont) {
         content += `
-          <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-            <h4 class="font-medium text-red-700 mb-2">Don&apos;t</h4>
+          <div class="bg-red-50 p-1.5 rounded-md border border-red-100">
+            <h4 class="font-medium text-red-700 mb-0.5 text-sm">Don&apos;t</h4>
             <div class="text-gray-700">
               ${typeof data.dosDonts.dont === 'string' ? 
                 data.dosDonts.dont : 
                 Array.isArray(data.dosDonts.dont) ? 
-                  `<ul class="list-disc pl-5 space-y-1">
-                    ${data.dosDonts.dont.map((item: string) => `<li>${item}</li>`).join('')}
+                  `<ul class="list-disc pl-3 space-y-0">
+                    ${data.dosDonts.dont.map((item: string) => `<li class="pl-0.5">${item}</li>`).join('')}
                   </ul>` : 
+                  hasNumericKeys(data.dosDonts.dont) ?
+                  `<ul class="list-disc pl-3 space-y-0">
+                    ${objectToArray(data.dosDonts.dont).map((item: string) => `<li class="pl-0.5">${item}</li>`).join('')}
+                  </ul>` :
                   JSON.stringify(data.dosDonts.dont)
               }
             </div>
@@ -381,12 +499,12 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         // Try to parse it as JSON
         const parsedItems = JSON.parse(data.dosDonts);
         if (Array.isArray(parsedItems)) {
-          // Separate the items into do's and don'ts
           const doItems = parsedItems.filter(item => 
             item.toLowerCase().startsWith("do ") || 
             item.toLowerCase().startsWith("always ") || 
             item.toLowerCase().startsWith("use ")
           );
+          
           const dontItems = parsedItems.filter(item => 
             item.toLowerCase().startsWith("don't ") || 
             item.toLowerCase().startsWith("avoid ") || 
@@ -395,20 +513,20 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           
           let content = '';
           if (data.summary) {
-            content += `<div class="mb-6">${data.summary}</div>`;
+            content += `<div class="mb-1">${data.summary}</div>`;
           }
           
-          content += `<h3 class="text-lg font-medium text-gray-900 mb-4">Dos and Don&apos;ts</h3>`;
-          content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+          content += `<h3 class="text-base font-medium text-gray-900 mb-1">Dos and Don&apos;ts</h3>`;
+          content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-1">`;
           
           // Add the Do section
           if (doItems.length > 0) {
             content += `
-              <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                <h4 class="font-medium text-green-700 mb-2">Do</h4>
+              <div class="bg-green-50 p-1.5 rounded-md border border-green-100">
+                <h4 class="font-medium text-green-700 mb-0.5 text-sm">Do</h4>
                 <div class="text-gray-700">
-                  <ul class="list-disc pl-5 space-y-1">
-                    ${doItems.map(item => `<li>${item}</li>`).join('')}
+                  <ul class="list-disc pl-3 space-y-0">
+                    ${doItems.map(item => `<li class="pl-0.5">${item}</li>`).join('')}
                   </ul>
                 </div>
               </div>
@@ -418,11 +536,11 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           // Add the Don't section
           if (dontItems.length > 0) {
             content += `
-              <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-                <h4 class="font-medium text-red-700 mb-2">Don&apos;t</h4>
+              <div class="bg-red-50 p-1.5 rounded-md border border-red-100">
+                <h4 class="font-medium text-red-700 mb-0.5 text-sm">Don&apos;t</h4>
                 <div class="text-gray-700">
-                  <ul class="list-disc pl-5 space-y-1">
-                    ${dontItems.map(item => `<li>${item}</li>`).join('')}
+                  <ul class="list-disc pl-3 space-y-0">
+                    ${dontItems.map(item => `<li class="pl-0.5">${item}</li>`).join('')}
                   </ul>
                 </div>
               </div>
@@ -443,23 +561,23 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       let content = '';
       
       if (data.summary) {
-        content += `<div class="mb-6">${data.summary}</div>`;
+        content += `<div class="mb-1">${data.summary}</div>`;
       }
       
-      content += `<h3 class="text-lg font-medium text-gray-900 mb-4">Recommended Actions</h3>`;
-      content += `<div class="space-y-4">`;
+      content += `<h3 class="text-base font-medium text-gray-900 mb-1">Recommended Actions</h3>`;
+      content += `<div class="space-y-1">`;
       
       data.recommendations.forEach((rec: any) => {
         if (typeof rec === 'string') {
           content += `
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div class="bg-blue-50 p-1.5 rounded-md border border-blue-100">
               <p class="text-gray-700">${rec}</p>
             </div>
           `;
         } else if (typeof rec === 'object') {
           content += `
-            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-              <h4 class="font-medium text-blue-800 mb-2">${rec.title || 'Action Item'}</h4>
+            <div class="bg-blue-50 p-1.5 rounded-md border border-blue-100">
+              <h4 class="font-medium text-blue-800 mb-0.5">${rec.title || 'Action Item'}</h4>
               <p class="text-gray-700">${rec.description || rec.content || ''}</p>
             </div>
           `;
@@ -470,17 +588,25 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       return content;
     }
     
+    // If data has summary, display it at the top
+    let content = '';
+    if (data.summary) {
+      content += `<div class="mb-1 text-gray-700">
+        <p class="font-medium">${data.summary}</p>
+      </div>`;
+    }
+    
     // Filter out metadata fields
     const filteredEntries = Object.entries(data).filter(([key]) => 
-      !['insufficient_data'].includes(key) && 
+      !['insufficient_data', 'summary'].includes(key) && 
       typeof data[key] !== 'boolean' &&
       data[key] !== null &&
       data[key] !== undefined
     );
     
-    if (filteredEntries.length === 0) return '';
+    if (filteredEntries.length === 0) return content;
     
-    return filteredEntries.map(([key, value]) => {
+    content += filteredEntries.map(([key, value]) => {
       // Format camelCase to Title Case with Spaces
       const formattedKey = key
         .replace(/([A-Z])/g, ' $1')
@@ -489,16 +615,22 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       // Handle different value types
       let formattedValue = '';
       
-      if (key === 'recommendations' && Array.isArray(value)) {
-        formattedValue = `<div class="space-y-3 mt-2">
+      if (key === 'keyPoints' || key === 'challenges') {
+        formattedValue = formatArrayOrObject(value, { 
+          listItemClass: 'flex items-center',
+          bulletClass: 'w-1.5 h-1.5 rounded-full bg-blue-400 mr-1.5 flex-shrink-0',
+          contentClass: 'text-gray-700'
+        });
+      } else if (key === 'recommendations' && Array.isArray(value)) {
+        formattedValue = `<div class="space-y-1">
           ${value.map((item: any) => {
             if (typeof item === 'string') {
-              return `<div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+              return `<div class="bg-blue-50 p-1.5 rounded-md border border-blue-100">
                 <p class="text-gray-700">${item}</p>
               </div>`;
             } else if (typeof item === 'object') {
-              return `<div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                <h4 class="font-medium text-blue-800 mb-1">${item.title || 'Action Item'}</h4>
+              return `<div class="bg-blue-50 p-1.5 rounded-md border border-blue-100">
+                <h4 class="font-medium text-blue-800 mb-0.5">${item.title || 'Action Item'}</h4>
                 <p class="text-gray-700">${item.description || item.content || ''}</p>
               </div>`;
             }
@@ -506,26 +638,67 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           }).join('')}
         </div>`;
       } else if (typeof value === 'string') {
-        formattedValue = value;
+        formattedValue = `<p class="text-gray-700">${value}</p>`;
       } else if (Array.isArray(value)) {
-        formattedValue = `<ul class="list-disc pl-5 space-y-1 mt-2">
-          ${value.map((item) => `<li>${typeof item === 'object' ? JSON.stringify(item) : item}</li>`).join('')}
-        </ul>`;
+        formattedValue = formatArrayOrObject(value);
       } else if (typeof value === 'object') {
-        formattedValue = `<div class="pl-4 border-l-2 border-blue-200 mt-2">
+        // For nested objects, recursively format them
+        formattedValue = `<div class="pl-2 border-l border-blue-200 space-y-1">
           ${formatSectionData(value)}
         </div>`;
       } else {
-        formattedValue = String(value);
+        formattedValue = `<p class="text-gray-700">${String(value)}</p>`;
       }
       
       return `
-        <div class="mb-4">
-          <h3 class="text-md font-semibold text-blue-700 mb-2">${formattedKey}</h3>
+        <div class="mb-2">
+          <h3 class="text-base font-medium text-blue-700 mb-0.5">${formattedKey}</h3>
           <div class="text-gray-700">${formattedValue}</div>
         </div>
       `;
     }).join('');
+    
+    return content;
+  };
+
+  // Helper function to format arrays or objects that should be displayed as lists
+  const formatArrayOrObject = (data: any, options = {
+    listItemClass: 'flex items-center',
+    bulletClass: 'w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5 flex-shrink-0',
+    contentClass: 'text-gray-700'
+  }): string => {
+    if (Array.isArray(data)) {
+      return `<div class="space-y-0">
+        ${data.map((item) => {
+          if (typeof item === 'string') {
+            return `<div class="${options.listItemClass}">
+              <div class="${options.bulletClass}"></div>
+              <p class="${options.contentClass}">${item}</p>
+            </div>`;
+          } else if (typeof item === 'object' && item !== null) {
+            return `<div class="${options.listItemClass}">
+              <div class="${options.bulletClass}"></div>
+              <div class="w-full">
+                ${typeof item.title === 'string' ? `<p class="font-medium text-gray-800">${item.title}</p>` : ''}
+                ${typeof item.description === 'string' ? `<p class="${options.contentClass}">${item.description}</p>` : ''}
+                ${typeof item.content === 'string' ? `<p class="${options.contentClass}">${item.content}</p>` : ''}
+                ${!item.title && !item.description && !item.content ? `<p class="${options.contentClass}">${JSON.stringify(item)}</p>` : ''}
+              </div>
+            </div>`;
+          }
+          return `<div class="${options.listItemClass}">
+            <div class="${options.bulletClass}"></div>
+            <p class="${options.contentClass}">${JSON.stringify(item)}</p>
+          </div>`;
+        }).join('')}
+      </div>`;
+    } else if (hasNumericKeys(data)) {
+      const arrayData = objectToArray(data);
+      return formatArrayOrObject(arrayData, options);
+    } else if (typeof data === 'object' && data !== null) {
+      return formatSectionData(data);
+    }
+    return `<p class="${options.contentClass}">${String(data)}</p>`;
   };
 
   // Function to format section content for display
@@ -538,7 +711,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     }
     
     // Simple text content
-    return `<p>${content}</p>`;
+    return `<p class="text-gray-700">${content}</p>`;
   };
 
   // Check if section has meaningful data
@@ -595,6 +768,75 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     
     console.log(`Section check: ${section} - has other data: ${hasData}`);
     return hasData;
+  };
+
+  // Add PDF download function
+  const handleDownloadPdf = async () => {
+    if (!report || !report._id) return;
+    
+    try {
+      setIsPdfLoading(true);
+      console.log(`Requesting PDF for report: ${report._id}`);
+      
+      // Use the simple jsPDF endpoint instead of Puppeteer
+      const response = await fetch(`/api/generate-pdf-simple/${report._id}`, {
+        method: 'GET',
+      });
+      
+      console.log(`PDF response status: ${response.status}`);
+      
+      if (!response.ok) {
+        // Try to get detailed error information
+        let errorMessage = 'Failed to generate PDF';
+        try {
+          const errorData = await response.json();
+          console.error('PDF generation error details:', errorData);
+          errorMessage = errorData.details || errorData.error || errorMessage;
+        } catch (parseError) {
+          console.error('Could not parse error response:', parseError);
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      // Check if we got a PDF or JSON (error) response
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        console.error('PDF generation returned JSON error:', errorData);
+        throw new Error(errorData.error || 'Failed to generate PDF');
+      }
+      
+      // We have a valid PDF response
+      console.log('PDF generated successfully, downloading...');
+      const blob = await response.blob();
+      
+      if (blob.size < 1000) { // If PDF is suspiciously small
+        console.warn('Warning: PDF file size is very small:', blob.size, 'bytes');
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.leadData.name}-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
+      console.log('PDF download initiated');
+    } catch (error) {
+      console.error('Error in PDF generation/download:', error);
+      
+      // Show a more detailed error message to the user
+      alert(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later or contact support.`);
+    } finally {
+      setIsPdfLoading(false);
+    }
   };
 
   if (loading) {
@@ -687,39 +929,69 @@ export default function SharedReportPage({ params }: { params: { id: string } })
               </div>
             </div>
             
-            <div className="hidden md:flex items-center gap-3">
-              <div className="flex overflow-hidden rounded-full border border-white/20">
-                {leadData.contactDetails.email && (
-                  <a
-                    href={`mailto:${leadData.contactDetails.email}`}
-                    className="bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
-                    title={leadData.contactDetails.email}
-                  >
-                    <Mail className="h-5 w-5" />
-                  </a>
-                )}
-                
-                {leadData.contactDetails.phone && (
-                  <a
-                    href={`tel:${leadData.contactDetails.phone}`}
-                    className="bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
-                    title={leadData.contactDetails.phone}
-                  >
-                    <Phone className="h-5 w-5" />
-                  </a>
-                )}
-                
-                {leadData.contactDetails.linkedin && (
-                  <a
-                    href={leadData.contactDetails.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
-                    title="LinkedIn Profile"
-                  >
-                    <Linkedin className="h-5 w-5" />
-                  </a>
-                )}
+            <div className="flex items-center gap-2">
+              {/* Contact options */}
+              <div className="hidden md:flex items-center mr-2">
+                <div className="flex overflow-hidden rounded-full border border-white/20">
+                  {leadData.contactDetails.email && (
+                    <a
+                      href={`mailto:${leadData.contactDetails.email}`}
+                      className="bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
+                      title={leadData.contactDetails.email}
+                    >
+                      <Mail className="h-5 w-5" />
+                    </a>
+                  )}
+                  
+                  {leadData.contactDetails.phone && (
+                    <a
+                      href={`tel:${leadData.contactDetails.phone}`}
+                      className="bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
+                      title={leadData.contactDetails.phone}
+                    >
+                      <Phone className="h-5 w-5" />
+                    </a>
+                  )}
+                  
+                  {leadData.contactDetails.linkedin && (
+                    <a
+                      href={leadData.contactDetails.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-white/10 hover:bg-white/20 p-2 text-white transition-colors"
+                      title="LinkedIn Profile"
+                    >
+                      <Linkedin className="h-5 w-5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+              
+              {/* PDF Download button */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={isPdfLoading}
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg border border-white/20 text-white transition-colors"
+                  title="Download as PDF"
+                >
+                  {isPdfLoading ? (
+                    <>
+                      <span className="animate-spin mr-1">
+                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </span>
+                      <span className="text-sm">Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      <span className="text-sm">Download PDF</span>
+                    </>
+                  )}
+                </button>
               </div>
               
               <div className="bg-blue-800/40 text-xs text-blue-100 px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -731,23 +1003,23 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         </div>
       </header>
 
-      <main className="container mx-auto max-w-5xl py-10 px-4">
+      <main className="container mx-auto max-w-5xl py-6 px-4">
         {/* AI Generation Banner */}
         {isGeneratingAI && (
-          <div className="mb-10 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-full">
-              <svg className="h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-2 flex items-center gap-2">
+            <div className="p-1.5 bg-blue-100 rounded-full">
+              <svg className="h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
             <div>
-              <h3 className="font-medium text-blue-800">AI Content is Being Generated</h3>
-              <p className="text-sm text-blue-600">
+              <h3 className="font-medium text-blue-800 text-sm">AI Content is Being Generated</h3>
+              <p className="text-xs text-blue-600">
                 We&apos;re creating AI-powered insights for this report. This may take a minute...
               </p>
             </div>
             <div className="ml-auto">
-              <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -756,17 +1028,17 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         )}
         
         {/* Lead Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="md:col-span-2 border-0 shadow-md bg-white overflow-hidden">
-            <CardHeader className="pb-2 border-b border-gray-100">
+            <CardHeader className="pb-1 border-b border-gray-100">
               <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
                 <Building2 className="h-5 w-5 text-blue-600" />
                 Company Profile
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-5">
-              <div className="flex flex-col space-y-4">
-                <div className="flex flex-wrap gap-2">
+            <CardContent className="pt-3">
+              <div className="flex flex-col space-y-2">
+                <div className="flex flex-wrap gap-1.5">
                   {leadData.companyDetails.industry && (
                     <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors font-medium">
                       {leadData.companyDetails.industry}
@@ -790,7 +1062,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                     href={leadData.companyDetails.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition-colors w-fit text-sm"
+                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors w-fit text-sm"
                   >
                     <Globe className="h-4 w-4" />
                     <span>{leadData.companyDetails.website.replace(/^https?:\/\/(www\.)?/, '')}</span>
@@ -802,21 +1074,21 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           </Card>
           
           <Card className="border-0 shadow-md bg-white overflow-hidden">
-            <CardHeader className="pb-2 border-b border-gray-100">
+            <CardHeader className="pb-1 border-b border-gray-100">
               <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
                 <Mail className="h-5 w-5 text-blue-600" />
                 Contact Details
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-5">
-              <div className="space-y-3">
+            <CardContent className="pt-3">
+              <div className="space-y-2">
                 {leadData.contactDetails.email && (
                   <a
                     href={`mailto:${leadData.contactDetails.email}`}
-                    className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    className="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      <Mail className="h-4 w-4 text-blue-600" />
+                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <Mail className="h-3 w-3 text-blue-600" />
                     </div>
                     <span className="text-sm">{leadData.contactDetails.email}</span>
                   </a>
@@ -825,10 +1097,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                 {leadData.contactDetails.phone && (
                   <a
                     href={`tel:${leadData.contactDetails.phone}`}
-                    className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    className="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      <Phone className="h-4 w-4 text-blue-600" />
+                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <Phone className="h-3 w-3 text-blue-600" />
                     </div>
                     <span className="text-sm">{leadData.contactDetails.phone}</span>
                   </a>
@@ -839,10 +1111,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                     href={leadData.contactDetails.linkedin}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
+                    className="flex items-center gap-1.5 text-gray-700 hover:text-blue-600 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                      <Linkedin className="h-4 w-4 text-blue-600" />
+                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <Linkedin className="h-3 w-3 text-blue-600" />
                     </div>
                     <span className="text-sm">LinkedIn Profile</span>
                   </a>
@@ -893,7 +1165,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
             )}
             {hasSectionData('meeting') && (
               <a href="#meeting" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
-                <Calendar className="h-4 w-4" />
+                <Clock className="h-4 w-4" />
                 <span>Meeting</span>
               </a>
             )}
@@ -919,14 +1191,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         </nav>
 
         {/* Report Sections */}
-        <div className="space-y-10">
+        <div className="space-y-4">
           {/* Overview Section */}
           {hasSectionData('overview') && (
             <section id="overview" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Info className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Info className="h-4 w-4 text-white" />
                   </div>
                   Overview
                 </h2>
@@ -934,14 +1206,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Executive Summary
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('overview');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No overview content available</p>
                       </div>
                     );
@@ -954,10 +1226,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* Company Section */}
           {hasSectionData('company') && (
             <section id="company" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Building2 className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Building2 className="h-4 w-4 text-white" />
                   </div>
                   Company Analysis
                 </h2>
@@ -965,14 +1237,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Business Profile
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('company');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No company analysis available</p>
                       </div>
                     );
@@ -985,10 +1257,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* Meeting Section */}
           {hasSectionData('meeting') && (
             <section id="meeting" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Calendar className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Calendar className="h-4 w-4 text-white" />
                   </div>
                   Meeting Information
                 </h2>
@@ -996,14 +1268,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Engagement Details
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('meeting');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No meeting information available</p>
                       </div>
                     );
@@ -1016,10 +1288,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* Competitors Section */}
           {hasSectionData('competitors') && (
             <section id="competitors" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Shield className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Shield className="h-4 w-4 text-white" />
                   </div>
                   Competitive Analysis
                 </h2>
@@ -1027,14 +1299,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Market Position
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('competitors');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No competitor information available</p>
                       </div>
                     );
@@ -1047,10 +1319,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* Tech Stack Section */}
           {hasSectionData('techStack') && (
             <section id="techstack" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Cpu className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Cpu className="h-4 w-4 text-white" />
                   </div>
                   Technology Stack
                 </h2>
@@ -1058,7 +1330,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Technical Profile
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     // Use our specialized TechStack component for rendering
@@ -1066,7 +1338,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                       return <TechStack data={report.aiContent.techStack} />;
                     }
                     return (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No technology stack information available</p>
                       </div>
                     );
@@ -1079,10 +1351,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* News Section */}
           {hasSectionData('news') && (
             <section id="news" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Newspaper className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Newspaper className="h-4 w-4 text-white" />
                   </div>
                   News & Updates
                 </h2>
@@ -1090,14 +1362,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Recent Developments
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('news');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No news information available</p>
                       </div>
                     );
@@ -1110,10 +1382,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* Interactions Section */}
           {hasSectionData('interactions') && (
             <section id="interactions" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <Users className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <Users className="h-4 w-4 text-white" />
                   </div>
                   Interactions
                 </h2>
@@ -1121,14 +1393,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Relationship History
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('interactions');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No interaction information available</p>
                       </div>
                     );
@@ -1141,10 +1413,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           {/* Next Steps */}
           {hasSectionData('nextSteps') && (
             <section id="nextsteps" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <div className="bg-white/20 p-2 rounded-lg">
-                    <ArrowRight className="h-5 w-5 text-white" />
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <div className="bg-white/20 p-1.5 rounded-lg">
+                    <ArrowRight className="h-4 w-4 text-white" />
                   </div>
                   Next Steps
                 </h2>
@@ -1152,14 +1424,14 @@ export default function SharedReportPage({ params }: { params: { id: string } })
                   Action Items
                 </Badge>
               </div>
-              <div className="p-6">
+              <div className="p-4">
                 <div className="prose max-w-none prose-headings:text-blue-700 prose-headings:font-semibold prose-p:text-gray-600 prose-strong:text-gray-800 prose-strong:font-medium prose-li:text-gray-600 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline">
                   {(() => {
                     const content = getAIContent('nextSteps');
                     return content ? (
                       <div dangerouslySetInnerHTML={{ __html: formatSectionContent(content) }} />
                     ) : (
-                      <div className="flex items-center justify-center p-6 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-gray-500 italic">No next steps information available</p>
                       </div>
                     );

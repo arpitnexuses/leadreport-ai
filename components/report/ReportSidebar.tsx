@@ -10,6 +10,8 @@ export function ReportSidebar({
   onRemind,
   onSave,
   isSaving = false,
+  onNavigate,
+  activeSection = "overview"
 }: {
   completion?: number;
   lastUpdated?: string;
@@ -17,6 +19,8 @@ export function ReportSidebar({
   onRemind?: () => void;
   onSave?: () => void;
   isSaving?: boolean;
+  onNavigate?: (section: string) => void;
+  activeSection?: string;
 }) {
   return (
     <aside className="w-full max-w-[280px] min-h-screen bg-white border-r flex flex-col justify-between">
@@ -24,14 +28,62 @@ export function ReportSidebar({
         <div className="px-8 py-10">
           <h2 className="text-2xl font-bold text-blue-900 mb-10">Nexuses Lead Report</h2>
           <nav className="space-y-2">
-            <SidebarLink icon={<ChevronRight />} label="Overview" active />
-            <SidebarLink icon={<Briefcase />} label="Company" />
-            <SidebarLink icon={<Calendar />} label="Meeting" />
-            <SidebarLink icon={<MessageCircle />} label="Interactions" />
-            <SidebarLink icon={<Shield />} label="Competitors" />
-            <SidebarLink icon={<Cpu />} label="Tech Stack" />
-            <SidebarLink icon={<Newspaper />} label="News" />
-            <SidebarLink icon={<ArrowRight />} label="Next Steps" />
+            <SidebarLink 
+              icon={<ChevronRight />} 
+              label="Overview" 
+              sectionId="overview"
+              active={activeSection === "overview"} 
+              onClick={() => onNavigate && onNavigate("overview")}
+            />
+            <SidebarLink 
+              icon={<Briefcase />} 
+              label="Company" 
+              sectionId="company"
+              active={activeSection === "company"} 
+              onClick={() => onNavigate && onNavigate("company")}
+            />
+            <SidebarLink 
+              icon={<Calendar />} 
+              label="Meeting" 
+              sectionId="meeting"
+              active={activeSection === "meeting"} 
+              onClick={() => onNavigate && onNavigate("meeting")}
+            />
+            <SidebarLink 
+              icon={<MessageCircle />} 
+              label="Interactions" 
+              sectionId="interactions"
+              active={activeSection === "interactions"} 
+              onClick={() => onNavigate && onNavigate("interactions")}
+            />
+            <SidebarLink 
+              icon={<Shield />} 
+              label="Competitors" 
+              sectionId="competitors"
+              active={activeSection === "competitors"} 
+              onClick={() => onNavigate && onNavigate("competitors")}
+            />
+            <SidebarLink 
+              icon={<Cpu />} 
+              label="Tech Stack" 
+              sectionId="techStack"
+              active={activeSection === "techStack"} 
+              onClick={() => onNavigate && onNavigate("techStack")}
+            />
+            <SidebarLink 
+              icon={<Newspaper />} 
+              label="News" 
+              sectionId="news"
+              active={activeSection === "news"} 
+              onClick={() => onNavigate && onNavigate("news")}
+            />
+            <SidebarLink 
+              icon={<ArrowRight />} 
+              label="Next Steps" 
+              sectionId="nextSteps"
+              active={activeSection === "nextSteps"} 
+              onClick={() => onNavigate && onNavigate("nextSteps")}
+            />
           </nav>
         </div>
         <div className="px-8 mt-10">
@@ -84,12 +136,26 @@ export function ReportSidebar({
   );
 }
 
-function SidebarLink({ icon, label, active }: { icon: React.ReactNode; label: string; active?: boolean }) {
+function SidebarLink({ 
+  icon, 
+  label, 
+  active, 
+  onClick,
+  sectionId 
+}: { 
+  icon: React.ReactNode; 
+  label: string; 
+  active?: boolean;
+  onClick?: () => void;
+  sectionId: string;
+}) {
   return (
     <div
       className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-colors ${
         active ? "bg-blue-50 text-blue-900 font-semibold" : "text-gray-700 hover:bg-gray-50"
       }`}
+      onClick={onClick}
+      data-section={sectionId}
     >
       <span className="w-5 h-5 flex items-center justify-center">{icon}</span>
       <span>{label}</span>
