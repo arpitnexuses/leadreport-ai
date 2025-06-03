@@ -6,18 +6,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log(`Fetching status for report ID: ${params.id}`);
   try {
     const reportId = params.id;
     
     if (!reportId) {
-      console.error("Report ID is missing in request params");
       return NextResponse.json({ error: "Report ID is required" }, { status: 400 });
     }
     
     // Validate ObjectId format
     if (!ObjectId.isValid(reportId)) {
-      console.error(`Invalid report ID format: ${reportId}`);
       return NextResponse.json({ error: "Invalid report ID format" }, { status: 400 });
     }
     
@@ -29,7 +26,6 @@ export async function GET(
     const report = await collection.findOne({ _id: new ObjectId(reportId) });
     
     if (!report) {
-      console.error(`Report not found with ID: ${reportId}`);
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
     
@@ -40,7 +36,6 @@ export async function GET(
     });
     
   } catch (error) {
-    console.error("Error fetching report status:", error);
     return NextResponse.json(
       { 
         error: "Failed to fetch report status",

@@ -36,18 +36,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log(`Fetching report data for ID: ${params.id}`);
   try {
     const reportId = params.id;
     
     if (!reportId) {
-      console.error("Report ID is missing in request params");
       return NextResponse.json({ error: "Report ID is required" }, { status: 400 });
     }
     
     // Validate ObjectId format
     if (!ObjectId.isValid(reportId)) {
-      console.error(`Invalid report ID format: ${reportId}`);
       return NextResponse.json({ error: "Invalid report ID format" }, { status: 400 });
     }
     
@@ -59,7 +56,6 @@ export async function GET(
     const report = await collection.findOne({ _id: new ObjectId(reportId) });
     
     if (!report) {
-      console.error(`Report not found with ID: ${reportId}`);
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
     }
     
@@ -68,26 +64,22 @@ export async function GET(
     
     // Return report data with appropriate status
     if (report.status === 'completed') {
-      console.log(`Successfully fetched completed report: ${reportId}`);
       return NextResponse.json({
         status: 'completed',
         data: serializedReport
       });
     } else if (report.status === 'failed') {
-      console.log(`Fetched failed report: ${reportId}, Error: ${report.error || 'No error message'}`);
       return NextResponse.json({
         status: 'failed',
         error: report.error || "Unknown error occurred during report generation"
       });
     } else {
       // Report is still processing
-      console.log(`Fetched in-progress report: ${reportId}, Status: ${report.status}`);
       return NextResponse.json({
         status: report.status || 'processing'
       });
     }
   } catch (error) {
-    console.error("Error fetching report:", error);
     return NextResponse.json(
       { 
         error: "Failed to fetch report",
@@ -105,7 +97,6 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
-    console.log("Received update data:", body);
     
     const client = await clientPromise;
     const db = client.db("lead-reports");
@@ -121,7 +112,6 @@ export async function PATCH(
     // Handle full leadData replacement if provided
     if (body.leadData) {
       updateData.$set.leadData = body.leadData;
-      console.log("Updating lead data with:", body.leadData);
     } else {
       // Handle individual field updates
       if (body.notes) updateData.$set['leadData.notes'] = body.notes;
@@ -138,10 +128,7 @@ export async function PATCH(
     // Handle AI content if provided
     if (body.aiContent) {
       updateData.$set.aiContent = body.aiContent;
-      console.log("Updating AI content:", body.aiContent);
     }
-    
-    console.log("Final update data:", updateData);
 
     const result = await reports.updateOne(
       { _id: new ObjectId(params.id) },
@@ -160,7 +147,6 @@ export async function PATCH(
     const serializedReport = serializeDocument(updatedReport);
     return NextResponse.json(serializedReport);
   } catch (error) {
-    console.error('Error updating report:', error);
     return NextResponse.json(
       { error: 'Failed to update report' },
       { status: 500 }

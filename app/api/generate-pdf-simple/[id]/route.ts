@@ -8,31 +8,25 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log(`Simple PDF generation started for report: ${params.id}`);
-    
     // Connect to database using the clientPromise
     const client = await clientPromise;
     const db = client.db('lead-reports');
     
     // Validate report ID
     if (!params.id || !ObjectId.isValid(params.id)) {
-      console.error(`Invalid report ID: ${params.id}`);
       return NextResponse.json({ error: 'Invalid report ID' }, { status: 400 });
     }
 
     // Get report from database
-    console.log(`Fetching report from database: ${params.id}`);
     const report = await db.collection('reports').findOne({
       _id: new ObjectId(params.id)
     });
 
     if (!report) {
-      console.error(`Report not found: ${params.id}`);
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
     // Generate a simple PDF
-    console.log('Generating simple PDF');
     
     // Create a new PDF document
     const doc = new jsPDF();
@@ -821,8 +815,6 @@ export async function GET(
     // Generate PDF buffer
     const pdfBuffer = doc.output('arraybuffer');
     
-    console.log('PDF generated successfully');
-    
     // Return the PDF as a response
     return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {
@@ -832,8 +824,6 @@ export async function GET(
     });
     
   } catch (error) {
-    console.error('API error:', error);
-    
     return NextResponse.json(
       { error: 'Failed to generate PDF', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

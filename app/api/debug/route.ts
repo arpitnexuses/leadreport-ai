@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
         reportsCount: count,
         databases: dbInfo.databases.map((db: any) => db.name)
       },
-      environment: process.env.NODE_ENV
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error("Debug endpoint error:", error);
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest) {
         status: "error",
         error: "Failed to connect to MongoDB",
         details: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : null
+        stack: error instanceof Error ? error.stack : null,
+        timestamp: new Date().toISOString()
       }, 
       { status: 500 }
     );

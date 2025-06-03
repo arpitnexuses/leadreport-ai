@@ -46,35 +46,22 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [debugContent, setDebugContent] = useState<string>("");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        console.log(`Fetching report with ID: ${params.id}`);
         const response = await fetch(`/api/public-reports/${params.id}`);
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error("Error fetching report:", errorData);
           throw new Error(errorData.error || "Report not found");
         }
         
         const data = await response.json();
-        console.log("Successfully fetched report data with sections:", Object.keys(data));
-        if (data.aiContent) {
-          console.log("AI content sections:", Object.keys(data.aiContent));
-          // Print the structure of the first AI content section for debugging
-          const firstSection = Object.keys(data.aiContent)[0];
-          if (firstSection) {
-            console.log(`Example structure of ${firstSection}:`, JSON.stringify(data.aiContent[firstSection], null, 2));
-            setDebugContent(JSON.stringify(data.aiContent, null, 2));
-          }
-        } else {
+        if (!data.aiContent) {
           // If no AI content is available, generate it automatically
-          console.log("No AI content found, generating automatically...");
           setIsGeneratingAI(true);
           generateAIContent(data);
         }
@@ -82,7 +69,6 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         setReport(data);
       } catch (err) {
         setError("Failed to load report");
-        console.error("Error in fetchReport:", err);
       } finally {
         setLoading(false);
       }
@@ -96,7 +82,6 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     if (!reportData || !reportData.leadData) return;
     
     setIsGeneratingAI(true);
-    console.log("Automatically generating AI content for shared report");
     
     // Define sections to generate
     const sections = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'];
@@ -121,8 +106,6 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         if (response.ok) {
           const result = await response.json();
           newContent[section] = result;
-        } else {
-          console.error(`Failed to generate content for ${section} section`);
         }
       }
       
@@ -140,15 +123,12 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         }),
       });
 
-      if (!saveResponse.ok) {
-        console.error("Failed to save AI content");
-      } else {
-        console.log("Successfully generated and saved AI content for shared report");
+      if (saveResponse.ok) {
         // Update the report in state
         setReport(updatedReport);
       }
     } catch (error) {
-      console.error('Error in automatic AI generation:', error);
+      // Error handling without logging
     } finally {
       setIsGeneratingAI(false);
     }
@@ -272,12 +252,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   // Helper function to extract content from AI sections
   const getAIContent = (section: string) => {
     if (!report?.aiContent || !report.aiContent[section]) {
-      console.log(`No content found for section: ${section}`);
       return null;
     }
     
     const sectionData = report.aiContent[section];
-    console.log(`Raw ${section} data:`, sectionData);
     
     // Special handling for techStack section - use the new component rendering
     if (section === 'techStack') {
@@ -551,7 +529,6 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           return content;
         }
       } catch (e) {
-        console.error("Failed to parse dosDonts as array:", e);
         // If parsing fails, we'll fall through to the regular formatting
       }
     }
@@ -717,44 +694,36 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   // Check if section has meaningful data
   const hasSectionData = (section: string) => {
     if (!report?.aiContent || !report.aiContent[section]) {
-      console.log(`Section check: ${section} - not found`);
       return false;
     }
     
     const sectionData = report.aiContent[section];
     
     if (typeof sectionData === 'string' && sectionData.trim()) {
-      console.log(`Section check: ${section} - has string data`);
       return true;
     }
     
     if (typeof sectionData !== 'object') {
-      console.log(`Section check: ${section} - not an object`);
       return false;
     }
     
     if (sectionData.insufficient_data === true) {
-      console.log(`Section check: ${section} - has insufficient_data flag`);
       return false;
     }
     
     if (sectionData.summary) {
-      console.log(`Section check: ${section} - has summary`);
       return true;
     }
     
     if (sectionData.content) {
-      console.log(`Section check: ${section} - has content`);
       return true;
     }
     
     if (sectionData.description) {
-      console.log(`Section check: ${section} - has description`);
       return true;
     }
     
     if (sectionData.keyPoints && sectionData.keyPoints.length > 0) {
-      console.log(`Section check: ${section} - has keyPoints`);
       return true;
     }
     
@@ -766,7 +735,6 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       value !== undefined
     );
     
-    console.log(`Section check: ${section} - has other data: ${hasData}`);
     return hasData;
   };
 
@@ -776,24 +744,20 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     
     try {
       setIsPdfLoading(true);
-      console.log(`Requesting PDF for report: ${report._id}`);
       
       // Use the simple jsPDF endpoint instead of Puppeteer
       const response = await fetch(`/api/generate-pdf-simple/${report._id}`, {
         method: 'GET',
       });
       
-      console.log(`PDF response status: ${response.status}`);
-      
       if (!response.ok) {
         // Try to get detailed error information
         let errorMessage = 'Failed to generate PDF';
         try {
           const errorData = await response.json();
-          console.error('PDF generation error details:', errorData);
           errorMessage = errorData.details || errorData.error || errorMessage;
         } catch (parseError) {
-          console.error('Could not parse error response:', parseError);
+          // Parse error handling
         }
         
         throw new Error(errorMessage);
@@ -803,17 +767,11 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const errorData = await response.json();
-        console.error('PDF generation returned JSON error:', errorData);
         throw new Error(errorData.error || 'Failed to generate PDF');
       }
       
       // We have a valid PDF response
-      console.log('PDF generated successfully, downloading...');
       const blob = await response.blob();
-      
-      if (blob.size < 1000) { // If PDF is suspiciously small
-        console.warn('Warning: PDF file size is very small:', blob.size, 'bytes');
-      }
       
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -828,10 +786,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         document.body.removeChild(a);
       }, 100);
       
-      console.log('PDF download initiated');
     } catch (error) {
-      console.error('Error in PDF generation/download:', error);
-      
       // Show a more detailed error message to the user
       alert(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again later or contact support.`);
     } finally {
@@ -882,13 +837,11 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   const leadData = report.leadData;
   const apolloPerson = report.apolloData?.person || {};
 
-  // Explicitly log what we're going to render
-  console.log("AI Content sections available:", report.aiContent ? Object.keys(report.aiContent) : "none");
+  // Create a map of which sections should render
   const sectionsToRender: Record<string, boolean> = {};
   Object.keys(report.aiContent || {}).forEach(section => {
     sectionsToRender[section] = hasSectionData(section);
   });
-  console.log("Sections that will render:", sectionsToRender);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
@@ -1124,64 +1077,52 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           </Card>
         </div>
 
-        {/* Debug section - hidden by default */}
-        {debugContent && (
-          <details className="mb-8 bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
-            <summary className="p-4 cursor-pointer text-blue-600 font-medium bg-gray-50 hover:bg-gray-100 transition-colors">
-              Debug: AI Content Structure
-            </summary>
-            <pre className="p-4 bg-gray-800 text-white overflow-auto rounded-b-md text-xs max-h-96">
-              {debugContent}
-            </pre>
-          </details>
-        )}
-
         {/* Report Navigation */}
         <nav className="hidden md:flex sticky top-4 z-10 bg-white/90 backdrop-blur-sm mb-6 rounded-full shadow-md border border-gray-100 p-1.5 overflow-x-auto">
           <div className="flex space-x-1">
-            {hasSectionData('overview') && (
+            {sectionsToRender['overview'] && (
               <a href="#overview" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Info className="h-4 w-4" />
                 <span>Overview</span>
               </a>
             )}
-            {hasSectionData('company') && (
+            {sectionsToRender['company'] && (
               <a href="#company" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Building2 className="h-4 w-4" />
                 <span>Company</span>
               </a>
             )}
-            {hasSectionData('competitors') && (
+            {sectionsToRender['competitors'] && (
               <a href="#competitors" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Shield className="h-4 w-4" />
                 <span>Competitors</span>
               </a>
             )}
-            {hasSectionData('techStack') && (
+            {sectionsToRender['techStack'] && (
               <a href="#techstack" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Cpu className="h-4 w-4" />
                 <span>Tech Stack</span>
               </a>
             )}
-            {hasSectionData('meeting') && (
+            {sectionsToRender['meeting'] && (
               <a href="#meeting" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Clock className="h-4 w-4" />
                 <span>Meeting</span>
               </a>
             )}
-            {hasSectionData('news') && (
+            {sectionsToRender['news'] && (
               <a href="#news" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Newspaper className="h-4 w-4" />
                 <span>News</span>
               </a>
             )}
-            {hasSectionData('interactions') && (
+            {sectionsToRender['interactions'] && (
               <a href="#interactions" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <Users className="h-4 w-4" />
                 <span>Interactions</span>
               </a>
             )}
-            {hasSectionData('nextSteps') && (
+            {sectionsToRender['nextSteps'] && (
               <a href="#nextsteps" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm font-medium">
                 <ArrowRight className="h-4 w-4" />
                 <span>Next Steps</span>
@@ -1193,7 +1134,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
         {/* Report Sections */}
         <div className="space-y-4">
           {/* Overview Section */}
-          {hasSectionData('overview') && (
+          {sectionsToRender['overview'] && (
             <section id="overview" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1224,7 +1165,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* Company Section */}
-          {hasSectionData('company') && (
+          {sectionsToRender['company'] && (
             <section id="company" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1255,7 +1196,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* Meeting Section */}
-          {hasSectionData('meeting') && (
+          {sectionsToRender['meeting'] && (
             <section id="meeting" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1286,7 +1227,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* Competitors Section */}
-          {hasSectionData('competitors') && (
+          {sectionsToRender['competitors'] && (
             <section id="competitors" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1317,7 +1258,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* Tech Stack Section */}
-          {hasSectionData('techStack') && (
+          {sectionsToRender['techStack'] && (
             <section id="techstack" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1349,7 +1290,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* News Section */}
-          {hasSectionData('news') && (
+          {sectionsToRender['news'] && (
             <section id="news" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1380,7 +1321,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* Interactions Section */}
-          {hasSectionData('interactions') && (
+          {sectionsToRender['interactions'] && (
             <section id="interactions" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -1411,7 +1352,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
           )}
 
           {/* Next Steps */}
-          {hasSectionData('nextSteps') && (
+          {sectionsToRender['nextSteps'] && (
             <section id="nextsteps" className="bg-white rounded-xl shadow-md border-0 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
