@@ -290,7 +290,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     if (!reportData || !reportData.leadData) return;
     
     setIsGeneratingAI(true);
-    console.log("Automatically generating AI content for all sections");
     
     // Get list of active sections - ensure they are valid section keys
     const validSectionKeys = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'] as const;
@@ -328,8 +327,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         if (response.ok) {
           const result = await response.json();
           newContent[section] = result;
-        } else {
-          console.error(`Failed to generate content for ${section} section`);
         }
       }
       
@@ -350,10 +347,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       if (!saveResponse.ok) {
         throw new Error("Failed to save AI content");
       }
-      
-      console.log("Successfully generated and saved AI content for all sections");
     } catch (error) {
-      console.error('Error in automatic AI generation:', error);
+      // Error handling without logging
     } finally {
       setIsSaving(false);
       setIsGeneratingAI(false);
@@ -363,12 +358,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      console.log("Saving data:", {
-        leadData: editedLeadData,
-        skills: editedSkills,
-        languages: editedLanguages,
-        aiContent: aiContent
-      });
       
       const response = await fetch(`/api/reports/${params.id}`, {
         method: "PATCH",
@@ -388,11 +377,10 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       }
 
       const updatedReport = await response.json();
-      console.log("Updated report from server:", updatedReport);
       setReport(updatedReport);
       setIsEditing(false);
     } catch (error) {
-      console.error("Error updating report:", error);
+      // Error handling without logging
     } finally {
       setIsSaving(false);
     }
@@ -432,7 +420,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   };
 
   const handleAiContentUpdate = (section: string, content: Record<string, any>) => {
-    console.log(`AI content updated for ${section}:`, content);
     setAiContent(prev => ({
       ...prev,
       [section]: content
@@ -860,7 +847,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                     : leadData.leadScoring?.rating || ""}
                   isEditing={isEditing}
                   onCriteriaChange={(key, value) => {
-                    console.log(`Criteria change in parent: ${key} = ${value}`);
                     if (isEditing && editedLeadData) {
                       const updatedData = {
                         ...editedLeadData,
@@ -872,12 +858,10 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                           }
                         }
                       };
-                      console.log("Updated lead data:", updatedData.leadScoring.qualificationCriteria);
                       setEditedLeadData(updatedData);
                     }
                   }}
                   onRatingChange={(rating) => {
-                    console.log(`Rating change in parent: ${rating}`);
                     if (isEditing && editedLeadData) {
                       const updatedData = {
                         ...editedLeadData,
@@ -886,7 +870,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                           rating
                         }
                       };
-                      console.log("Updated rating:", updatedData.leadScoring.rating);
                       setEditedLeadData(updatedData);
                     }
                   }}
