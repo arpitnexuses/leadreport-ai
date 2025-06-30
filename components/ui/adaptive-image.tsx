@@ -43,6 +43,9 @@ export const AdaptiveImage = ({
     }
   };
 
+  // Check if the src is a base64 data URL
+  const isBase64 = src.startsWith('data:image');
+
   if (showPlaceholder) {
     return (
       <div className={cn("relative overflow-hidden", className)}>
@@ -55,6 +58,24 @@ export const AdaptiveImage = ({
     );
   }
 
+  // Use regular img tag for base64 data URLs
+  if (isBase64) {
+    return (
+      <div className={cn("relative overflow-hidden", className)}>
+        <img
+          src={imgSrc}
+          alt={alt}
+          width={width}
+          height={height}
+          onError={handleError}
+          style={{ objectFit }}
+          className={cn("transition-opacity duration-300", error ? "opacity-80" : "")}
+        />
+      </div>
+    );
+  }
+
+  // Use Next.js Image for regular URLs
   return (
     <div className={cn("relative overflow-hidden", className)}>
       <Image

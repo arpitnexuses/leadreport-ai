@@ -23,6 +23,8 @@ import { ReportDetailCard } from "@/components/report/ReportDetailCard";
 import { ReportInfoSection } from "@/components/report/ReportInfoSection";
 import { MeetingDetailsCard } from "@/components/report/MeetingDetailsCard";
 import { SectionToggle } from "@/components/report/SectionToggle";
+import { EditableField } from "@/components/report/EditableField";
+import { ProfilePictureEditor } from "@/components/report/ProfilePictureEditor";
 import {
   OverviewSection,
   CompanySection,
@@ -173,6 +175,16 @@ interface LeadReport {
   followUpTimeline?: { title: string; day: string; description: string; isCompleted: boolean }[];
   talkingPoints?: { title: string; content: string }[];
   aiContent?: Record<string, any>;
+  sections?: {
+    overview: boolean;
+    company: boolean;
+    meeting: boolean;
+    interactions: boolean;
+    competitors: boolean;
+    techStack: boolean;
+    news: boolean;
+    nextSteps: boolean;
+  };
 }
 
 const ReportLoader = dynamic(
@@ -262,6 +274,11 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       // Initialize AI content if available
       if (report.aiContent) {
         setAiContent(report.aiContent);
+      }
+      
+      // Initialize sections state from report data if available
+      if (report.sections) {
+        setSections(report.sections);
       }
       
       // Generate a preview for the report
@@ -368,7 +385,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           leadData: editedLeadData,
           skills: editedSkills,
           languages: editedLanguages,
-          aiContent: aiContent
+          aiContent: aiContent,
+          sections: sections
         }),
       });
 
@@ -412,11 +430,28 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     setNewTag("");
   };
 
-  const handleSectionToggle = (section: string, value: boolean) => {
-    setSections(prev => ({
-      ...prev,
+  const handleSectionToggle = async (section: string, value: boolean) => {
+    const newSections = {
+      ...sections,
       [section]: value
-    }));
+    };
+    
+    setSections(newSections);
+    
+    // Save the section toggle state immediately
+    try {
+      await fetch(`/api/reports/${params.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sections: newSections
+        }),
+      });
+    } catch (error) {
+      // Error handling without logging
+    }
   };
 
   const handleAiContentUpdate = (section: string, content: Record<string, any>) => {
@@ -497,6 +532,33 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     }
     
     setReport(updatedReport);
+  };
+
+  // Handle profile picture changes
+  const handleProfilePictureChange = (photoUrl: string | null) => {
+    if (!isEditing || !editedLeadData) return;
+    
+    const updatedData = {
+      ...editedLeadData,
+      photo: photoUrl
+    };
+    
+    setEditedLeadData(updatedData);
+  };
+
+  // Handle phone number changes
+  const handlePhoneNumberChange = (phoneNumber: string) => {
+    if (!isEditing || !editedLeadData) return;
+    
+    const updatedData = {
+      ...editedLeadData,
+      contactDetails: {
+        ...editedLeadData.contactDetails,
+        phone: phoneNumber
+      }
+    };
+    
+    setEditedLeadData(updatedData);
   };
 
   // Function to handle section navigation
@@ -686,19 +748,12 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
             <div className="flex items-start justify-between">
               <div className="flex gap-6">
-                <div className="h-24 w-24 rounded-xl overflow-hidden bg-white/20 flex-shrink-0">
-                  <AdaptiveImage
-                    src={leadData.photo || apolloPerson?.photo_url || ""}
-                    alt={leadData.name}
-                    width={96}
-                    height={96}
-                    className="object-cover w-full h-full"
-                    placeholderType="user"
-                    showPlaceholder={
-                      !leadData.photo && !apolloPerson?.photo_url
-                    }
-                  />
-                </div>
+                <ProfilePictureEditor
+                  currentPhoto={isEditing && editedLeadData ? editedLeadData.photo : leadData.photo}
+                  isEditing={isEditing}
+                  onPhotoChange={handleProfilePictureChange}
+                  alt={leadData.name}
+                />
                 <div>
                   <h2 className="text-3xl font-bold">{leadData.name}</h2>
                   <p className="text-blue-100 text-lg">{leadData.position}</p>
@@ -768,12 +823,21 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
               <div className="flex items-center gap-2">
                 <Phone className="h-5 w-5 text-blue-600" />
-                <a
-                  href={`tel:${leadData.contactDetails.phone}`}
-                  className="text-gray-800 hover:text-blue-600"
-                >
-                  {leadData.contactDetails.phone || "No phone available"}
-                </a>
+                {isEditing ? (
+                  <EditableField
+                    value={editedLeadData?.contactDetails.phone || leadData.contactDetails.phone || ""}
+                    onChange={handlePhoneNumberChange}
+                    isEditing={isEditing}
+                    className="text-gray-800 hover:text-blue-600"
+                  />
+                ) : (
+                  <a
+                    href={`tel:${leadData.contactDetails.phone}`}
+                    className="text-gray-800 hover:text-blue-600"
+                  >
+                    {leadData.contactDetails.phone || "No phone available"}
+                  </a>
+                )}
               </div>
 
               <div className="flex items-center gap-2">

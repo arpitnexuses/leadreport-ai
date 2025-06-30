@@ -43,6 +43,7 @@ export async function GET(
       followUpTimeline: report.followUpTimeline,
       talkingPoints: report.talkingPoints,
       aiContent: report.aiContent,
+      sections: report.sections,
       createdAt: report.createdAt,
     });
   } catch (error) {

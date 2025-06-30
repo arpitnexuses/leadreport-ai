@@ -129,6 +129,11 @@ export async function PATCH(
     if (body.aiContent) {
       updateData.$set.aiContent = body.aiContent;
     }
+    
+    // Handle sections toggle state if provided
+    if (body.sections) {
+      updateData.$set.sections = body.sections;
+    }
 
     const result = await reports.updateOne(
       { _id: new ObjectId(params.id) },

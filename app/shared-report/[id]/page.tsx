@@ -840,7 +840,10 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   // Create a map of which sections should render
   const sectionsToRender: Record<string, boolean> = {};
   Object.keys(report.aiContent || {}).forEach(section => {
-    sectionsToRender[section] = hasSectionData(section);
+    // Check if section has data AND is not toggled off
+    const hasData = hasSectionData(section);
+    const isToggledOn = report.sections ? report.sections[section] !== false : true; // Default to true if no sections state
+    sectionsToRender[section] = hasData && isToggledOn;
   });
 
   return (
