@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 
@@ -8,6 +8,7 @@ interface EditableFieldProps {
   isEditing: boolean;
   multiline?: boolean;
   className?: string;
+  placeholder?: string;
 }
 
 export function EditableField({ 
@@ -15,8 +16,14 @@ export function EditableField({
   onChange, 
   isEditing, 
   multiline = false,
-  className = "" 
+  className = "",
+  placeholder = ""
 }: EditableFieldProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [displayValue, setDisplayValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Convert value to string safely with special handling for objects with numeric keys
   const stringValue = React.useMemo(() => {
     if (typeof value === 'string') return value;
@@ -40,7 +47,29 @@ export function EditableField({
     
     return String(value);
   }, [value]);
-  
+
+  // Update display value when stringValue changes
+  useEffect(() => {
+    setDisplayValue(stringValue);
+  }, [stringValue]);
+
+  // Handle focus to clear default placeholder text
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  // Handle blur to restore value if empty
+  const handleBlur = () => {
+    setIsFocused(false);
+    // Don't restore default values on blur - let user input remain
+  };
+
+  // Handle change
+  const handleChange = (newValue: string) => {
+    setDisplayValue(newValue);
+    onChange(newValue);
+  };
+
   if (!isEditing) {
     return <p className={className}>{stringValue}</p>;
   }
@@ -48,8 +77,12 @@ export function EditableField({
   if (multiline) {
     return (
       <Textarea
-        value={stringValue}
-        onChange={(e) => onChange(e.target.value)}
+        ref={textareaRef}
+        value={displayValue}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        placeholder={placeholder}
         className={`min-h-[80px] py-1 ${className}`}
       />
     );
@@ -57,8 +90,12 @@ export function EditableField({
   
   return (
     <Input
-      value={stringValue}
-      onChange={(e) => onChange(e.target.value)}
+      ref={inputRef}
+      value={displayValue}
+      onChange={(e) => handleChange(e.target.value)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      placeholder={placeholder}
       className={`py-1 h-7 ${className}`}
     />
   );

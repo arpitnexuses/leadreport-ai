@@ -652,9 +652,16 @@ export function AISectionContent({
           {/* For array of objects with description, rationale and priority properties */}
           {Array.isArray(content.recommendedActions) && content.recommendedActions.length > 0 && 
            typeof content.recommendedActions[0] === 'object' && 'description' in content.recommendedActions[0] && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
-              <div className="space-y-3">
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+              </div>
+              <div className="space-y-4">
                 {content.recommendedActions
                   .filter((action: any) => 
                     // Filter out any action descriptions that might contain personal information
@@ -665,44 +672,67 @@ export function AISectionContent({
                     !action.description?.includes('B2B Growth Agency')
                   )
                   .map((action: any, index: number) => (
-                  <div key={index} className="bg-white p-4 rounded border">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-medium text-gray-900">
-                        <EditableField
-                          value={action.description}
-                          onChange={(value) => handleNestedContentChange('recommendedActions', index, 'description', value)}
-                          isEditing={isEditing}
-                        />
-                      </h4>
-                      {action.priority && (
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          action.priority.toLowerCase() === 'high' 
-                            ? 'bg-red-100 text-red-800' 
-                            : action.priority.toLowerCase() === 'medium'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {action.priority}
-                        </span>
-                      )}
+                  <div key={index} className="group relative bg-gradient-to-r from-white to-gray-50 p-6 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start gap-4">
+                      {/* Priority indicator */}
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 mt-2 ${
+                        action.priority?.toLowerCase() === 'high' 
+                          ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                          : action.priority?.toLowerCase() === 'medium'
+                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                      }`} />
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <h4 className="font-semibold text-gray-900 leading-relaxed">
+                            <EditableField
+                              value={action.description}
+                              onChange={(value) => handleNestedContentChange('recommendedActions', index, 'description', value)}
+                              isEditing={isEditing}
+                            />
+                          </h4>
+                          {action.priority && (
+                            <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                              action.priority.toLowerCase() === 'high' 
+                                ? 'bg-red-100 text-red-700 border border-red-200' 
+                                : action.priority.toLowerCase() === 'medium'
+                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                                : 'bg-green-100 text-green-700 border border-green-200'
+                            }`}>
+                              {action.priority}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {action.rationale && !action.rationale.includes('Ekansh') && !action.rationale.includes('Kandulna') && (
+                          <div className="bg-blue-50 border-l-4 border-blue-200 p-3 rounded-r-lg">
+                            <EditableField
+                              value={action.rationale}
+                              onChange={(value) => handleNestedContentChange('recommendedActions', index, 'rationale', value)}
+                              isEditing={isEditing}
+                              multiline={true}
+                              className="text-sm text-gray-700 leading-relaxed"
+                            />
+                          </div>
+                        )}
+                        
+                        {action.dueDate && (
+                          <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <EditableField
+                              value={action.dueDate}
+                              onChange={(value) => handleNestedContentChange('recommendedActions', index, 'dueDate', value)}
+                              isEditing={isEditing}
+                              className="text-gray-600"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {action.rationale && !action.rationale.includes('Ekansh') && !action.rationale.includes('Kandulna') && (
-                      <EditableField
-                        value={action.rationale}
-                        onChange={(value) => handleNestedContentChange('recommendedActions', index, 'rationale', value)}
-                        isEditing={isEditing}
-                        multiline={true}
-                        className="text-sm text-gray-600 mt-2"
-                      />
-                    )}
-                    {action.dueDate && (
-                      <EditableField
-                        value={action.dueDate}
-                        onChange={(value) => handleNestedContentChange('recommendedActions', index, 'dueDate', value)}
-                        isEditing={isEditing}
-                        className="text-xs text-gray-500 mt-1"
-                      />
-                    )}
                   </div>
                 ))}
               </div>
@@ -712,8 +742,15 @@ export function AISectionContent({
           {/* For array of strings (the format seen in the screenshot) */}
           {Array.isArray(content.recommendedActions) && content.recommendedActions.length > 0 && 
            typeof content.recommendedActions[0] === 'string' && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+              </div>
               <div className="space-y-3">
                 {content.recommendedActions
                   .filter((action: string) => 
@@ -724,13 +761,16 @@ export function AISectionContent({
                     !action.includes('B2B Growth Agency')
                   )
                   .map((action: string, index: number) => (
-                  <div key={index} className="bg-white p-3 rounded border">
-                    <EditableField
-                      value={action}
-                      onChange={(value) => handleArrayItemChange('recommendedActions', index, value)}
-                      isEditing={isEditing}
-                      className="text-gray-800"
-                    />
+                  <div key={index} className="group relative bg-gradient-to-r from-white to-gray-50 p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                      <EditableField
+                        value={action}
+                        onChange={(value) => handleArrayItemChange('recommendedActions', index, value)}
+                        isEditing={isEditing}
+                        className="text-gray-800 font-medium leading-relaxed"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -742,9 +782,16 @@ export function AISectionContent({
            typeof content.recommendedActions === 'object' && 
            content.recommendedActions !== null &&
            hasNumericKeys(content.recommendedActions) && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
-              <div className="space-y-3">
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+              </div>
+              <div className="space-y-4">
                 {Object.values(content.recommendedActions)
                   .filter((action: any) => 
                     typeof action === 'object' &&
@@ -755,28 +802,43 @@ export function AISectionContent({
                     !action.description?.includes('B2B Growth Agency')
                   )
                   .map((action: any, index: number) => (
-                  <div key={index} className="bg-white p-4 rounded border">
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-medium text-gray-900">
-                        {action.description}
-                      </h4>
-                      {action.priority && (
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          action.priority.toLowerCase() === 'high' 
-                            ? 'bg-red-100 text-red-800' 
-                            : action.priority.toLowerCase() === 'medium'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {action.priority}
-                        </span>
-                      )}
+                  <div key={index} className="group relative bg-gradient-to-r from-white to-gray-50 p-6 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 mt-2 ${
+                        action.priority?.toLowerCase() === 'high' 
+                          ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                          : action.priority?.toLowerCase() === 'medium'
+                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-600'
+                      }`} />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <h4 className="font-semibold text-gray-900 leading-relaxed">
+                            {action.description}
+                          </h4>
+                          {action.priority && (
+                            <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                              action.priority.toLowerCase() === 'high' 
+                                ? 'bg-red-100 text-red-700 border border-red-200' 
+                                : action.priority.toLowerCase() === 'medium'
+                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                                : 'bg-green-100 text-green-700 border border-green-200'
+                            }`}>
+                              {action.priority}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {action.rationale && !action.rationale.includes('Ekansh') && !action.rationale.includes('Kandulna') && (
+                          <div className="bg-blue-50 border-l-4 border-blue-200 p-3 rounded-r-lg">
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                              {action.rationale}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {action.rationale && !action.rationale.includes('Ekansh') && !action.rationale.includes('Kandulna') && (
-                      <p className="text-sm text-gray-600 mt-2">
-                        {action.rationale}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
@@ -788,39 +850,60 @@ export function AISectionContent({
            typeof content.recommendedActions === 'object' && 
            content.recommendedActions !== null &&
            !hasNumericKeys(content.recommendedActions) && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
-              <div className="space-y-3">
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+              </div>
+              <div className="space-y-4">
                 {Object.entries(content.recommendedActions).map(([key, value], index) => {
                   // Value could be a string, an object, or any other type
                   if (typeof value === 'object' && value !== null) {
                     // Format similar to the object rendering above
                     return (
-                      <div key={index} className="bg-white p-4 rounded border">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-medium text-gray-900">
-                            {(value as any).description || key}
-                          </h4>
-                          {(value as any).priority && (
-                            <span className={`text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-800`}>
-                              {(value as any).priority}
-                            </span>
-                          )}
+                      <div key={index} className="group relative bg-gradient-to-r from-white to-gray-50 p-6 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-start gap-4">
+                          <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <h4 className="font-semibold text-gray-900 leading-relaxed">
+                                {(value as any).description || key}
+                              </h4>
+                              {(value as any).priority && (
+                                <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                                  {(value as any).priority}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {(value as any).rationale && (
+                              <div className="bg-blue-50 border-l-4 border-blue-200 p-3 rounded-r-lg">
+                                <p className="text-sm text-gray-700 leading-relaxed">
+                                  {(value as any).rationale}
+                                </p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {(value as any).rationale && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            {(value as any).rationale}
-                          </p>
-                        )}
                       </div>
                     );
                   } else {
                     // For simple key-value pairs
                     return (
-                      <div key={index} className="bg-white p-3 rounded border">
-                        <div className="font-medium">{key}</div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {typeof value === 'string' ? value : JSON.stringify(value)}
+                      <div key={index} className="group relative bg-gradient-to-r from-white to-gray-50 p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                        <div className="flex items-start gap-3">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-900">{key}</div>
+                            <div className="text-sm text-gray-600 mt-1 leading-relaxed">
+                              {typeof value === 'string' ? value : JSON.stringify(value)}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -832,9 +915,16 @@ export function AISectionContent({
           
           {/* Previous recommendations format support */}
           {content.recommendations && content.recommendations.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-2">Recommended Actions</h3>
-              <div className="space-y-3">
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+              </div>
+              <div className="space-y-4">
                 {content.recommendations
                   .filter((rec: any) => 
                     !rec.title?.includes('Ekansh') && 
@@ -849,21 +939,27 @@ export function AISectionContent({
                     !rec.description?.includes('B2B Growth Agency')
                   )
                   .map((rec: any, index: number) => (
-                  <div key={index} className="bg-white p-3 rounded border">
-                    <h4 className="font-medium">
-                      <EditableField
-                        value={rec.title}
-                        onChange={(value) => handleNestedContentChange('recommendations', index, 'title', value)}
-                        isEditing={isEditing}
-                      />
-                    </h4>
-                    <EditableField
-                      value={rec.description}
-                      onChange={(value) => handleNestedContentChange('recommendations', index, 'description', value)}
-                      isEditing={isEditing}
-                      multiline={true}
-                      className="text-sm text-gray-600"
-                    />
+                  <div key={index} className="group relative bg-gradient-to-r from-white to-gray-50 p-6 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 mb-2 leading-relaxed">
+                          <EditableField
+                            value={rec.title}
+                            onChange={(value) => handleNestedContentChange('recommendations', index, 'title', value)}
+                            isEditing={isEditing}
+                          />
+                        </h4>
+                        <EditableField
+                          value={rec.description}
+                          onChange={(value) => handleNestedContentChange('recommendations', index, 'description', value)}
+                          isEditing={isEditing}
+                          multiline={true}
+                          className="text-sm text-gray-600 leading-relaxed"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

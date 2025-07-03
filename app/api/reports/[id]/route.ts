@@ -135,6 +135,13 @@ export async function PATCH(
       updateData.$set.sections = body.sections;
     }
 
+    // Handle meeting data if provided
+    if (body.meetingDate !== undefined) updateData.$set.meetingDate = body.meetingDate;
+    if (body.meetingTime !== undefined) updateData.$set.meetingTime = body.meetingTime;
+    if (body.meetingPlatform !== undefined) updateData.$set.meetingPlatform = body.meetingPlatform;
+    if (body.meetingAgenda !== undefined) updateData.$set.meetingAgenda = body.meetingAgenda;
+    if (body.participants !== undefined) updateData.$set.participants = body.participants;
+
     const result = await reports.updateOne(
       { _id: new ObjectId(params.id) },
       updateData
@@ -149,7 +156,10 @@ export async function PATCH(
     if (!updatedReport) {
       return NextResponse.json({ error: 'Report not found after update' }, { status: 404 });
     }
+    
     const serializedReport = serializeDocument(updatedReport);
+    
+    // Return the report data directly for PATCH operations
     return NextResponse.json(serializedReport);
   } catch (error) {
     return NextResponse.json(

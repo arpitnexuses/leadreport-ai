@@ -29,12 +29,18 @@ export function DashboardView({ reports }: DashboardViewProps) {
   const projectLeads = Object.entries(
     reports.reduce((acc, report) => {
       const project = report.leadData?.project?.trim();
-      if (project && project !== 'N/A' && project !== 'NA' && project !== 'not applicable' && project !== '-') {
-        const thisMonth = new Date().getMonth();
-        const reportMonth = new Date(report.createdAt).getMonth();
-        if (thisMonth === reportMonth) {
-          acc[project] = (acc[project] || 0) + 1;
-        }
+      
+      // Improved filtering logic - include "Unassigned" projects
+      if (project && 
+          project !== 'N/A' && 
+          project !== 'NA' && 
+          project !== 'not applicable' && 
+          project !== '-' && 
+          project !== '' &&
+          project.toLowerCase() !== 'n/a' &&
+          project.toLowerCase() !== 'na' &&
+          project.toLowerCase() !== 'not applicable') {
+        acc[project] = (acc[project] || 0) + 1;
       }
       return acc;
     }, {} as { [key: string]: number })

@@ -237,41 +237,175 @@ export function CompanyInfoCard({
   };
   
   return (
-    <div>
-      <div className="flex items-center gap-4 mb-4">
-        {companyLogo && (
-          <div className="h-16 w-16 rounded overflow-hidden bg-gray-100 flex items-center justify-center">
+    <div className="space-y-6">
+      {/* Company Header with Logo and Name */}
+      <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+        {companyLogo ? (
+          <div className="h-16 w-16 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center border border-gray-200">
             <img 
               src={companyLogo} 
               alt={`${companyName} logo`} 
               className="max-h-full max-w-full object-contain"
             />
           </div>
+        ) : (
+          <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+            <span className="text-white font-bold text-xl">
+              {companyName.charAt(0).toUpperCase()}
+            </span>
+          </div>
         )}
-        <h3 className="font-semibold text-lg">Company Info: {companyName}</h3>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
         <div>
-          <p><strong>Industry:</strong> <EditableField value={industry} onChange={(value) => handleUpdate('industry', value)} isEditing={isEditing} /></p>
-          <p><strong>Employees:</strong> <EditableField value={employees} onChange={(value) => handleUpdate('employees', value)} isEditing={isEditing} /></p>
-          <p><strong>Headquarters:</strong> <EditableField value={headquarters} onChange={(value) => handleUpdate('headquarters', value)} isEditing={isEditing} /></p>
-          <p><strong>Website:</strong> <EditableField value={website} onChange={(value) => handleUpdate('website', value)} isEditing={isEditing} /></p>
-        </div>
-        <div>
-          <p><strong>Funding Stage:</strong> <EditableField value={fundingStage || ''} onChange={(value) => handleUpdate('fundingStage', value)} isEditing={isEditing} /></p>
-          <p><strong>Funding Total:</strong> <EditableField value={typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : (fundingTotal || '')} onChange={(value) => handleUpdate('fundingTotal', value)} isEditing={isEditing} /></p>
+          <h3 className="font-semibold text-2xl text-gray-900">{companyName}</h3>
+          {industry && (
+            <p className="text-base text-gray-600 mt-1">{industry}</p>
+          )}
         </div>
       </div>
+
+      {/* Company Details Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <h4 className="text-base font-medium text-gray-900 uppercase tracking-wide">Basic Information</h4>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-900 uppercase tracking-wide">Industry</label>
+                <div className="mt-1">
+                  <EditableField 
+                    value={industry} 
+                    onChange={(value) => handleUpdate('industry', value)} 
+                    isEditing={isEditing}
+                    className="text-base font-medium text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Employees</label>
+                <div className="mt-1">
+                  <EditableField 
+                    value={employees} 
+                    onChange={(value) => handleUpdate('employees', value)} 
+                    isEditing={isEditing}
+                    className="text-base font-medium text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Headquarters</label>
+                <div className="mt-1">
+                  <EditableField 
+                    value={headquarters} 
+                    onChange={(value) => handleUpdate('headquarters', value)} 
+                    isEditing={isEditing}
+                    className="text-base font-medium text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Financial Information */}
+        <div className="space-y-4">
+          <h4 className="text-base font-medium text-gray-700 uppercase tracking-wide">Financial Information</h4>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Funding Stage</label>
+                <div className="mt-1">
+                  <EditableField 
+                    value={fundingStage || ''} 
+                    onChange={(value) => handleUpdate('fundingStage', value)} 
+                    isEditing={isEditing}
+                    className="text-base font-medium text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Funding Total</label>
+                <div className="mt-1">
+                  <EditableField 
+                    value={typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : (fundingTotal || '')} 
+                    onChange={(value) => handleUpdate('fundingTotal', value)} 
+                    isEditing={isEditing}
+                    className="text-base font-medium text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9m0 9c-5 0-9-4-9-9s4-9 9-9" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Website</label>
+                <div className="mt-1">
+                  <EditableField 
+                    value={website} 
+                    onChange={(value) => handleUpdate('website', value)} 
+                    isEditing={isEditing}
+                    className="text-base font-medium text-gray-900"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Company Description */}
       {companyDescription && (
-        <div className="mt-4">
-          <h4 className="font-medium">Description</h4>
-          <EditableField 
-            value={companyDescription} 
-            onChange={(value) => handleUpdate('companyDescription', value)} 
-            isEditing={isEditing}
-            multiline={true}
-            className="text-sm"
-          />
+        <div className="pt-4 border-t border-gray-100">
+          <h4 className="text-base font-medium text-gray-700 uppercase tracking-wide mb-3">Company Description</h4>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <EditableField 
+              value={companyDescription} 
+              onChange={(value) => handleUpdate('companyDescription', value)} 
+              isEditing={isEditing}
+              multiline={true}
+              className="text-base text-gray-700 leading-relaxed"
+            />
+          </div>
         </div>
       )}
     </div>

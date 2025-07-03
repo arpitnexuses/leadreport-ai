@@ -19,7 +19,6 @@ import { ImagePlaceholder } from "@/components/ui/image-placeholder";
 import { ReportSidebar } from "@/components/report/ReportSidebar";
 import { LeadQualification } from "@/components/report/LeadQualification";
 import { ReportRenderer } from "@/components/report/ReportRenderer";
-import { ReportDetailCard } from "@/components/report/ReportDetailCard";
 import { ReportInfoSection } from "@/components/report/ReportInfoSection";
 import { MeetingDetailsCard } from "@/components/report/MeetingDetailsCard";
 import { SectionToggle } from "@/components/report/SectionToggle";
@@ -292,6 +291,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     }
   }, [report]);
 
+  // Debug when report is ready
   const handleReportReady = (loadedReport: LeadReport) => {
     setReport(loadedReport);
     
@@ -364,6 +364,11 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       if (!saveResponse.ok) {
         throw new Error("Failed to save AI content");
       }
+      
+      // Update the report state with the latest data
+      const updatedReportResponse = await saveResponse.json();
+      // PATCH endpoint now returns report data directly
+      setReport(updatedReportResponse);
     } catch (error) {
       // Error handling without logging
     } finally {
@@ -376,6 +381,9 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     try {
       setIsSaving(true);
       
+      // Ensure we have the latest report data
+      const currentReport = report;
+      
       const response = await fetch(`/api/reports/${params.id}`, {
         method: "PATCH",
         headers: {
@@ -386,7 +394,12 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           skills: editedSkills,
           languages: editedLanguages,
           aiContent: aiContent,
-          sections: sections
+          sections: sections,
+          // Include meeting data - ensure we send the current state
+          meetingDate: currentReport?.meetingDate,
+          meetingTime: currentReport?.meetingTime,
+          meetingPlatform: currentReport?.meetingPlatform,
+          meetingAgenda: currentReport?.meetingAgenda
         }),
       });
 
@@ -395,9 +408,12 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       }
 
       const updatedReport = await response.json();
+      
+      // PATCH endpoint now returns report data directly
       setReport(updatedReport);
       setIsEditing(false);
     } catch (error) {
+      console.error('Save error:', error);
       // Error handling without logging
     } finally {
       setIsSaving(false);
@@ -440,7 +456,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     
     // Save the section toggle state immediately
     try {
-      await fetch(`/api/reports/${params.id}`, {
+      const response = await fetch(`/api/reports/${params.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -449,6 +465,12 @@ export default function ReportPage({ params }: { params: { id: string } }) {
           sections: newSections
         }),
       });
+      
+      if (response.ok) {
+        const updatedReport = await response.json();
+        // PATCH endpoint now returns report data directly
+        setReport(updatedReport);
+      }
     } catch (error) {
       // Error handling without logging
     }
@@ -523,9 +545,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         break;
       case 'agenda':
         updatedReport.meetingAgenda = value as string;
-        break;
-      case 'participants':
-        updatedReport.participants = value as any[];
         break;
       default:
         break;
@@ -608,7 +627,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
   );
   const languages = languagesFromData.length > 0 ? languagesFromData : [];
 
-  return (
+    return (
     <div className="flex min-h-screen bg-gray-50">
       <ReportSidebar
         completion={
@@ -630,7 +649,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         onNavigate={handleSectionNavigation}
         activeSection={activeSection}
       />
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 overflow-y-auto">
         {/* AI Generation Banner */}
         {isGeneratingAI && (
           <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
@@ -653,21 +672,39 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         )}
 
         {/* Header Section with Actions */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <FileText className="h-8 w-8 text-blue-600" />
-              Lead Report: {leadData.name}
-            </h1>
-            <div className="text-gray-500 flex items-center gap-2 mt-1">
-              <Calendar className="h-4 w-4" />
-              {report?.createdAt
-                ? new Date(report.createdAt).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })
-                : "No date available"}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 rounded-2xl flex items-center justify-center shadow-xl border border-blue-500/20">
+                  <FileText className="h-7 w-7 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-3">
+                  <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">Lead Report</span>
+                  <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                  <span className="text-gray-900">{leadData.name}</span>
+                </h1>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <Calendar className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      {report?.createdAt
+                        ? new Date(report.createdAt).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        : "No date available"}
+                    </span>
+                  </div>
+                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+                 
+                </div>
+              </div>
             </div>
           </div>
 
@@ -702,10 +739,6 @@ export default function ReportPage({ params }: { params: { id: string } }) {
               </Tooltip>
             </TooltipProvider>
             
-            <Button variant="outline" className="gap-2" onClick={() => {}}>
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
             <Button
               variant={isEditing ? "default" : "outline"}
               className="gap-2"
@@ -892,134 +925,250 @@ export default function ReportPage({ params }: { params: { id: string } }) {
 
         {/* Report Sections */}
         <OverviewSection visible={sections.overview}>
-                  <div className="space-y-4">
-              {/* Lead Qualification */}
-              <ReportDetailCard
-                title="Lead Qualification"
-                description="Qualification criteria and scoring"
-                icon={<Star className="h-5 w-5" />}
-                bgColor="bg-blue-50"
-              >
-                {leadData.leadScoring?.qualificationCriteria &&
-              Object.keys(leadData.leadScoring.qualificationCriteria).length > 0 ? (
-                <LeadQualification
-                  qualificationCriteria={isEditing && editedLeadData 
-                    ? editedLeadData.leadScoring?.qualificationCriteria || {} 
-                    : leadData.leadScoring?.qualificationCriteria || {}}
-                  rating={isEditing && editedLeadData 
-                    ? editedLeadData.leadScoring?.rating || "" 
-                    : leadData.leadScoring?.rating || ""}
-                  isEditing={isEditing}
-                  onCriteriaChange={(key, value) => {
-                    if (isEditing && editedLeadData) {
-                      const updatedData = {
-                        ...editedLeadData,
-                        leadScoring: {
-                          ...editedLeadData.leadScoring,
-                          qualificationCriteria: {
-                            ...editedLeadData.leadScoring.qualificationCriteria,
-                            [key]: value
-                          }
-                        }
-                      };
-                      setEditedLeadData(updatedData);
-                    }
-                  }}
-                  onRatingChange={(rating) => {
-                    if (isEditing && editedLeadData) {
-                      const updatedData = {
-                        ...editedLeadData,
-                        leadScoring: {
-                          ...editedLeadData.leadScoring,
-                          rating
-                        }
-                      };
-                      setEditedLeadData(updatedData);
-                    }
-                  }}
-                />
-              ) : (
-                <div className="text-gray-500 italic py-4">
-                  No qualification criteria available
-                  </div>
-                )}
-              </ReportDetailCard>
-            
-            {/* AI Overview Content */}
-            <Card className="shadow-sm border">
-              <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-                <span className="text-blue-600"><Star className="h-5 w-5" /></span>
-                <CardTitle className="text-xl">AI Insights</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <AISectionContent 
-                  section="overview" 
-                  leadData={leadData} 
-                  apolloData={apolloPerson}
-                  isEditing={isEditing}
-                  showSectionHeader={false}
-                  existingContent={aiContent?.overview}
-                  onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('overview', content)}
-                />
-              </CardContent>
-            </Card>
+          <div className="space-y-4">
+            {/* Overview section is now empty - AI Insights moved to below Company section */}
           </div>
         </OverviewSection>
 
         <CompanySection visible={sections.company}>
           <div className="space-y-6">
-            <Card className="shadow-sm border">
-              <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-                <span className="text-blue-600"><Building2 className="h-5 w-5" /></span>
-                <CardTitle className="text-xl">Company Information</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <CompanyInfoCard
-                  companyName={isEditing && editedLeadData ? editedLeadData.companyName : leadData.companyName}
-                  industry={isEditing && editedLeadData ? editedLeadData.companyDetails.industry : leadData.companyDetails.industry}
-                  employees={isEditing && editedLeadData ? editedLeadData.companyDetails.employees : leadData.companyDetails.employees}
-                  headquarters={isEditing && editedLeadData ? editedLeadData.companyDetails.headquarters : leadData.companyDetails.headquarters}
-                  website={isEditing && editedLeadData ? editedLeadData.companyDetails.website : leadData.companyDetails.website}
-                  companyLogo={apolloPerson?.organization?.logo_url || ""}
-                  companyDescription={apolloPerson?.organization?.description || ""}
-                  fundingStage={apolloPerson?.organization?.funding_stage || ""}
-                  fundingTotal={apolloPerson?.organization?.funding_total || ""}
-                  isEditing={isEditing}
-                  onUpdate={handleCompanyInfoUpdate}
-                />
-              </CardContent>
-            </Card>
-            
-            {/* AI Company Content */}
-            <CompanyAnalysis
-              leadData={leadData}
-              apolloData={apolloPerson}
-              isEditing={isEditing}
-              existingContent={aiContent?.company}
-              onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('company', content)}
-            />
+            {/* Company Information and Lead Qualification in 2-column layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Company Information - Left Column */}
+              <Card className="shadow-lg border-0 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+                  <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl text-white font-semibold">Company Information</CardTitle>
+                        <p className="text-blue-100 text-sm mt-1">Business profile and details</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white/20 px-3 py-1 rounded-full">
+                        <span className="text-white text-xs font-medium">Profile</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+                  <CompanyInfoCard
+                    companyName={isEditing && editedLeadData ? editedLeadData.companyName : leadData.companyName}
+                    industry={isEditing && editedLeadData ? editedLeadData.companyDetails.industry : leadData.companyDetails.industry}
+                    employees={isEditing && editedLeadData ? editedLeadData.companyDetails.employees : leadData.companyDetails.employees}
+                    headquarters={isEditing && editedLeadData ? editedLeadData.companyDetails.headquarters : leadData.companyDetails.headquarters}
+                    website={isEditing && editedLeadData ? editedLeadData.companyDetails.website : leadData.companyDetails.website}
+                    companyLogo={apolloPerson?.organization?.logo_url || ""}
+                    companyDescription={apolloPerson?.organization?.description || ""}
+                    fundingStage={apolloPerson?.organization?.funding_stage || ""}
+                    fundingTotal={apolloPerson?.organization?.funding_total || ""}
+                    isEditing={isEditing}
+                    onUpdate={handleCompanyInfoUpdate}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Lead Qualification - Right Column */}
+              <Card className="shadow-lg border-0 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+                  <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <Star className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl text-white font-semibold">Lead Qualification</CardTitle>
+                        <p className="text-blue-100 text-sm mt-1">Scoring and qualification criteria</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white/20 px-3 py-1 rounded-full">
+                        <span className="text-white text-xs font-medium">Scoring</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+                  {leadData.leadScoring?.qualificationCriteria &&
+                  Object.keys(leadData.leadScoring.qualificationCriteria).length > 0 ? (
+                    <LeadQualification
+                      qualificationCriteria={isEditing && editedLeadData 
+                        ? editedLeadData.leadScoring?.qualificationCriteria || {} 
+                        : leadData.leadScoring?.qualificationCriteria || {}}
+                      rating={isEditing && editedLeadData 
+                        ? editedLeadData.leadScoring?.rating || "" 
+                        : leadData.leadScoring?.rating || ""}
+                      isEditing={isEditing}
+                      onCriteriaChange={(key, value) => {
+                        if (isEditing && editedLeadData) {
+                          const updatedData = {
+                            ...editedLeadData,
+                            leadScoring: {
+                              ...editedLeadData.leadScoring,
+                              qualificationCriteria: {
+                                ...editedLeadData.leadScoring.qualificationCriteria,
+                                [key]: value
+                              }
+                            }
+                          };
+                          setEditedLeadData(updatedData);
+                        }
+                      }}
+                      onRatingChange={(rating) => {
+                        if (isEditing && editedLeadData) {
+                          const updatedData = {
+                            ...editedLeadData,
+                            leadScoring: {
+                              ...editedLeadData.leadScoring,
+                              rating
+                            }
+                          };
+                          setEditedLeadData(updatedData);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="text-gray-500 italic py-4">
+                      No qualification criteria available
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </CompanySection>
 
-        <MeetingSection visible={sections.meeting}>
-          <MeetingDetailsCard
-            date={report.meetingDate || "Not specified"}
-            time={report.meetingTime || "Not specified"}
-            platform={report.meetingPlatform || "Not specified"}
-            agenda={report.meetingAgenda || "No agenda specified"}
-            participants={report.participants || []}
-            isEditing={isEditing}
-            onUpdate={handleMeetingUpdate}
-          />
-        </MeetingSection>
+        {/* AI Company Analytics and Meeting Details in 2-column layout */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* AI Company Analytics - Left Column */}
+            <Card className="shadow-lg border-0 overflow-hidden flex flex-col">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+                <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl text-white font-semibold">AI Company Analytics</CardTitle>
+                      <p className="text-blue-100 text-sm mt-1">Intelligent business analysis</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="bg-white/20 px-3 py-1 rounded-full">
+                      <span className="text-white text-xs font-medium">Analytics</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white flex-1">
+                <CompanyAnalysis
+                  leadData={leadData}
+                  apolloData={apolloPerson}
+                  isEditing={isEditing}
+                  existingContent={aiContent?.company}
+                  onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('company', content)}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Meeting Details - Right Column */}
+            <Card className="shadow-lg border-0 overflow-hidden flex flex-col">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+                <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl text-white font-semibold">Meeting Details</CardTitle>
+                      <p className="text-blue-100 text-sm mt-1">Scheduled meetings and agenda</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="bg-white/20 px-3 py-1 rounded-full">
+                      <span className="text-white text-xs font-medium">Schedule</span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white flex-1">
+                <MeetingDetailsCard
+                  date={report.meetingDate || "Not specified"}
+                  time={report.meetingTime || "Not specified"}
+                  platform={report.meetingPlatform || "Not specified"}
+                  agenda={report.meetingAgenda || "No agenda specified"}
+                  isEditing={isEditing}
+                  onUpdate={handleMeetingUpdate}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* AI Insights */}
+        <div className="mb-8">
+          <Card className="shadow-lg border-0 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Star className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-white font-semibold">AI Insights</CardTitle>
+                    <p className="text-blue-100 text-sm mt-1">Intelligent analysis and recommendations</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 px-3 py-1 rounded-full">
+                    <span className="text-white text-xs font-medium">AI Powered</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+              <AISectionContent 
+                section="overview" 
+                leadData={leadData} 
+                apolloData={apolloPerson}
+                isEditing={isEditing}
+                showSectionHeader={false}
+                existingContent={aiContent?.overview}
+                onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('overview', content)}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         <InteractionsSection visible={sections.interactions}>
-          <Card className="shadow-sm border">
-            <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-              <span className="text-blue-600"><Users className="h-5 w-5" /></span>
-              <CardTitle className="text-xl">Interactions</CardTitle>
+          <Card className="shadow-lg border-0 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-white font-semibold">Interactions</CardTitle>
+                    <p className="text-blue-100 text-sm mt-1">Communication history and engagement</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 px-3 py-1 rounded-full">
+                    <span className="text-white text-xs font-medium">Engagement</span>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="interactions" 
                 leadData={leadData} 
@@ -1030,38 +1179,55 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('interactions', content)}
               />
               
-              <div className="mt-6 space-y-4">
-                {report.talkingPoints && report.talkingPoints.length > 0 ? (
+              {report.talkingPoints && report.talkingPoints.length > 0 && (
+                <div className="mt-8 space-y-4">
                   <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Talking Points</h3>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Talking Points</h3>
+                    </div>
                     {report.talkingPoints.map((point, index) => (
-                      <Card key={index} className="overflow-hidden">
-                        <CardHeader className="bg-gray-50 p-4">
-                          <CardTitle className="text-lg">{point.title}</CardTitle>
+                      <Card key={index} className="overflow-hidden border-0 shadow-md">
+                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 border-b border-green-100">
+                          <CardTitle className="text-lg text-green-800">{point.title}</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4">
-                          <p>{point.content}</p>
+                        <CardContent className="p-4 bg-white">
+                          <p className="text-gray-700 leading-relaxed">{point.content}</p>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-gray-500 italic py-4">
-                    No talking points available
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </InteractionsSection>
 
         <CompetitorsSection visible={sections.competitors}>
-          <Card className="shadow-sm border">
-            <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-              <span className="text-blue-600"><Shield className="h-5 w-5" /></span>
-              <CardTitle className="text-xl">Competitive Analysis</CardTitle>
+          <Card className="shadow-lg border-0 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-white font-semibold">Competitive Analysis</CardTitle>
+                    <p className="text-blue-100 text-sm mt-1">Market positioning and competitive landscape</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 px-3 py-1 rounded-full">
+                    <span className="text-white text-xs font-medium">Market Intel</span>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="competitors" 
                 leadData={leadData} 
@@ -1076,12 +1242,26 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         </CompetitorsSection>
 
         <TechStackSection visible={sections.techStack}>
-          <Card className="shadow-sm border">
-            <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-              <span className="text-blue-600"><Cpu className="h-5 w-5" /></span>
-              <CardTitle className="text-xl">Technology Stack</CardTitle>
+          <Card className="shadow-lg border-0 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Cpu className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-white font-semibold">Technology Stack</CardTitle>
+                    <p className="text-blue-100 text-sm mt-1">Current technologies and infrastructure</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 px-3 py-1 rounded-full">
+                    <span className="text-white text-xs font-medium">Tech Stack</span>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="techStack" 
                 leadData={leadData} 
@@ -1096,12 +1276,26 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         </TechStackSection>
 
         <NewsSection visible={sections.news}>
-          <Card className="shadow-sm border">
-            <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-              <span className="text-blue-600"><Newspaper className="h-5 w-5" /></span>
-              <CardTitle className="text-xl">News & Updates</CardTitle>
+          <Card className="shadow-lg border-0 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Newspaper className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-white font-semibold">News & Updates</CardTitle>
+                    <p className="text-blue-100 text-sm mt-1">Latest industry news and company updates</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 px-3 py-1 rounded-full">
+                    <span className="text-white text-xs font-medium">Latest</span>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="news" 
                 leadData={leadData} 
@@ -1116,12 +1310,26 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         </NewsSection>
 
         <NextStepsSection visible={sections.nextSteps}>
-          <Card className="shadow-sm border">
-            <CardHeader className="bg-blue-50 border-b pb-4 flex flex-row items-center space-y-0 gap-2">
-              <span className="text-blue-600"><ArrowRight className="h-5 w-5" /></span>
-              <CardTitle className="text-xl">AI Recommended Next Steps</CardTitle>
+          <Card className="shadow-lg border-0 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
+              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <ArrowRight className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl text-white font-semibold">AI Recommended Next Steps</CardTitle>
+                    <p className="text-blue-100 text-sm mt-1">Strategic action items for lead engagement</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 px-3 py-1 rounded-full">
+                    <span className="text-white text-xs font-medium">Action Items</span>
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="nextSteps" 
                 leadData={leadData} 
@@ -1134,6 +1342,36 @@ export default function ReportPage({ params }: { params: { id: string } }) {
             </CardContent>
           </Card>
         </NextStepsSection>
+        
+        {/* Content Footer */}
+        <div className="mt-16 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center py-8 px-6 rounded-xl shadow-lg border border-blue-500/20">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <div className="w-2 h-2 bg-white/80 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-white/40 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+            
+            {/* Nexuses Logo */}
+            <div className="flex justify-center mb-4">
+              <img 
+                src="https://22527425.fs1.hubspotusercontent-na1.net/hubfs/22527425/Nexuses%20logo%20white.svg" 
+                alt="Nexuses" 
+                className="h-8 w-auto opacity-90 hover:opacity-100 transition-opacity"
+              />
+            </div>
+            
+            <p className="text-lg font-medium text-white/90 leading-relaxed">
+              Acquire customers at <span className="font-bold text-white">scale</span> • Increase conversion rates. Scale-up revenue.
+            </p>
+            
+            <div className="mt-3 flex items-center justify-center gap-1">
+              <div className="w-1 h-1 bg-white/60 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/40 rounded-full"></div>
+              <div className="w-1 h-1 bg-white/20 rounded-full"></div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );

@@ -313,7 +313,7 @@ async function generateAIReport(apolloData: ApolloResponse) {
         need: 'YES'
       }
     },
-    project: 'N/A',
+    project: '',
     notes: [],
     status: 'warm',
     tags: [],
@@ -412,6 +412,9 @@ export async function initiateReport(formData: FormData) {
 
   const { reports } = await getDb()
 
+  // Handle empty project name
+  const projectName = project && project.trim() !== '' ? project : 'Unassigned';
+
   // Create an initial report entry
   const initialReport = {
     email,
@@ -425,7 +428,7 @@ export async function initiateReport(formData: FormData) {
       contactDetails: { email: "", phone: "", linkedin: "" },
       companyDetails: { industry: "", employees: "", headquarters: "", website: "" },
       leadScoring: { rating: "", qualificationCriteria: {} },
-      project: project || "N/A"
+      project: projectName
     },
     meetingDate,
     meetingTime,
@@ -492,7 +495,8 @@ async function processReport(email: string, reportId: string) {
       const { report: aiReport, leadData } = await reportPromise;
       
       // Preserve the project field from the existing report
-      leadData.project = existingReport?.leadData?.project || leadData.project || 'N/A';
+      const originalProject = existingReport?.leadData?.project;
+      leadData.project = originalProject && originalProject.trim() !== '' ? originalProject : 'Unassigned';
       
       // Update status to indicate we're generating AI sections
       await reports.updateOne(
@@ -674,7 +678,31 @@ export async function deleteReport(formData: FormData) {
 export async function getReports() {
   const { reports } = await getDb()
   const allReports = await reports.find({}).sort({ createdAt: -1 }).toArray()
-  return serializeDocument(allReports)
+  
+  // Transform the data to match the expected interface
+  const transformedReports = allReports.map(report => {
+    // Handle project field more robustly
+    let project = report.leadData?.project;
+    if (!project || project.trim() === '' || project === 'N/A' || project === 'NA') {
+      project = 'Unassigned'; // Provide a default value instead of 'N/A'
+    }
+    
+    return {
+      _id: report._id.toString(),
+      email: report.email || '',
+      createdAt: report.createdAt ? new Date(report.createdAt).toISOString() : new Date().toISOString(),
+      isCompleted: report.status === 'completed',
+      companyName: report.leadData?.companyName || report.companyName || '',
+      leadData: {
+        name: report.leadData?.name || '',
+        companyName: report.leadData?.companyName || report.companyName || '',
+        project: project,
+        status: report.leadData?.status || 'warm'
+      }
+    };
+  });
+  
+  return transformedReports;
 }
 
 export async function updateLeadStatus(reportId: string, status: string) {
