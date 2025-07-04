@@ -39,6 +39,7 @@ const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = 
           '#F97316', // orange-500
         ],
         borderWidth: 0,
+        borderRadius: 8,
       },
     ],
   };
@@ -71,11 +72,11 @@ const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = 
 
   return (
     <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg rounded-xl h-400px">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 bg-[#1E3FAC] text-white rounded-t-xl">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <svg
-              className="h-5 w-5 text-blue-600 dark:text-blue-400"
+              className="h-5 w-5 text-white"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -89,22 +90,24 @@ const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = 
             </svg>
           </div>
           <div>
-            <CardTitle className="text-xl">Project Distribution</CardTitle>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <CardTitle className="text-xl text-white">Project Distribution</CardTitle>
+            <p className="text-sm text-blue-100 mt-1">
               Visual breakdown of leads by project
             </p>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[350px] mt-4">
-          {projectLeads.length > 0 ? (
-            <Doughnut data={data} options={options} />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-              No data available
-            </div>
-          )}
+        <div className="mt-[30px]">
+          <div className="h-[350px]">
+            {projectLeads.length > 0 ? (
+              <Doughnut data={data} options={options} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                No data available
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -84,20 +84,20 @@ export function RecentLeadsTable({ reports }: RecentLeadsTableProps) {
 
   return (
     <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg rounded-xl h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 bg-[#1E3FAC] text-white rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="h-10 w-10 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center">
+              <Users className="h-5 w-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-xl">Recent Leads</CardTitle>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <CardTitle className="text-xl text-white">Recent Leads</CardTitle>
+              <p className="text-sm text-blue-100 mt-1">
                 Latest lead activities
               </p>
             </div>
           </div>
-          <div className="flex items-center text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2.5 py-1 rounded-lg">
+          <div className="flex items-center text-sm text-white bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded-lg">
             <TrendingUp className="h-4 w-4 mr-1" />
             <span>Active</span>
           </div>

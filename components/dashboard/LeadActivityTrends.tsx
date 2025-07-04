@@ -152,53 +152,55 @@ export function LeadActivityTrends({ reports }: LeadActivityTrendsProps) {
 
   return (
     <Card className="bg-white dark:bg-gray-800 border-0 shadow-lg rounded-xl h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 bg-[#1E3FAC] text-white rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <div className="h-10 w-10 rounded-lg bg-white/10 backdrop-blur-sm flex items-center justify-center">
+              <Activity className="h-5 w-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-xl">Lead Activity Trends</CardTitle>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <CardTitle className="text-xl text-white">Lead Activity Trends</CardTitle>
+              <p className="text-sm text-blue-100 mt-1">
                 Last 7 days activity overview
               </p>
             </div>
           </div>
-          <div className="flex items-center text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2.5 py-1 rounded-lg">
+          <div className="flex items-center text-sm text-white bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded-lg">
             <TrendingUp className="h-4 w-4 mr-1" />
             <span>{completionRate}% completion</span>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalThisWeek}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Total Leads</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{completedThisWeek}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Completed</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{completionRate}%</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Success Rate</div>
-          </div>
-        </div>
-        
-        <div className="h-[280px]">
-          {reports.length > 0 ? (
-            <Line data={data} options={options} />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
-              <div className="text-center">
-                <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>No activity data available</p>
-                <p className="text-sm">Start generating leads to see trends</p>
-              </div>
+        <div className="mt-[30px]">
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalThisWeek}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Total Leads</div>
             </div>
-          )}
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{completedThisWeek}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Completed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{completionRate}%</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Success Rate</div>
+            </div>
+          </div>
+          
+          <div className="h-[280px]">
+            {reports.length > 0 ? (
+              <Line data={data} options={options} />
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+                <div className="text-center">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>No activity data available</p>
+                  <p className="text-sm">Start generating leads to see trends</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

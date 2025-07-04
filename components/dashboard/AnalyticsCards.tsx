@@ -90,7 +90,7 @@ export function AnalyticsCards({ reports }: AnalyticsCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {analyticsData.map((item, index) => (
-        <Card key={index} className="bg-white dark:bg-gray-800 border-0 shadow-lg rounded-xl">
+        <Card key={index} className="bg-white dark:bg-gray-800 border-2 border-blue-500 shadow-lg rounded-xl">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
