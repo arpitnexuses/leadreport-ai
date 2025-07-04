@@ -357,9 +357,6 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                   Meeting Date
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Platform
-                </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Project
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -383,9 +380,6 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       {report.meetingDate ? formatDate(report.meetingDate) : '-'}
-                    </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.meetingPlatform || '-'}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       {report.leadData?.project || '-'}

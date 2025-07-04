@@ -184,7 +184,8 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     try {
       const response = await fetch(`/api/generate-pdf-shared/${params.id}`);
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || 'Failed to generate PDF');
       }
       
       const blob = await response.blob();
@@ -198,7 +199,8 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Failed to download PDF. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to download PDF';
+      alert(`PDF generation failed: ${errorMessage}. Please try again.`);
     } finally {
       setIsDownloading(false);
     }

@@ -692,6 +692,8 @@ export async function getReports() {
       email: report.email || '',
       createdAt: report.createdAt ? new Date(report.createdAt).toISOString() : new Date().toISOString(),
       isCompleted: report.status === 'completed',
+      meetingDate: report.meetingDate || undefined,
+      meetingPlatform: report.meetingPlatform || undefined,
       companyName: report.leadData?.companyName || report.companyName || '',
       leadData: {
         name: report.leadData?.name || '',

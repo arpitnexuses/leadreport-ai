@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import puppeteer from 'puppeteer';
+import jsPDF from 'jspdf';
 
 // Helper function to get base URL
 function getBaseUrl() {
@@ -11,11 +12,253 @@ function getBaseUrl() {
     : `https://${process.env.NEXT_PUBLIC_VERCEL_URL || 'localhost:3000'}`;
 }
 
+// Fallback PDF generation using jsPDF
+async function generateSimplePDF(report: any): Promise<Buffer> {
+  const doc = new jsPDF();
+  const leadData = report.leadData;
+  const aiContent = report.aiContent || {};
+
+  // Helper functions
+  const hasNumericKeys = (obj: any): boolean => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+    return Object.keys(obj).every(key => !isNaN(Number(key)));
+  };
+
+  const objectToArray = (obj: any): any[] => {
+    if (!hasNumericKeys(obj)) return [];
+    return Object.values(obj);
+  };
+
+  const hasSectionData = (section: string) => {
+    const content = aiContent[section];
+    if (!content) return false;
+    if (typeof content === 'string') return content.trim().length > 0;
+    if (typeof content === 'object' && content !== null) {
+      return Object.keys(content).some(key => {
+        const value = content[key];
+        if (typeof value === 'string') return value.trim().length > 0;
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === 'object' && value !== null) return Object.keys(value).length > 0;
+        return value !== null && value !== undefined;
+      });
+    }
+    return false;
+  };
+
+  const formatSectionContent = (content: any): string => {
+    if (!content) return '';
+    if (typeof content === 'string') return content;
+    
+    let formattedContent = '';
+    
+    if (content.summary) formattedContent += content.summary + '\n\n';
+    if (content.description) formattedContent += content.description + '\n\n';
+    if (content.content) formattedContent += content.content + '\n\n';
+    
+    if (content.keyPoints) {
+      formattedContent += 'Key Points:\n';
+      const points = Array.isArray(content.keyPoints) ? 
+        content.keyPoints : 
+        typeof content.keyPoints === 'object' ? Object.values(content.keyPoints) : [content.keyPoints];
+      points.forEach((point: any) => {
+        const pointText = typeof point === 'string' ? point : JSON.stringify(point);
+        formattedContent += `• ${pointText}\n`;
+      });
+      formattedContent += '\n';
+    }
+    
+    if (content.recommendations || content.recommendedActions) {
+      const recommendationsField = content.recommendations || content.recommendedActions;
+      formattedContent += 'Recommendations:\n';
+      const recommendations = Array.isArray(recommendationsField) ? 
+        recommendationsField : 
+        typeof recommendationsField === 'object' ? Object.values(recommendationsField) : [recommendationsField];
+      recommendations.forEach((rec: any) => {
+        if (typeof rec === 'string') {
+          formattedContent += `• ${rec}\n`;
+        } else if (rec && typeof rec === 'object') {
+          const recObj = rec as Record<string, any>;
+          const recText = recObj.title || recObj.description || '';
+          if (recText) {
+            formattedContent += `• ${recText}\n`;
+            if (recObj.rationale) {
+              formattedContent += `  Rationale: ${recObj.rationale}\n`;
+            }
+            if (recObj.priority) {
+              formattedContent += `  Priority: ${recObj.priority}\n`;
+            }
+          }
+        }
+      });
+      formattedContent += '\n';
+    }
+    
+    return formattedContent.trim();
+  };
+
+  // Create sections map
+  const sectionsToRender: Record<string, boolean> = {};
+  Object.keys(aiContent).forEach(section => {
+    const hasData = hasSectionData(section);
+    const isToggledOn = report.sections ? report.sections[section] !== false : true;
+    sectionsToRender[section] = hasData && isToggledOn;
+  });
+
+  let yPos = 20;
+
+  // Header
+  doc.setFontSize(24);
+  doc.setTextColor(30, 64, 175);
+  doc.text(`${leadData.name} - Lead Report`, 20, yPos);
+  yPos += 15;
+
+  doc.setFontSize(14);
+  doc.setTextColor(75, 85, 99);
+  doc.text(`${leadData.position} at ${leadData.companyName}`, 20, yPos);
+  yPos += 10;
+
+  doc.setFontSize(10);
+  doc.setTextColor(107, 114, 128);
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })}`, 20, yPos);
+  yPos += 20;
+
+  // Company Profile
+  doc.setFontSize(16);
+  doc.setTextColor(30, 64, 175);
+  doc.text('Company Profile', 20, yPos);
+  yPos += 10;
+
+  doc.setFontSize(12);
+  doc.setTextColor(75, 85, 99);
+  
+  if (leadData.companyDetails?.industry) {
+    doc.text(`Industry: ${leadData.companyDetails.industry}`, 20, yPos);
+    yPos += 8;
+  }
+  
+  if (leadData.companyDetails?.employees) {
+    doc.text(`Employees: ${leadData.companyDetails.employees}`, 20, yPos);
+    yPos += 8;
+  }
+  
+  if (leadData.companyDetails?.headquarters) {
+    doc.text(`Headquarters: ${leadData.companyDetails.headquarters}`, 20, yPos);
+    yPos += 8;
+  }
+  
+  if (leadData.companyDetails?.website) {
+    doc.text(`Website: ${leadData.companyDetails.website}`, 20, yPos);
+    yPos += 8;
+  }
+  yPos += 10;
+
+  // Contact Details
+  doc.setFontSize(16);
+  doc.setTextColor(30, 64, 175);
+  doc.text('Contact Details', 20, yPos);
+  yPos += 10;
+
+  doc.setFontSize(12);
+  doc.setTextColor(75, 85, 99);
+  
+  if (leadData.contactDetails?.email) {
+    doc.text(`Email: ${leadData.contactDetails.email}`, 20, yPos);
+    yPos += 8;
+  }
+  
+  if (leadData.contactDetails?.phone) {
+    doc.text(`Phone: ${leadData.contactDetails.phone}`, 20, yPos);
+    yPos += 8;
+  }
+  
+  if (leadData.contactDetails?.linkedin) {
+    doc.text(`LinkedIn: ${leadData.contactDetails.linkedin}`, 20, yPos);
+    yPos += 8;
+  }
+  yPos += 15;
+
+  // Add sections function
+  const addSection = (title: string, content: any, startY: number): number => {
+    let y = startY;
+    
+    if (y > 250) {
+      doc.addPage();
+      y = 20;
+    }
+    
+    // Section header with blue background
+    doc.setFillColor(30, 64, 175);
+    doc.rect(15, y - 5, 180, 12, 'F');
+    
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, 20, y + 2);
+    y += 15;
+    
+    doc.setFontSize(12);
+    doc.setTextColor(75, 85, 99);
+    
+    if (!content) {
+      doc.text('No information available', 20, y);
+      return y + 10;
+    }
+    
+    const formattedContent = formatSectionContent(content);
+    if (formattedContent) {
+      const textLines = doc.splitTextToSize(formattedContent, 170);
+      doc.text(textLines, 20, y);
+      y += textLines.length * 7;
+    }
+    
+    return y + 10;
+  };
+
+  // Add sections in same order as shared report
+  const sectionOrder = ['overview', 'company', 'competitors', 'techStack', 'meeting', 'news', 'interactions', 'nextSteps'];
+  
+  sectionOrder.forEach(section => {
+    if (sectionsToRender[section]) {
+      const sectionTitles = {
+        overview: 'Overview',
+        company: 'Company Analysis',
+        competitors: 'Competitive Analysis',
+        techStack: 'Technology Stack',
+        meeting: 'Meeting Information',
+        news: 'News & Updates',
+        interactions: 'Interactions',
+        nextSteps: 'Next Steps'
+      };
+      
+      yPos = addSection(sectionTitles[section as keyof typeof sectionTitles], aiContent[section], yPos);
+    }
+  });
+
+  // Footer
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Page ${i} of ${pageCount} - © ${new Date().getFullYear()} Lead Report AI`,
+      20,
+      doc.internal.pageSize.height - 10
+    );
+  }
+  
+  const pdfBuffer = doc.output('arraybuffer');
+  return Buffer.from(pdfBuffer);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  let browser = null;
+  let browser: any = null;
   
   try {
     console.log(`PDF generation started for shared report: ${params.id}`);
@@ -41,24 +284,27 @@ export async function GET(
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
-    console.log(`Preparing to launch Puppeteer for shared report: ${params.id}`);
-    
-    // More robust Puppeteer launch options
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ],
-      // @ts-expect-error - ignoreHTTPSErrors may not be in the type definitions but works in Puppeteer
-      ignoreHTTPSErrors: true
-    });
+    // Try Puppeteer first, fallback to jsPDF if it fails
+    let usePuppeteer = true;
+    try {
+      console.log(`Preparing to launch Puppeteer for shared report: ${params.id}`);
+      
+      // More robust Puppeteer launch options
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu'
+        ],
+        // @ts-expect-error - ignoreHTTPSErrors may not be in the type definitions but works in Puppeteer
+        ignoreHTTPSErrors: true
+      });
     
     console.log('Browser launched successfully');
     
@@ -493,6 +739,39 @@ export async function GET(
         'Content-Disposition': `attachment; filename="${report.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-shared-report.pdf"`,
       },
     });
+    } catch (puppeteerError: unknown) {
+      console.error('Puppeteer failed, falling back to jsPDF:', puppeteerError);
+      usePuppeteer = false;
+      
+      // Close browser if it was opened
+      if (browser) {
+        try {
+          await browser.close();
+          console.log('Browser closed after Puppeteer error');
+        } catch (closeError) {
+          console.error('Error closing browser:', closeError);
+        }
+      }
+    }
+    
+    // If Puppeteer failed, use jsPDF fallback
+    if (!usePuppeteer) {
+      console.log('Using jsPDF fallback for PDF generation');
+      try {
+        const pdfBuffer = await generateSimplePDF(report);
+        console.log('jsPDF fallback generated successfully');
+        
+        return new NextResponse(pdfBuffer, {
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${report.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-shared-report.pdf"`,
+          },
+        });
+      } catch (jsPDFError: unknown) {
+        console.error('jsPDF fallback also failed:', jsPDFError);
+        throw new Error(`Both Puppeteer and jsPDF failed: ${jsPDFError instanceof Error ? jsPDFError.message : 'Unknown error'}`);
+      }
+    }
   } catch (error: unknown) {
     console.error('API error:', error);
     
