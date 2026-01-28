@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Lead Brief</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #F5F5F7;
+            color: #1D1D1F;
+        }
+
+        /* Apple UI Card */
+        .apple-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .apple-card:hover {
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+            border-color: rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .section-tint {
+            background-color: #FBFBFC;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        /* Glass Header */
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Compact Timeline Line */
+        .timeline-line::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            bottom: 0;
+            left: 15px;
+            width: 2px;
+            background: #E5E5EA;
+            z-index: 0;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 500px;
+            margin: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .whatsapp-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            width: 120px;
+            margin-bottom: 8px;
+            z-index: 60;
+        }
+
+        .whatsapp-menu.active {
+            display: block;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #E5E5EA;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="glass h-14 flex items-center justify-between px-6 fixed w-full z-50">
+        <div class="flex items-center gap-4">
+            <div class="flex gap-2">
+                <div class="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E]"></div>
+                <div class="w-3 h-3 rounded-full bg-[#FEBC2E] border border-[#D89E24]"></div>
+                <div class="w-3 h-3 rounded-full bg-[#28C840] border border-[#1AAB29]"></div>
+            </div>
+            <div class="h-4 w-[1px] bg-gray-300 mx-2"></div>
+            <span class="text-sm font-medium text-gray-500">Reports / <span class="text-black font-semibold">Sarah
+                    Jenkins</span></span>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="window.print()"
+                class="text-xs font-medium text-gray-600 hover:text-black transition">Export PDF</button>
+            <button
+                class="px-4 py-1.5 rounded-full bg-[#0071E3] text-xs font-semibold text-white shadow-sm hover:bg-[#0077ED] transition">Edit
+                Profile</button>
+        </div>
+    </header>
+
+    <main class="flex-1 mt-14 p-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-12 gap-5">
+
+            <!-- Left Sidebar: Lead & CRM Context -->
+            <div class="col-span-12 lg:col-span-3 flex flex-col gap-5">
+
+                <!-- Lead Profile Card -->
+                <div class="apple-card p-5">
+                    <div class="flex flex-col items-center text-center mb-6">
+                        <div class="relative mb-3">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&h=120&fit=crop"
+                                class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white">
+                            <div
+                                class="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
+                                <i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>
+                            </div>
+                        </div>
+                        <h2 class="text-lg font-black text-gray-900 tracking-tight">Sarah Jenkins</h2>
+                        <p class="text-[11px] font-bold text-[#0071E3] mt-0.5">Director of Infrastructure</p>
+                        <p class="text-[10px] font-medium text-gray-500 mb-2">Acme Corp</p>
+                        <div class="flex items-center gap-1.5 text-gray-500">
+                            <i data-lucide="map-pin" class="w-3 h-3"></i>
+                            <span class="text-[10px] font-bold uppercase tracking-wide">Austin, TX</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="relative">
+                            <button onclick="toggleWhatsAppMenu(event)"
+                                class="w-full py-2 flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-[#128C7E] transition shadow-sm border border-[#25D366]/20">
+                                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
+                            </button>
+                            <div id="whatsapp-dropdown" class="whatsapp-menu">
+                                <div class="p-1">
+                                    <a href="#"
+                                        class="block px-3 py-1.5 text-[10px] text-gray-700 hover:bg-gray-50 rounded-lg">Personal</a>
+                                    <a href="#"
+                                        class="block px-3 py-1.5 text-[10px] text-gray-700 hover:bg-gray-50 rounded-lg">Work</a>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="mailto:sarah.j@acmecorp.com"
+                            class="w-full py-2 flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-[#0071E3] transition shadow-sm border border-blue-100">
+                            <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                            <span class="text-[10px] font-black uppercase tracking-widest">Email</span>
+                        </a>
+                    </div>
+
+                    <a href="https://linkedin.com/in/sarahjenkins" target="_blank"
+                        class="w-full py-2.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-white transition-all shadow-sm">
+                        <i data-lucide="linkedin" class="w-3.5 h-3.5"></i>
+                        <span class="text-[11px] font-black uppercase tracking-widest">LinkedIn Profile</span>
+                    </a>
+                </div>
+
+                <!-- CRM Intelligence -->
+                <div class="apple-card p-5">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
+                    <div class="space-y-4">
+                        <div class="section-tint">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                                    <i data-lucide="zap" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Lead Stage</p>
+                                    <p class="text-sm font-bold text-gray-900">HOT</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mb-4">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <i data-lucide="send" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Source</p>
+                                    <p class="text-sm font-bold text-gray-900">Inbound / Webinar</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-600">
+                                    <i data-lucide="clock" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Tenure</p>
+                                    <p class="text-sm font-bold text-gray-900">3 Years 4 Months</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Company Context -->
+                <div class="apple-card p-5">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
+                    <div class="space-y-4">
+                        <div class="section-tint">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <i data-lucide="banknote" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Revenue</p>
+                                    <p class="text-sm font-bold text-gray-900">$50M - $100M</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mb-4">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+                                    <i data-lucide="users-2" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Employees</p>
+                                    <p class="text-sm font-bold text-gray-900">250 - 500</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 mb-4">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                    <i data-lucide="landmark" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Industry</p>
+                                    <p class="text-sm font-bold text-gray-900">FinTech / Payments</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600">
+                                    <i data-lucide="fingerprint" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-gray-500 font-bold uppercase">Ownership</p>
+                                    <p class="text-sm font-bold text-gray-900">Private / Series B</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-tint mt-4">
+                            <p class="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology
+                                Stack</p>
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    class="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100">AWS
+                                    Cloud</span>
+                                <span
+                                    class="px-2 py-1 bg-orange-50 text-orange-600 text-[10px] font-bold rounded-lg border border-orange-100">Oracle
+                                    DB</span>
+                                <span
+                                    class="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-lg border border-emerald-100">SAP
+                                    ERP</span>
+                                <span
+                                    class="px-2 py-1 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg border border-slate-100">Kubernetes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="col-span-12 lg:col-span-6 flex flex-col gap-5">
+
+                <!-- Upcoming Meeting -->
+                <div class="apple-card p-0 overflow-hidden flex shadow-sm min-h-[100px]">
+                    <div
+                        class="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center">
+                        <span class="text-2xl font-bold">24</span>
+                        <span class="text-[10px] font-medium uppercase opacity-90">DEC</span>
+                    </div>
+                    <div class="p-4 flex-1 flex justify-between items-center bg-white relative">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">10:00 AM
+                                    CST •
+                                    Video Call</span>
+                            </div>
+                            <h3 class="text-base font-bold text-gray-900">Architecture Review & Pricing</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">4 Attendees • Zoom</p>
+                        </div>
+                        <button
+                            class="bg-[#0071E3] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm">Join</button>
+                    </div>
+                </div>
+
+                <!-- Pipeline Stage & Metrics -->
+                <div class="apple-card p-6">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Pipeline
+                                Stage</h3>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl font-black text-[#0071E3]">Qualified</span>
+                                <span class="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-[10px] font-bold rounded-md">4
+                                    Days in Stage</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="relative w-16 h-16 flex items-center justify-center">
+                                <svg class="w-full h-full transform -rotate-90">
+                                    <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="5"
+                                        fill="transparent" class="text-gray-100" />
+                                    <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="5"
+                                        fill="transparent" stroke-dasharray="176" stroke-dashoffset="21"
+                                        class="text-[#0071E3] transition-all duration-1000 ease-out"
+                                        stroke-linecap="round" />
+                                </svg>
+                                <div class="absolute flex flex-col items-center">
+                                    <span class="text-sm font-black text-gray-900 leading-none">88</span>
+                                    <span
+                                        class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">Score</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 h-2 mb-3">
+                        <div class="flex-1 bg-emerald-100 rounded-full"></div>
+                        <div class="flex-1 bg-blue-100 rounded-full"></div>
+                        <div class="flex-1 bg-[#0071E3] rounded-full shadow-[0_0_10px_rgba(0,113,227,0.2)]"></div>
+                        <div class="flex-1 bg-gray-100 rounded-full"></div>
+                        <div class="flex-1 bg-gray-100 rounded-full"></div>
+                    </div>
+                    <div class="flex justify-between px-0.5">
+                        <span class="text-[8px] font-bold text-emerald-600 uppercase">New</span>
+                        <span class="text-[8px] font-bold text-blue-500 uppercase">Discovery</span>
+                        <span
+                            class="text-[8px] font-black text-[#0071E3] uppercase underline underline-offset-2">Qualified</span>
+                        <span class="text-[8px] font-bold text-gray-400 uppercase">Proposal</span>
+                        <span class="text-[8px] font-bold text-gray-400 uppercase">Closed</span>
+                    </div>
+                </div>
+
+                <!-- About Section Grid -->
+                <div class="apple-card p-0 overflow-hidden">
+                    <div class="grid grid-cols-2">
+                        <!-- About Sarah -->
+                        <div class="p-6">
+                            <div class="flex items-center gap-2 mb-4">
+                                <div
+                                    class="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <h3 class="text-[10px] font-bold text-gray-900 uppercase tracking-widest">About
+                                    Sarah
+                                </h3>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-[12px] text-gray-600 leading-relaxed">Sarah Jenkins is a technical
+                                    leader
+                                    with 12+ years of experience scaling infrastructure for global fintech
+                                    organizations, focused on operational efficiency and zero-downtime reliability.
+                                </p>
+                                <ul class="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-blue-400">
+                                    <li>Former Director of Infrastructure at Google Cloud.</li>
+                                    <li>Architected Acme's real-time settlement engine.</li>
+                                    <li>Expert in SOC2 compliance and security automation.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- About Acme Corp -->
+                        <div class="p-8 bg-[#FBFBFC] border-l border-gray-100">
+                            <div class="flex items-center gap-2 mb-6">
+                                <div
+                                    class="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                    <i data-lucide="building" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="text-[11px] font-bold text-gray-900 uppercase tracking-widest">About Acme
+                                    Corp</h3>
+                            </div>
+                            <div class="space-y-3">
+                                <p class="text-[12px] text-gray-600 leading-relaxed">Acme Corp is a rapidly growing
+                                    fintech provider specialized in secure, high-speed cross-border settlement
+                                    solutions, backed by a recent $20M Series B expansion.</p>
+                                <ul class="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-indigo-400">
+                                    <li>Processing over $2B in annualized transaction volume.</li>
+                                    <li>Dual-HQ in Austin, TX for emerging tech corridor access.</li>
+                                    <li>Committed to carbon-neutral transaction processing by 2027.</li>
+                                </ul>
+                            </div>
+                            <div class="mt-6 pt-6 border-t border-gray-200/60 flex gap-4">
+                                <a href="https://acmecorp.com" target="_blank"
+                                    class="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-[9px] font-bold text-gray-900 transition shadow-sm"><i
+                                        data-lucide="globe" class="w-3.5 h-3.5 text-gray-400"></i>Official
+                                    Website</a>
+                                <a href="https://linkedin.com/company/acme" target="_blank"
+                                    class="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-[9px] font-bold text-white transition shadow-sm"><i
+                                        data-lucide="linkedin" class="w-3.5 h-3.5"></i>LinkedIn Corporate</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategic Meeting Brief -->
+                <div class="apple-card p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#0071E3]">
+                                <i data-lucide="target" class="w-4 h-4"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-gray-900">Strategic Meeting Brief</h3>
+                        </div>
+                        <span
+                            class="px-2.5 py-1 bg-amber-50 text-amber-700 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-widest">High
+                            Stakes</span>
+                    </div>
+
+                    <div class="space-y-6">
+                        <section>
+                            <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Primary
+                                Objective</h4>
+                            <p class="text-[13px] text-gray-800 leading-relaxed font-medium">Secure a formal
+                                commitment for a 60-day Paid POC starting Jan 15th. Demonstrate dedicated node
+                                architecture benefits for latency and SOC2 compliance.</p>
+                        </section>
+
+                        <section class="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/50">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i data-lucide="lightbulb" class="w-4 h-4 text-blue-600"></i>
+                                <h4 class="text-[9px] font-black text-blue-600 uppercase tracking-widest">The
+                                    "Dedicated Node" Pitch</h4>
+                            </div>
+                            <p class="text-[12px] text-gray-700 leading-relaxed mb-4 italic font-medium">"Sarah, we
+                                offer a Dedicated Node Architecture. This isn't just a server; it's your private
+                                settlement highway."</p>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="bg-white p-3 rounded-xl shadow-sm border border-blue-100/30">
+                                    <p class="text-[8px] font-black text-blue-600 uppercase mb-1">01</p>
+                                    <p class="text-[10px] font-bold text-gray-900 leading-tight">Zero-latency
+                                        matching.</p>
+                                </div>
+                                <div class="bg-white p-3 rounded-xl shadow-sm border border-blue-100/30">
+                                    <p class="text-[8px] font-black text-blue-600 uppercase mb-1">02</p>
+                                    <p class="text-[10px] font-bold text-gray-900 leading-tight">Hardened Isolation.
+                                    </p>
+                                </div>
+                                <div class="bg-white p-3 rounded-xl shadow-sm border border-blue-100/30">
+                                    <p class="text-[8px] font-black text-blue-600 uppercase mb-1">03</p>
+                                    <p class="text-[10px] font-bold text-gray-900 leading-tight">Tier 3 Support.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <div class="bg-rose-50 p-4 rounded-xl border border-rose-100">
+                            <div class="flex items-center gap-2 mb-1.5 text-rose-700">
+                                <i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i>
+                                <h4 class="text-[9px] font-black uppercase tracking-widest">CRITICAL DISCIPLINE</h4>
+                            </div>
+                            <p class="text-[11px] text-rose-800 font-medium">Do NOT introduce lower tiers; focus on
+                                Enterprise value.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CRM Activity Timeline -->
+                <div class="apple-card p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
+                                <i data-lucide="history" class="w-4 h-4"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-gray-900">Activity Timeline</h3>
+                        </div>
+                        <button class="text-[10px] font-bold text-[#0071E3] hover:underline">Full History</button>
+                    </div>
+
+                    <div class="space-y-6 relative timeline-line pl-8">
+                        <div class="relative cursor-pointer hover:bg-gray-50/50 p-2 -m-2 rounded-xl transition-all"
+                            onclick="openModal('activity1')">
+                            <div
+                                class="absolute -left-[27px] top-3 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow-sm z-10">
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[11px] font-black text-gray-900">Email Sent & Opened (3x)</p>
+                                    <p class="text-[10px] text-gray-500 mt-0.5">"Addressing Acme's Q4 Scalability
+                                        Map"</p>
+                                </div>
+                                <span class="text-[9px] font-bold text-gray-400 uppercase">2d ago</span>
+                            </div>
+                        </div>
+                        <div class="relative cursor-pointer hover:bg-gray-50/50 p-2 -m-2 rounded-xl transition-all"
+                            onclick="openModal('activity2')">
+                            <div
+                                class="absolute -left-[27px] top-3 w-4 h-4 rounded-full bg-slate-200 border-4 border-white shadow-sm z-10">
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[11px] font-black text-gray-700">LinkedIn InMail Connection</p>
+                                    <p class="text-[10px] text-gray-500 mt-0.5">Sarah requested technical deck.</p>
+                                </div>
+                                <span class="text-[9px] font-bold text-gray-400 uppercase">1w ago</span>
+                            </div>
+                        </div>
+                        <div class="relative cursor-pointer hover:bg-gray-50/50 p-2 -m-2 rounded-xl transition-all"
+                            onclick="openModal('activity3')">
+                            <div
+                                class="absolute -left-[27px] top-3 w-4 h-4 rounded-full bg-slate-200 border-4 border-white shadow-sm z-10">
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-[11px] font-black text-gray-700">Webinar Participation</p>
+                                    <p class="text-[10px] text-gray-500 mt-0.5">Attended settlement infra webinar.
+                                    </p>
+                                </div>
+                                <span class="text-[9px] font-bold text-gray-400 uppercase">12d ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="col-span-12 lg:col-span-3 flex flex-col gap-5">
+
+                <!-- SDR Owner Card -->
+                <div class="apple-card p-4">
+                    <h3 class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">SDR Owner</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop"
+                                class="w-10 h-10 rounded-full object-cover">
+                            <div
+                                class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full">
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[13px] font-bold text-gray-900">Wilson Briggs</p>
+                            <p class="text-[10px] text-gray-500 font-medium">Enterprise SDR • 2d ago</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategic Timeline Sidebar Card -->
+                <div class="apple-card p-5">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Strategic
+                        Timeline
+                    </h3>
+
+                    <div class="grid grid-cols-1 gap-3 mb-5">
+                        <div
+                            class="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100/50 flex items-center justify-between">
+                            <div>
+                                <p class="text-[8px] text-emerald-600 font-black uppercase tracking-widest">Last
+                                    Touched
+                                </p>
+                                <p class="text-[11px] font-bold text-gray-800 mt-0.5">Dec 20, 2025</p>
+                            </div>
+                            <div
+                                class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div
+                            class="bg-amber-50/50 p-3 rounded-2xl border border-amber-100/50 flex items-center justify-between">
+                            <div>
+                                <p
+                                    class="text-[8px] text-amber-600 font-black uppercase tracking-widest text-orange-700">
+                                    Next Follow-up</p>
+                                <p class="text-[11px] font-bold text-gray-800 mt-0.5">Jan 02, 2026</p>
+                            </div>
+                            <div
+                                class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-tint">
+                        <h4 class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Action
+                            Registry</h4>
+                        <ul class="space-y-3">
+                            <li
+                                class="flex items-start gap-2.5 text-[11px] text-gray-700 bg-white/50 p-2 rounded-xl border border-gray-100/50">
+                                <input type="checkbox"
+                                    class="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-[#0071E3] focus:ring-0">
+                                <span class="leading-tight">Verify Legacy API version (v2/v3 compatibility
+                                    check)</span>
+                            </li>
+                            <li
+                                class="flex items-start gap-2.5 text-[11px] text-gray-700 bg-white/50 p-2 rounded-xl border border-gray-100/50">
+                                <input type="checkbox"
+                                    class="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 text-[#0071E3] focus:ring-0"
+                                    checked>
+                                <span class="leading-tight">Send SOC2 compliance overview to Sarah's team</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Internal Notes -->
+                <div class="apple-card p-5 flex-1 flex flex-col min-h-[400px]">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Internal Notes
+                    </h3>
+
+                    <div id="notes-container" class="space-y-3 overflow-y-auto pr-1 flex-1 custom-scroll mb-4">
+                        <div class="bg-[#FFFDF2] p-4 rounded-xl border border-[#EEE1A8]/50 shadow-sm">
+                            <p class="text-[10px] font-bold text-gray-800 mb-1">Dec 23 • Call Log</p>
+                            <p class="text-[11px] text-gray-700 leading-relaxed">Sarah is very technical. Don't
+                                oversell
+                                marketing fluff. Focus on the API documentation and security compliance (SOC2 is a
+                                must).</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                            <p class="text-[10px] font-bold text-gray-800 mb-1">Dec 18 • Research</p>
+                            <p class="text-[11px] text-gray-700 leading-relaxed">Company just raised Series B.
+                                Likely
+                                has budget for "Enterprise Tier".</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-100">
+                        <div class="relative mb-3">
+                            <textarea id="note-input-new" rows="3"
+                                class="w-full bg-white rounded-xl border border-gray-200 p-3 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all"
+                                placeholder="Type a new note..."></textarea>
+                            <i data-lucide="paperclip"
+                                class="absolute bottom-3 left-3 w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                        </div>
+                        <button onclick="addNewNote()"
+                            class="w-full py-2.5 bg-[#1D1D1F] hover:bg-black text-white text-[11px] font-bold rounded-xl transition-all shadow-sm">
+                            Add Note
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal System -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-start mb-4">
+                <h2 id="modal-title" class="text-lg font-bold text-gray-900"></h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-black"><i data-lucide="x"
+                        class="w-5 h-5"></i></button>
+            </div>
+            <div id="modal-body"
+                class="text-sm text-gray-600 leading-relaxed custom-scroll max-h-[400px] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        const details = {
+            'activity1': { title: 'Scalability Email', body: '<p class="mb-3 italic">"Hi Sarah, following up on the Dedicated Node architecture..."</p><p class="text-xs">Opened 3x in Austin, TX. Engagement: High.</p>' },
+            'activity2': { title: 'LinkedIn Success', body: '<p class="italic">"Thanks Wilson. The Series B modernization is priority. Let\'s talk."</p>' },
+            'activity3': { title: 'Webinar Participation', body: '<p class="mb-3">Sarah attended the <strong>"Future of Settlement Infrastructure"</strong> webinar.</p><p class="text-xs">Duration: 45 mins. Questions asked: 2 (Security related).</p>' }
+        };
+
+        function togglePitch() {
+            const content = document.getElementById('pitch-content');
+            const chevron = document.getElementById('pitch-chevron');
+            content.classList.toggle('hidden');
+            chevron.style.transform = content.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+
+        function toggleWhatsAppMenu(e) {
+            e.stopPropagation();
+            document.getElementById('whatsapp-dropdown').classList.toggle('active');
+        }
+
+        window.onclick = () => document.getElementById('whatsapp-dropdown').classList.remove('active');
+
+        function openModal(id) {
+            const m = details[id];
+            if (!m) return;
+            document.getElementById('modal-title').innerText = m.title;
+            document.getElementById('modal-body').innerHTML = m.body;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function addNewNote() {
+            const input = document.getElementById('note-input-new');
+            const container = document.getElementById('notes-container');
+            if (!input.value.trim()) return;
+
+            const now = new Date();
+            const timeStr = now.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+
+            const html = `
+                <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm animate-in slide-in-from-bottom-2 duration-300">
+                    <p class="text-[10px] font-bold text-gray-800 mb-1">${timeStr} • Manual Note</p>
+                    <p class="text-[11px] text-gray-700 leading-relaxed">${input.value.trim()}</p>
+                </div>
+            `;
+
+            container.insertAdjacentHTML('afterbegin', html);
+            input.value = '';
+            lucide.createIcons();
+            container.scrollTop = 0;
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

@@ -20,24 +20,16 @@ import { ReportSidebar } from "@/components/report/ReportSidebar";
 import { LeadQualification } from "@/components/report/LeadQualification";
 import { ReportRenderer } from "@/components/report/ReportRenderer";
 import { ReportInfoSection } from "@/components/report/ReportInfoSection";
-import { MeetingDetailsCard } from "@/components/report/MeetingDetailsCard";
+// BACKUP: Old components removed from UI but preserved for future use
+// import { MeetingDetailsCard } from "@/components/report/MeetingDetailsCard";
 import { SectionToggle } from "@/components/report/SectionToggle";
 import { EditableField } from "@/components/report/EditableField";
 import { ProfilePictureEditor } from "@/components/report/ProfilePictureEditor";
-import {
-  OverviewSection,
-  CompanySection,
-  MeetingSection,
-  InteractionsSection,
-  CompetitorsSection,
-  TechStackSection,
-  NewsSection,
-  NextStepsSection,
-  CompanyInfoCard,
-  ReportGridLayout
-} from "@/components/report/Sections";
 import { AISectionContent } from "@/components/report/AISectionContent";
-import { CompanyAnalysis } from "@/components/report/CompanyAnalysis";
+// import { CompanyAnalysis } from "@/components/report/CompanyAnalysis";
+// import {
+//   CompanyInfoCard,
+// } from "@/components/report/Sections";
 import {
   Building2,
   Mail,
@@ -69,10 +61,25 @@ import {
   Newspaper,
   ArrowRight,
   Sparkles,
-  Loader2
+  Loader2,
+  Zap,
+  Send,
+  Banknote,
+  Users2,
+  Landmark,
+  Fingerprint,
+  MessageCircle,
+  Lightbulb,
+  AlertOctagon,
+  History,
+  Check,
+  Paperclip,
+  Target,
+  Bell,
+  User
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AIGenerateAll } from "@/components/report/AIGenerateAll";
 import {
@@ -191,7 +198,8 @@ const ReportLoader = dynamic(
   { ssr: false }
 );
 
-export default function ReportPage({ params }: { params: { id: string } }) {
+export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [report, setReport] = useState<LeadReport | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<{
@@ -208,19 +216,15 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     customFields: {},
   });
   const [newNote, setNewNote] = useState("");
-  const [newTag, setNewTag] = useState("");
-  const [selectedTab, setSelectedTab] = useState<
-    "overview" | "company" | "experience" | "interaction"
-  >("overview");
   const [editedLeadData, setEditedLeadData] = useState<LeadData | null>(null);
   const [editedSkills, setEditedSkills] = useState<string[]>([]);
   const [editedLanguages, setEditedLanguages] = useState<
     { name: string; level: string }[]
   >([]);
-  const [newSkill, setNewSkill] = useState("");
-  const [newLanguage, setNewLanguage] = useState({ name: "", level: "" });
-  const [reportExpanded, setReportExpanded] = useState(false);
-  const [reportPreview, setReportPreview] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [aiContent, setAiContent] = useState<Record<string, any>>({});
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [sections, setSections] = useState({
     overview: true,
     company: true,
@@ -231,21 +235,14 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     news: true,
     nextSteps: true
   });
-  const [isSaving, setIsSaving] = useState(false);
-  const [aiContent, setAiContent] = useState<Record<string, any>>({});
-  const [showShareTooltip, setShowShareTooltip] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [activeSection, setActiveSection] = useState("overview");
 
   useEffect(() => {
     if (report) {
-      // Get skills from report if they exist or initialize as empty
       const skillsFromData = ((report.apolloData?.person as any)?.skills || []).map(
         (s: string) => s
       );
       const skillsData = skillsFromData.length > 0 ? skillsFromData : [];
       
-      // Get languages from report if they exist or initialize as empty
       const languagesFromData = ((report.apolloData?.person as any)?.languages || []).map(
         (l: any) => ({
           name: l.language || l.name || "",
@@ -254,8 +251,11 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       );
       const languagesData = languagesFromData.length > 0 ? languagesFromData : [];
       
+      const loadedNotes = report.leadData.notes || [];
+      console.log('Loading notes from report:', loadedNotes);
+      
       setEditedData({
-        notes: report.leadData.notes || [],
+        notes: loadedNotes,
         tags: report.leadData.tags || [],
         status: report.leadData.status || "warm",
         nextFollowUp: report.leadData.nextFollowUp
@@ -264,51 +264,56 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         customFields: report.leadData.customFields || {},
       });
       
-      // Create a deep copy of leadData to avoid reference issues
       setEditedLeadData(JSON.parse(JSON.stringify(report.leadData)));
-      
       setEditedSkills(skillsData);
       setEditedLanguages(languagesData);
       
-      // Initialize AI content if available
       if (report.aiContent) {
         setAiContent(report.aiContent);
       }
       
-      // Initialize sections state from report data if available
       if (report.sections) {
         setSections(report.sections);
-      }
-      
-      // Generate a preview for the report
-      if (report.report) {
-        const lines = report.report.split('\n');
-        const firstParagraphs = lines.filter(line => line.trim() !== '')
-          .slice(0, 3)
-          .join('\n\n');
-        setReportPreview(firstParagraphs + '...');
       }
     }
   }, [report]);
 
-  // Debug when report is ready
+  // Auto-generate strategic brief if not present
+  useEffect(() => {
+    if (report?.leadData && !aiContent?.strategicBrief && !isGeneratingAI) {
+      fetch('/api/ai-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section: 'strategicBrief',
+          leadData: report.leadData,
+          apolloData: report.apolloData?.person
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.insufficient_data && !data.error) {
+          handleAiContentUpdate('strategicBrief', data);
+        }
+      })
+      .catch(err => console.error('Failed to generate strategic brief:', err));
+    }
+  }, [report, aiContent, isGeneratingAI]);
+
   const handleReportReady = (loadedReport: LeadReport) => {
     setReport(loadedReport);
     
-    // Check if the report doesn't have AI content yet
     if (loadedReport && (!loadedReport.aiContent || Object.keys(loadedReport.aiContent).length === 0)) {
       setIsGeneratingAI(true);
       generateAllAIContent(loadedReport);
     }
   };
 
-  // Function to automatically generate AI content for all sections
   const generateAllAIContent = async (reportData: LeadReport) => {
     if (!reportData || !reportData.leadData) return;
     
     setIsGeneratingAI(true);
     
-    // Get list of active sections - ensure they are valid section keys
     const validSectionKeys = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'] as const;
     type SectionKey = typeof validSectionKeys[number];
     
@@ -326,9 +331,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     const newContent: Record<string, any> = {};
     
     try {
-      // Generate content for each section
       for (const section of sectionKeys) {
-        // Call the AI generate endpoint for each section
         const response = await fetch('/api/ai-generate', {
           method: 'POST',
           headers: {
@@ -347,10 +350,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         }
       }
       
-      // Update the state with all generated content
       setAiContent(newContent);
       
-      // Save the generated content to the database
       const saveResponse = await fetch(`/api/reports/${reportData._id}`, {
         method: "PATCH",
         headers: {
@@ -365,12 +366,10 @@ export default function ReportPage({ params }: { params: { id: string } }) {
         throw new Error("Failed to save AI content");
       }
       
-      // Update the report state with the latest data
       const updatedReportResponse = await saveResponse.json();
-      // PATCH endpoint now returns report data directly
       setReport(updatedReportResponse);
     } catch (error) {
-      // Error handling without logging
+      // Error handling
     } finally {
       setIsSaving(false);
       setIsGeneratingAI(false);
@@ -381,21 +380,29 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     try {
       setIsSaving(true);
       
-      // Ensure we have the latest report data
       const currentReport = report;
       
-      const response = await fetch(`/api/reports/${params.id}`, {
+      // Merge editedData back into editedLeadData
+      const mergedLeadData = {
+        ...editedLeadData,
+        notes: editedData.notes,
+        tags: editedData.tags,
+        status: editedData.status,
+        nextFollowUp: editedData.nextFollowUp,
+        customFields: editedData.customFields
+      };
+      
+      const response = await fetch(`/api/reports/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          leadData: editedLeadData,
+          leadData: mergedLeadData,
           skills: editedSkills,
           languages: editedLanguages,
           aiContent: aiContent,
           sections: sections,
-          // Include meeting data - ensure we send the current state
           meetingDate: currentReport?.meetingDate,
           meetingTime: currentReport?.meetingTime,
           meetingPlatform: currentReport?.meetingPlatform,
@@ -408,13 +415,12 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       }
 
       const updatedReport = await response.json();
-      
-      // PATCH endpoint now returns report data directly
+      console.log('Updated report after save:', updatedReport);
+      console.log('Notes in updated report:', updatedReport.leadData?.notes);
       setReport(updatedReport);
       setIsEditing(false);
     } catch (error) {
       console.error('Save error:', error);
-      // Error handling without logging
     } finally {
       setIsSaving(false);
     }
@@ -425,7 +431,7 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     setEditedData((prev) => ({
       ...prev,
       notes: [
-        ...prev.notes,
+        ...(Array.isArray(prev.notes) ? prev.notes : []),
         {
           id: Math.random().toString(36).substr(2, 9),
           content: newNote,
@@ -437,13 +443,26 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     setNewNote("");
   };
 
-  const addTag = () => {
-    if (!newTag.trim()) return;
-    setEditedData((prev) => ({
-      ...prev,
-      tags: [...prev.tags, newTag],
-    }));
-    setNewTag("");
+  const handleAddNote = (content: string) => {
+    if (!content.trim()) return;
+    const newNote = {
+      id: Math.random().toString(36).substr(2, 9),
+      content: content.trim(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    console.log('Adding new note:', newNote);
+    setEditedData((prev) => {
+      const updatedNotes = [
+        ...(Array.isArray(prev.notes) ? prev.notes : []),
+        newNote,
+      ];
+      console.log('Updated notes array:', updatedNotes);
+      return {
+        ...prev,
+        notes: updatedNotes,
+      };
+    });
   };
 
   const handleSectionToggle = async (section: string, value: boolean) => {
@@ -454,9 +473,8 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     
     setSections(newSections);
     
-    // Save the section toggle state immediately
     try {
-      const response = await fetch(`/api/reports/${params.id}`, {
+      const response = await fetch(`/api/reports/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -468,11 +486,10 @@ export default function ReportPage({ params }: { params: { id: string } }) {
       
       if (response.ok) {
         const updatedReport = await response.json();
-        // PATCH endpoint now returns report data directly
         setReport(updatedReport);
       }
     } catch (error) {
-      // Error handling without logging
+      // Error handling
     }
   };
 
@@ -483,266 +500,75 @@ export default function ReportPage({ params }: { params: { id: string } }) {
     }));
   };
 
-  // Create a function to handle sharing
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}/shared-report/${params.id}`;
-    
-    // Copy the URL to clipboard
+    const shareUrl = `${window.location.origin}/shared-report/${id}`;
     navigator.clipboard.writeText(shareUrl);
     setShowShareTooltip(true);
     setTimeout(() => setShowShareTooltip(false), 2000);
-    
-    // Open the URL in a new tab
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // Fix the handleCompanyInfoUpdate function
-  const handleCompanyInfoUpdate = (field: string, value: string) => {
-    if (!isEditing || !editedLeadData) return;
-    
-    const updatedData = {...editedLeadData};
-    
-    // Update the appropriate field based on the field name
-    switch (field) {
-      case 'industry':
-        updatedData.companyDetails.industry = value;
-        break;
-      case 'employees':
-        updatedData.companyDetails.employees = value;
-        break;
-      case 'headquarters':
-        updatedData.companyDetails.headquarters = value;
-        break;
-      case 'website':
-        updatedData.companyDetails.website = value;
-        break;
-      // Other fields like fundingStage and fundingTotal might need to be 
-      // handled differently as they're from Apollo data
-      default:
-        break;
-    }
-    
-    setEditedLeadData(updatedData);
-  };
-
-  // Fix the handleMeetingUpdate function
-  const handleMeetingUpdate = (field: string, value: string | any[]) => {
-    if (!isEditing || !report) return;
-    
-    // Create a properly typed copy of the report
-    const updatedReport: LeadReport = { ...report };
-    
-    // Update the appropriate field
-    switch (field) {
-      case 'date':
-        updatedReport.meetingDate = value as string;
-        break;
-      case 'time':
-        updatedReport.meetingTime = value as string;
-        break;
-      case 'platform':
-        updatedReport.meetingPlatform = value as string;
-        break;
-      case 'agenda':
-        updatedReport.meetingAgenda = value as string;
-        break;
-      default:
-        break;
-    }
-    
-    setReport(updatedReport);
-  };
-
-  // Handle profile picture changes
   const handleProfilePictureChange = (photoUrl: string | null) => {
     if (!isEditing || !editedLeadData) return;
-    
     const updatedData = {
       ...editedLeadData,
       photo: photoUrl
     };
-    
     setEditedLeadData(updatedData);
   };
 
-  // Handle phone number changes
-  const handlePhoneNumberChange = (phoneNumber: string) => {
-    if (!isEditing || !editedLeadData) return;
-    
-    const updatedData = {
-      ...editedLeadData,
-      contactDetails: {
-        ...editedLeadData.contactDetails,
-        phone: phoneNumber
-      }
-    };
-    
-    setEditedLeadData(updatedData);
-  };
-
-  // Function to handle section navigation
-  const handleSectionNavigation = (sectionId: string) => {
-    // Update the active section state
-    setActiveSection(sectionId);
-    
-    // Find the section element and scroll to it
-    const sectionElement = document.getElementById(`${sectionId}-section`);
-    if (sectionElement) {
-      sectionElement.scrollIntoView({ behavior: 'smooth' });
-    }
+  const handleExportPDF = async () => {
+    window.print();
   };
 
   if (!report) {
     return (
-      <ReportLoader reportId={params.id} onReportReady={handleReportReady} />
+      <ReportLoader reportId={id} onReportReady={handleReportReady} />
     );
   }
 
   const leadData = report.leadData;
-
-  // Apollo data for About Lead and Experience
   const apolloPerson = report?.apolloData?.person;
-  const employment =
-    apolloPerson &&
-    "employment_history" in apolloPerson &&
-    Array.isArray((apolloPerson as any).employment_history)
-      ? (apolloPerson as any).employment_history
-      : [];
-  const currentRole = employment.find((e: any) => e.current) || employment[0];
-  const previousRoles = employment.filter((e: any) => !e.current);
-  const education = employment.filter((e: any) => e.kind === "education");
-
-  // Get skills from report if they exist or initialize as empty
-  const skillsFromData = ((apolloPerson as any)?.skills || []).map(
-    (s: string) => s
-  );
-  const skills = skillsFromData.length > 0 ? skillsFromData : [];
-
-  // Get languages from report if they exist or initialize as empty
-  const languagesFromData = ((apolloPerson as any)?.languages || []).map(
-    (l: any) => ({
-      name: l.language || l.name || "",
-      level: l.proficiency || l.level || "",
-    })
-  );
-  const languages = languagesFromData.length > 0 ? languagesFromData : [];
+  const leadScore = parseInt(leadData.leadScoring?.rating || "0") || 88;
 
     return (
-    <div className="flex min-h-screen bg-gray-50">
-      <ReportSidebar
-        completion={
-          report?.leadData
-            ? Math.floor(
-                (Object.values(report.leadData).filter(Boolean).length /
-                  Object.keys(report.leadData).length) *
-                  100
-              )
-            : 0
-        }
-        lastUpdated={
-          report?.createdAt ? new Date(report.createdAt).toLocaleString() : "-"
-        }
-        createdBy={report?.email?.split("@")[0] || "User"}
-        onRemind={() => {}}
-        onSave={handleSave}
-        isSaving={isSaving}
-        onNavigate={handleSectionNavigation}
-        activeSection={activeSection}
-      />
-      <main className="flex-1 p-8 overflow-y-auto">
-        {/* AI Generation Banner */}
-        {isGeneratingAI && (
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-full">
-              <Sparkles className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-medium text-blue-800">AI Content is Being Generated</h3>
-              <p className="text-sm text-blue-600">
-                We&apos;re creating AI-powered insights for your report. This may take a minute...
-              </p>
-            </div>
-            <div className="ml-auto">
-              <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-          </div>
-        )}
-
-        {/* Header Section with Actions */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-6">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", backgroundColor: '#F5F5F7', color: '#1D1D1F' }}>
+      {/* Glass Header */}
+      <header className="glass h-14 flex items-center justify-between px-6 fixed w-full z-50">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 rounded-2xl flex items-center justify-center shadow-xl border border-blue-500/20">
-                  <FileText className="h-7 w-7 text-white" />
+          <div className="flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E]"></div>
+            <div className="w-3 h-3 rounded-full bg-[#FEBC2E] border border-[#D89E24]"></div>
+            <div className="w-3 h-3 rounded-full bg-[#28C840] border border-[#1AAB29]"></div>
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold flex items-center gap-3">
-                  <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">Lead Report</span>
-                  <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                  <span className="text-gray-900">{leadData.name}</span>
-                </h1>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <Calendar className="h-4 w-4" />
-                    <span className="text-sm font-medium">
-                      {report?.createdAt
-                        ? new Date(report.createdAt).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "No date available"}
+          <div className="h-4 w-[1px] bg-gray-300 mx-2"></div>
+          <span className="text-sm font-medium text-gray-500">
+            Reports / <span className="text-black font-semibold">{leadData.name}</span>
                     </span>
                   </div>
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                 
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <SectionToggle sections={sections} onToggle={handleSectionToggle} />
-            
-            <AIGenerateAll 
-              sections={sections}
-              leadData={leadData}
-              apolloData={report?.apolloData}
-              onContentGenerated={(newContent) => setAiContent(prevContent => ({...prevContent, ...newContent}))}
-              onSave={handleSave}
-              isEditing={isEditing}
-              isGeneratingInitial={isGeneratingAI}
-            />
-            
+        <div className="flex gap-3">
+          <button
+            onClick={handleExportPDF}
+            className="text-xs font-medium text-gray-600 hover:text-black transition"
+          >
+            Export PDF
+          </button>
             <TooltipProvider>
               <Tooltip open={showShareTooltip}>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="gap-2" 
+                <button
                     onClick={handleShare}
+                  className="px-4 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition"
                   >
-                    <Share2 className="h-4 w-4" />
-                    Share
-                  </Button>
+                  Share Report
+                </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Share link copied and opened in new tab!</p>
+                <p>Link copied!</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            
-            <Button
-              variant={isEditing ? "default" : "outline"}
-              className="gap-2"
-              disabled={isSaving}
+          <button
               onClick={() => {
                 if (isEditing) {
                   handleSave();
@@ -750,248 +576,236 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                   setIsEditing(true);
                 }
               }}
-            >
-              {isEditing ? (
-                isSaving ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                <Save className="h-4 w-4" />
-                    <span>Save Changes</span>
-                  </>
-                )
-              ) : (
-                <>
-                <Edit className="h-4 w-4" />
-                  <span>Edit Report</span>
-                </>
-              )}
-            </Button>
+            disabled={isSaving}
+            className="px-4 py-1.5 rounded-full bg-[#0071E3] text-xs font-semibold text-white shadow-sm hover:bg-[#0077ED] transition disabled:opacity-50"
+          >
+            {isEditing ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit Profile'}
+          </button>
           </div>
-        </div>
+      </header>
 
-        {/* Profile Card */}
-        <Card className="mb-8 shadow-md border-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
-            <div className="flex items-start justify-between">
-              <div className="flex gap-6">
+      {/* Main Content */}
+      <main className="flex-1 mt-14 p-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
+        {/* AI Generation Banner */}
+        {isGeneratingAI && (
+          <div className="mb-6 apple-card p-4 flex items-center gap-3 bg-blue-50 border-blue-200">
+            <div className="p-2 bg-blue-100 rounded-full">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+        </div>
+            <div>
+              <h3 className="font-medium text-blue-800">AI Content is Being Generated</h3>
+              <p className="text-sm text-blue-600">
+                We&apos;re creating AI-powered insights for your report. This may take a minute...
+              </p>
+            </div>
+            <div className="ml-auto">
+              <Loader2 className="animate-spin h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+        )}
+
+        {/* Three Column Grid */}
+        <div className="grid grid-cols-12 gap-5">
+          {/* LEFT SIDEBAR: Lead & CRM Context */}
+          <div className="col-span-12 lg:col-span-3 flex flex-col gap-5">
+            {/* Lead Profile Card */}
+            <div className="apple-card p-5">
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="relative mb-3">
+                  {isEditing ? (
                 <ProfilePictureEditor
-                  currentPhoto={isEditing && editedLeadData ? editedLeadData.photo : leadData.photo}
+                      currentPhoto={editedLeadData?.photo || leadData.photo}
                   isEditing={isEditing}
                   onPhotoChange={handleProfilePictureChange}
                   alt={leadData.name}
                 />
-                <div>
-                  <h2 className="text-3xl font-bold">{leadData.name}</h2>
-                  <p className="text-blue-100 text-lg">{leadData.position}</p>
-                  <p className="text-blue-100">{leadData.companyName}</p>
-                  <div className="flex gap-3 mt-3">
-                    <Badge className="bg-blue-500/30 text-white hover:bg-blue-500/40 border border-blue-400/30">
-                      {leadData.companyDetails.industry}
-                    </Badge>
-                    <Badge className="bg-blue-500/30 text-white hover:bg-blue-500/40 border border-blue-400/30">
-                      {leadData.companyDetails.employees} employees
-                    </Badge>
+                  ) : (
+                    <>
+                      {leadData.photo ? (
+                        <img
+                          src={leadData.photo}
+                          alt={leadData.name}
+                          className="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl border-2 border-white shadow-sm">
+                          {leadData.name.charAt(0)}
                   </div>
+                      )}
+                      <div className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-full border-2 border-white flex items-center justify-center">
+                        <Check className="w-2.5 h-2.5 text-white" />
                 </div>
+                    </>
+                  )}
               </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center gap-1 bg-white/10 text-white px-3 py-1 rounded-lg">
-                  <Star className="h-5 w-5 text-yellow-300 fill-yellow-300" />
-                  <span className="font-bold">
-                    {leadData.leadScoring?.rating || "N/A"}
+                <h2 className="text-lg font-black text-gray-900 tracking-tight">{leadData.name}</h2>
+                <p className="text-[11px] font-bold text-[#0071E3] mt-0.5">{leadData.position}</p>
+                <p className="text-[10px] font-medium text-gray-500 mb-2">{leadData.companyName}</p>
+                <div className="flex items-center gap-1.5 text-gray-500">
+                  <MapPin className="w-3 h-3" />
+                  <span className="text-[10px] font-bold uppercase tracking-wide">
+                    {leadData.companyDetails.headquarters || 'Location N/A'}
                   </span>
-                  <span className="text-sm text-blue-100">Lead Score</span>
-                </div>
-                <Badge
-                  className={`text-sm flex items-center gap-1.5 ${
-                    report.leadData.status === "hot"
-                      ? "bg-red-500 hover:bg-red-600"
-                      : report.leadData.status === "warm"
-                      ? "bg-orange-500 hover:bg-orange-600"
-                      : report.leadData.status === "cold"
-                      ? "bg-blue-500 hover:bg-blue-600"
-                      : report.leadData.status === "meeting_done"
-                      ? "bg-green-500 hover:bg-green-600"
-                      : report.leadData.status === "qualified"
-                      ? "bg-purple-500 hover:bg-purple-600"
-                      : report.leadData.status === "disqualified"
-                      ? "bg-gray-500 hover:bg-gray-600" 
-                      : "bg-blue-500 hover:bg-blue-600"
-                  }`}
-                >
-                  {report.leadData.status === "hot" && <Sparkles className="h-3.5 w-3.5" />}
-                  {report.leadData.status === "warm" && <Briefcase className="h-3.5 w-3.5" />}
-                  {report.leadData.status === "cold" && <AlertCircle className="h-3.5 w-3.5" />}
-                  {report.leadData.status === "meeting_done" && <CheckCircle2 className="h-3.5 w-3.5" />}
-                  {report.leadData.status === "qualified" && <Star className="h-3.5 w-3.5" />}
-                  {report.leadData.status === "disqualified" && <X className="h-3.5 w-3.5" />}
-                  {!report.leadData.status && <Briefcase className="h-3.5 w-3.5" />}
-                  {report.leadData.status
-                    ? report.leadData.status.charAt(0).toUpperCase() +
-                      report.leadData.status.slice(1).replace('_', ' ')
-                    : "Warm"}
-                </Badge>
-              </div>
             </div>
           </div>
 
-          <CardContent className="p-6">
-            <div className="flex flex-wrap gap-6">
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-blue-600" />
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <a
+                  href={`https://wa.me/${leadData.contactDetails.phone?.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-[#128C7E] transition shadow-sm border border-[#25D366]/20"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
+                </a>
                 <a
                   href={`mailto:${leadData.contactDetails.email}`}
-                  className="text-gray-800 hover:text-blue-600"
+                  className="w-full py-2 flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-[#0071E3] transition shadow-sm border border-blue-100"
                 >
-                  {leadData.contactDetails.email}
+                  <Mail className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Email</span>
                 </a>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Phone className="h-5 w-5 text-blue-600" />
-                {isEditing ? (
-                  <EditableField
-                    value={editedLeadData?.contactDetails.phone || leadData.contactDetails.phone || ""}
-                    onChange={handlePhoneNumberChange}
-                    isEditing={isEditing}
-                    className="text-gray-800 hover:text-blue-600"
-                  />
-                ) : (
-                  <a
-                    href={`tel:${leadData.contactDetails.phone}`}
-                    className="text-gray-800 hover:text-blue-600"
-                  >
-                    {leadData.contactDetails.phone || "No phone available"}
-                  </a>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Linkedin className="h-5 w-5 text-blue-600" />
                 <a
                   href={leadData.contactDetails.linkedin}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-800 hover:text-blue-600"
+                className="w-full py-2.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-white transition-all shadow-sm"
                 >
-                  LinkedIn Profile
+                <Linkedin className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-black uppercase tracking-widest">LinkedIn Profile</span>
                 </a>
               </div>
 
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-blue-600" />
-                <span className="text-gray-800">
-                  {leadData.companyDetails.headquarters ||
-                    "Location unavailable"}
-                </span>
+            {/* CRM Intelligence */}
+            <div className="apple-card p-5">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
+              <div className="space-y-4">
+                <div className="section-tint">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                      <Zap className="w-4 h-4" />
               </div>
-
-              <div className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-blue-600" />
-                <a
-                  href={leadData.companyDetails.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-800 hover:text-blue-600"
-                >
-                  {leadData.companyDetails.website || "Website unavailable"}
-                </a>
+                    <div>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Lead Stage</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {leadData.status?.toUpperCase() || 'WARM'}
+                      </p>
               </div>
             </div>
-
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" className="gap-2">
-                <Phone className="h-4 w-4" />
-                Call
-              </Button>
-              <Button variant="outline" className="gap-2">
-                <Mail className="h-4 w-4" />
-                Email
-              </Button>
-              <Button variant="outline" className="gap-2">
-                <Calendar className="h-4 w-4" />
-                Schedule Meeting
-              </Button>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                      <Send className="w-4 h-4" />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Report Sections */}
-        <OverviewSection visible={sections.overview}>
-          <div className="space-y-4">
-            {/* Overview section is now empty - AI Insights moved to below Company section */}
+                    <div>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Source</p>
+                      <p className="text-sm font-bold text-gray-900">Inbound</p>
           </div>
-        </OverviewSection>
-
-        <CompanySection visible={sections.company}>
-          <div className="space-y-6">
-            {/* Company Information and Lead Qualification in 2-column layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Company Information - Left Column */}
-              <Card className="shadow-lg border-0 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-                  <div className="flex flex-row items-center justify-between space-y-0 gap-3">
+                  </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                        <Building2 className="h-5 w-5 text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-600">
+                      <Clock className="w-4 h-4" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl text-white font-semibold">Company Information</CardTitle>
-                        <p className="text-blue-100 text-sm mt-1">Business profile and details</p>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Created</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-white/20 px-3 py-1 rounded-full">
-                        <span className="text-white text-xs font-medium">Profile</span>
                       </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
-                  <CompanyInfoCard
-                    companyName={isEditing && editedLeadData ? editedLeadData.companyName : leadData.companyName}
-                    industry={isEditing && editedLeadData ? editedLeadData.companyDetails.industry : leadData.companyDetails.industry}
-                    employees={isEditing && editedLeadData ? editedLeadData.companyDetails.employees : leadData.companyDetails.employees}
-                    headquarters={isEditing && editedLeadData ? editedLeadData.companyDetails.headquarters : leadData.companyDetails.headquarters}
-                    website={isEditing && editedLeadData ? editedLeadData.companyDetails.website : leadData.companyDetails.website}
-                    companyLogo={apolloPerson?.organization?.logo_url || ""}
-                    companyDescription={apolloPerson?.organization?.description || ""}
-                    fundingStage={apolloPerson?.organization?.funding_stage || ""}
-                    fundingTotal={apolloPerson?.organization?.funding_total || ""}
-                    isEditing={isEditing}
-                    onUpdate={handleCompanyInfoUpdate}
-                  />
-                </CardContent>
-              </Card>
 
-              {/* Lead Qualification - Right Column */}
-              <Card className="shadow-lg border-0 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-                  <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                        <Star className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl text-white font-semibold">Lead Qualification</CardTitle>
-                        <p className="text-blue-100 text-sm mt-1">Scoring and qualification criteria</p>
-                      </div>
+            {/* Company Context */}
+            <div className="apple-card p-5">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
+              <div className="space-y-4">
+                <div className="section-tint">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                      <Banknote className="w-4 h-4" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="bg-white/20 px-3 py-1 rounded-full">
-                        <span className="text-white text-xs font-medium">Scoring</span>
-                      </div>
+                    <div>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Industry</p>
+                      <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.industry}</p>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
+                      <Users2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Employees</p>
+                      <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.employees}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                      <Landmark className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Location</p>
+                      <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.headquarters}</p>
+                    </div>
+                  </div>
+                    <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600">
+                      <Fingerprint className="w-4 h-4" />
+                      </div>
+                      <div>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Ownership</p>
+                      <p className="text-sm font-bold text-gray-900">
+                        {apolloPerson?.organization?.funding_stage || 'N/A'}
+                      </p>
+                      </div>
+                    </div>
+                      </div>
+
+                {apolloPerson?.organization?.description && (
+                  <div className="section-tint mt-4">
+                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
+                    <p className="text-[11px] text-gray-600 leading-relaxed">
+                      {apolloPerson.organization.description.substring(0, 150)}
+                      {apolloPerson.organization.description.length > 150 ? '...' : ''}
+                    </p>
+                    </div>
+                )}
+
+                {/* Technology Stack */}
+                {aiContent?.techStack && (aiContent.techStack.technologies || aiContent.techStack.tools) && (
+                  <div className="section-tint mt-4">
+                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology Stack</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(aiContent.techStack.technologies || aiContent.techStack.tools || [])
+                        .slice(0, 4)
+                        .map((tech: string, idx: number) => {
+                          const colors = [
+                            'bg-blue-50 text-blue-600 border-blue-100',
+                            'bg-orange-50 text-orange-600 border-orange-100',
+                            'bg-emerald-50 text-emerald-600 border-emerald-100',
+                            'bg-slate-50 text-slate-600 border-slate-100'
+                          ];
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 ${colors[idx % colors.length]} text-[10px] font-bold rounded-lg border`}
+                            >
+                              {tech}
+                            </span>
+                          );
+                        })}
+                  </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Lead Qualification */}
+            <div className="apple-card p-5">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Lead Qualification</h3>
                   {leadData.leadScoring?.qualificationCriteria &&
                   Object.keys(leadData.leadScoring.qualificationCriteria).length > 0 ? (
                     <LeadQualification
@@ -1031,110 +845,651 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                       }}
                     />
                   ) : (
-                    <div className="text-gray-500 italic py-4">
+                <div className="text-gray-500 italic text-[11px] py-4">
                       No qualification criteria available
                     </div>
                   )}
-                </CardContent>
-              </Card>
             </div>
           </div>
-        </CompanySection>
 
-        {/* AI Company Analytics and Meeting Details in 2-column layout */}
-        <div className="mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* AI Company Analytics - Left Column */}
-            <Card className="shadow-lg border-0 overflow-hidden flex flex-col">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-                <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
+          {/* CENTER COLUMN: Main Content */}
+          <div className="col-span-12 lg:col-span-6 flex flex-col gap-5">
+            {/* Upcoming Meeting */}
+            {(report.meetingDate && report.meetingTime) || isEditing ? (
+              <div className="apple-card p-0 overflow-hidden flex shadow-sm min-h-[100px]">
+                {report.meetingDate ? (
+                  <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center">
+                    <span className="text-2xl font-bold">
+                      {new Date(report.meetingDate).getDate()}
+                    </span>
+                    <span className="text-[10px] font-medium uppercase opacity-90">
+                      {new Date(report.meetingDate).toLocaleDateString('en-US', { month: 'short' })}
+                    </span>
                     </div>
+                ) : isEditing && (
+                  <div className="bg-gray-100 w-20 flex flex-col items-center justify-center p-2 text-center">
+                    <Calendar className="w-6 h-6 text-gray-400" />
+                  </div>
+                )}
+                <div className="p-4 flex-1 flex justify-between items-center bg-white relative">
+                  <div className="flex-1">
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            value={report.meetingDate || ''}
+                            onChange={(e) => setReport({ ...report, meetingDate: e.target.value })}
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                          />
+                          <input
+                            type="time"
+                            value={report.meetingTime || ''}
+                            onChange={(e) => setReport({ ...report, meetingTime: e.target.value })}
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={report.meetingPlatform || ''}
+                          onChange={(e) => setReport({ ...report, meetingPlatform: e.target.value })}
+                          placeholder="Platform (e.g., Zoom, Google Meet)"
+                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                        />
+                        <input
+                          type="text"
+                          value={report.meetingAgenda || ''}
+                          onChange={(e) => setReport({ ...report, meetingAgenda: e.target.value })}
+                          placeholder="Meeting agenda"
+                          className="text-sm font-bold border border-gray-300 rounded px-2 py-1 w-full"
+                        />
+                      </div>
+                    ) : report.meetingDate && report.meetingTime ? (
+                      <>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                            {report.meetingTime} • {report.meetingPlatform || 'Video Call'}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-gray-900">
+                          {report.meetingAgenda || 'Meeting Scheduled'}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-0.5">{report.meetingPlatform || 'Video Call'}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">No meeting scheduled</p>
+                    )}
+                  </div>
+                  {!isEditing && report.meetingDate && report.meetingTime && (
+                    <button className="bg-[#0071E3] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm">
+                      Join
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Pipeline Stage & Metrics */}
+            <div className="apple-card p-6">
+              <div className="flex justify-between items-start mb-6">
                     <div>
-                      <CardTitle className="text-xl text-white font-semibold">AI Company Analytics</CardTitle>
-                      <p className="text-blue-100 text-sm mt-1">Intelligent business analysis</p>
+                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                    Pipeline Stage
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-black text-[#0071E3]">
+                      {leadData.status ? leadData.status.charAt(0).toUpperCase() + leadData.status.slice(1).replace('_', ' ') : 'Qualified'}
+                    </span>
+                    <span className="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-[10px] font-bold rounded-md">
+                      Active
+                    </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="bg-white/20 px-3 py-1 rounded-full">
-                      <span className="text-white text-xs font-medium">Analytics</span>
-                    </div>
+                <div className="flex items-center gap-4">
+                  <div className="relative w-16 h-16 flex items-center justify-center">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="28"
+                        stroke="currentColor"
+                        strokeWidth="5"
+                        fill="transparent"
+                        className="text-gray-100"
+                      />
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="28"
+                        stroke="currentColor"
+                        strokeWidth="5"
+                        fill="transparent"
+                        strokeDasharray="176"
+                        strokeDashoffset={176 - (176 * (leadScore || 88)) / 100}
+                        className="text-[#0071E3] transition-all duration-1000 ease-out"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center">
+                      <span className="text-sm font-black text-gray-900 leading-none">
+                        {leadScore || 88}
+                      </span>
+                      <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">
+                        Score
+                      </span>
+                </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white flex-1">
-                <CompanyAnalysis
+              </div>
+              <div className="flex gap-2 h-2 mb-3">
+                <div className="flex-1 bg-emerald-100 rounded-full"></div>
+                <div className="flex-1 bg-blue-100 rounded-full"></div>
+                <div className="flex-1 bg-[#0071E3] rounded-full shadow-[0_0_10px_rgba(0,113,227,0.2)]"></div>
+                <div className="flex-1 bg-gray-100 rounded-full"></div>
+                <div className="flex-1 bg-gray-100 rounded-full"></div>
+              </div>
+              <div className="flex justify-between px-0.5">
+                <span className="text-[8px] font-bold text-emerald-600 uppercase">New</span>
+                <span className="text-[8px] font-bold text-blue-500 uppercase">Discovery</span>
+                <span className="text-[8px] font-black text-[#0071E3] uppercase underline underline-offset-2">
+                  Qualified
+                </span>
+                <span className="text-[8px] font-bold text-gray-400 uppercase">Proposal</span>
+                <span className="text-[8px] font-bold text-gray-400 uppercase">Closed</span>
+              </div>
+            </div>
+
+            {/* About Section Grid */}
+            <div className="apple-card p-0 overflow-hidden">
+              <div className="grid grid-cols-2">
+                {/* About Lead */}
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                      <User className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">
+                      About {leadData.name.split(' ')[0]}
+                    </h3>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-[12px] text-gray-600 leading-relaxed">
+                      {leadData.position} at {leadData.companyName}, focused on driving business growth and operational efficiency.
+                    </p>
+                    {aiContent?.overview?.keyInsights && (
+                      <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-blue-400">
+                        {aiContent.overview.keyInsights.slice(0, 3).map((insight: string, idx: number) => (
+                          <li key={idx}>{insight}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                {/* About Company */}
+                <div className="p-8 bg-[#FBFBFC] border-l border-gray-100">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-widest">
+                      About {leadData.companyName}
+                    </h3>
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-[12px] text-gray-600 leading-relaxed">
+                      {apolloPerson?.organization?.description?.substring(0, 120) || 
+                        `${leadData.companyName} is a growing company in the ${leadData.companyDetails.industry} industry.`}
+                      {apolloPerson?.organization?.description && apolloPerson.organization.description.length > 120 ? '...' : ''}
+                    </p>
+                    {aiContent?.company?.keyPoints && (
+                      <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-indigo-400">
+                        {aiContent.company.keyPoints.slice(0, 3).map((point: string, idx: number) => (
+                          <li key={idx}>{point}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="mt-6 pt-6 border-t border-gray-200/60 flex gap-4">
+                    <a
+                      href={leadData.companyDetails.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-[9px] font-bold text-gray-900 transition shadow-sm"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-gray-400" />
+                      Official Website
+                    </a>
+                    <a
+                      href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-[9px] font-bold text-white transition shadow-sm"
+                    >
+                      <Linkedin className="w-3.5 h-3.5" />
+                      LinkedIn
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Strategic Meeting Brief */}
+            <div className="apple-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#0071E3]">
+                    <Target className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900">Strategic Meeting Brief</h3>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-widest">
+                  High Stakes
+                </span>
+              </div>
+
+              <div className="space-y-6">
+                <section>
+                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    Primary Objective
+                  </h4>
+                  {aiContent?.strategicBrief ? (
+                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                      {aiContent.strategicBrief.primaryObjective}
+                    </p>
+                  ) : (
+                  <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                      <button
+                        onClick={() => {
+                          fetch('/api/ai-generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              section: 'strategicBrief',
+                              leadData,
+                              apolloData: apolloPerson
+                            })
+                          })
+                          .then(res => res.json())
+                          .then(data => handleAiContentUpdate('strategicBrief', data))
+                          .catch(err => console.error('Failed to generate strategic brief:', err));
+                        }}
+                        className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Generate Strategic Brief
+                      </button>
+                    </div>
+                  )}
+                </section>
+
+                {aiContent?.strategicBrief && (
+                  <>
+                    <section className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Lightbulb className="w-4 h-4 text-blue-600" />
+                        <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest">
+                          Recommended Approach
+                        </h4>
+                  </div>
+                      <p className="text-[12px] text-gray-700 leading-relaxed mb-4 italic font-medium">
+                        {aiContent.strategicBrief.recommendedApproach}
+                      </p>
+                      
+                      {/* Key Benefits Grid */}
+                      {aiContent.strategicBrief.keyBenefits && aiContent.strategicBrief.keyBenefits.length > 0 && (
+                        <div className="grid grid-cols-3 gap-3">
+                          {aiContent.strategicBrief.keyBenefits.slice(0, 3).map((point: string, idx: number) => (
+                            <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-blue-100/30">
+                              <p className="text-[8px] font-black text-blue-600 uppercase mb-1">
+                                {String(idx + 1).padStart(2, '0')}
+                              </p>
+                              <p className="text-[10px] font-bold text-gray-900 leading-tight">
+                                {point}
+                              </p>
+                </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+
+                    {/* Critical Discipline Alert */}
+                    {aiContent.strategicBrief.criticalDiscipline && (
+                      <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
+                        <div className="flex items-center gap-2 mb-1.5 text-rose-700">
+                          <AlertOctagon className="w-3.5 h-3.5" />
+                          <h4 className="text-[9px] font-black uppercase tracking-widest">CRITICAL DISCIPLINE</h4>
+                        </div>
+                        <p className="text-[11px] text-rose-800 font-medium">
+                          {aiContent.strategicBrief.criticalDiscipline}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Activity Timeline */}
+            <div className="apple-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
+                    <History className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-base font-bold text-gray-900">Activity Timeline</h3>
+                </div>
+                {isEditing && (
+                  <button 
+                    onClick={() => {
+                      const note = prompt("Add activity note:");
+                      if (note) handleAddNote(note);
+                    }}
+                    className="text-[10px] font-bold text-[#0071E3] hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Note
+                  </button>
+                )}
+              </div>
+
+              {Array.isArray(editedData.notes) && editedData.notes.length > 0 ? (
+                <div className="space-y-4 relative timeline-line pl-8">
+                  {editedData.notes
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 10)
+                    .map((note, idx) => (
+                      <div key={note.id} className="relative hover:bg-gray-50/50 p-3 -m-3 rounded-xl transition-all group">
+                        <div className={`absolute -left-[27px] top-3 w-4 h-4 rounded-full ${idx === 0 ? 'bg-blue-500' : 'bg-slate-200'} border-4 border-white shadow-sm z-10`}></div>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-gray-900 mb-1">
+                              {note.content}
+                            </p>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase">
+                              {new Date(note.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: new Date(note.createdAt).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                              })}
+                            </span>
+                          </div>
+                          {isEditing && (
+                            <button
+                              onClick={() => {
+                                if (confirm('Delete this note?')) {
+                                  setEditedData(prev => ({
+                                    ...prev,
+                                    notes: (Array.isArray(prev.notes) ? prev.notes : []).filter(n => n.id !== note.id)
+                                  }));
+                                }
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <History className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-[11px] text-gray-500 mb-3">No activity recorded yet</p>
+                  {isEditing && (
+                    <button 
+                      onClick={() => {
+                        const note = prompt("Add first activity note:");
+                        if (note) handleAddNote(note);
+                      }}
+                      className="text-[11px] font-bold text-[#0071E3] hover:underline"
+                    >
+                      Add First Note
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT SIDEBAR */}
+          <div className="col-span-12 lg:col-span-3 flex flex-col gap-5">
+            {/* SDR Owner Card */}
+            <div className="apple-card p-4">
+              <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Report Owner</h3>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                    {report.email.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold text-gray-900">
+                    {report.email.split('@')[0]}
+                  </p>
+                  <p className="text-[10px] text-gray-500 font-medium">
+                    {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Strategic Timeline */}
+            <div className="apple-card p-5">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                Strategic Timeline
+              </h3>
+
+              <div className="grid grid-cols-1 gap-3 mb-5">
+                <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100/50 flex items-center justify-between">
+                  <div>
+                    <p className="text-[8px] text-emerald-600 font-black uppercase tracking-widest">
+                      Last Updated
+                    </p>
+                    <p className="text-[11px] font-bold text-gray-800 mt-0.5">
+                      {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                    <Check className="w-4 h-4" />
+                  </div>
+                </div>
+                {leadData.nextFollowUp && (
+                  <div className="bg-amber-50/50 p-3 rounded-2xl border border-amber-100/50 flex items-center justify-between">
+                    <div>
+                      <p className="text-[8px] text-amber-600 font-black uppercase tracking-widest">
+                        Next Follow-up
+                      </p>
+                      <p className="text-[11px] font-bold text-gray-800 mt-0.5">
+                        {new Date(leadData.nextFollowUp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="section-tint">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-[9px] font-bold text-gray-500 uppercase tracking-widest px-1">
+                    Action Registry
+                  </h4>
+                  {/* <SectionToggle sections={sections} onToggle={handleSectionToggle} /> */}
+                </div>
+                <AIGenerateAll 
+                  sections={sections}
                   leadData={leadData}
-                  apolloData={apolloPerson}
+                  apolloData={report?.apolloData}
+                  onContentGenerated={(newContent) => setAiContent(prevContent => ({...prevContent, ...newContent}))}
+                  onSave={handleSave}
                   isEditing={isEditing}
-                  existingContent={aiContent?.company}
-                  onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('company', content)}
+                  isGeneratingInitial={isGeneratingAI}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Meeting Details - Right Column */}
-            <Card className="shadow-lg border-0 overflow-hidden flex flex-col">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-                <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+            {/* Internal Notes */}
+            <div className="apple-card p-5 flex-1 flex flex-col min-h-[400px]">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+                Internal Notes
+              </h3>
+
+              <div className="space-y-3 overflow-y-auto pr-1 flex-1 custom-scroll mb-4">
+                {editedData.notes && editedData.notes.length > 0 ? (
+                  editedData.notes.map((note) => (
+                    <div key={note.id} className="bg-[#FFFDF2] p-4 rounded-xl border border-[#EEE1A8]/50 shadow-sm">
+                      <p className="text-[10px] font-bold text-gray-800 mb-1">
+                        {new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • Note
+                      </p>
+                      <p className="text-[11px] text-gray-700 leading-relaxed">{note.content}</p>
                     </div>
-                    <div>
-                      <CardTitle className="text-xl text-white font-semibold">Meeting Details</CardTitle>
-                      <p className="text-blue-100 text-sm mt-1">Scheduled meetings and agenda</p>
+                  ))
+                ) : (
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <p className="text-[11px] text-gray-500 text-center">No notes yet</p>
                     </div>
+                )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="bg-white/20 px-3 py-1 rounded-full">
-                      <span className="text-white text-xs font-medium">Schedule</span>
+
+              <div className="pt-4 border-t border-gray-100">
+                <div className="relative mb-3">
+                  <Textarea
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    rows={3}
+                    className="w-full bg-white rounded-xl border border-gray-200 p-3 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all"
+                    placeholder="Type a new note..."
+                  />
+                  <Paperclip className="absolute bottom-3 left-3 w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-pointer" />
                     </div>
+                <button
+                  onClick={addNote}
+                  className="w-full py-2.5 bg-[#1D1D1F] hover:bg-black text-white text-[11px] font-bold rounded-xl transition-all shadow-sm"
+                >
+                  Add Note
+                </button>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white flex-1">
+          </div>
+        </div>
+
+        {/* Company & Lead Qualification Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          {/* Company Information */}
+          {/* BACKUP: Company Info - Old Component Preserved */}
+          {/* <div className="apple-card p-6">
+            <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Building2 className="h-4 w-4 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Company Information</h3>
+            </div>
+            <div>
+              <CompanyInfoCard
+                companyName={isEditing && editedLeadData ? editedLeadData.companyName : leadData.companyName}
+                industry={isEditing && editedLeadData ? editedLeadData.companyDetails.industry : leadData.companyDetails.industry}
+                employees={isEditing && editedLeadData ? editedLeadData.companyDetails.employees : leadData.companyDetails.employees}
+                headquarters={isEditing && editedLeadData ? editedLeadData.companyDetails.headquarters : leadData.companyDetails.headquarters}
+                website={isEditing && editedLeadData ? editedLeadData.companyDetails.website : leadData.companyDetails.website}
+                companyLogo={apolloPerson?.organization?.logo_url || ""}
+                companyDescription={apolloPerson?.organization?.description || ""}
+                fundingStage={apolloPerson?.organization?.funding_stage || ""}
+                fundingTotal={apolloPerson?.organization?.funding_total || ""}
+                isEditing={isEditing}
+                onUpdate={(field: string, value: string) => {
+                  if (isEditing && editedLeadData) {
+                    const updatedData = {...editedLeadData};
+                    if (field in updatedData.companyDetails) {
+                      (updatedData.companyDetails as any)[field] = value;
+                    }
+                    setEditedLeadData(updatedData);
+                  }
+                }}
+              />
+            </div>
+          </div> */}
+
+        </div>
+
+        {/* BACKUP: Meeting Details & AI Company Analytics Grid - Old Components Preserved */}
+        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6"> */}
+          {/* Meeting Details */}
+          {/* <div className="apple-card p-6">
+            <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-green-600" />
+              </div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Meeting Details</h3>
+            </div>
+            <div>
                 <MeetingDetailsCard
                   date={report.meetingDate || "Not specified"}
                   time={report.meetingTime || "Not specified"}
                   platform={report.meetingPlatform || "Not specified"}
                   agenda={report.meetingAgenda || "No agenda specified"}
                   isEditing={isEditing}
-                  onUpdate={handleMeetingUpdate}
-                />
-              </CardContent>
-            </Card>
+                onUpdate={(field: string, value: string | any[]) => {
+                  if (!isEditing || !report) return;
+                  const updatedReport: any = { ...report };
+                  switch (field) {
+                    case 'date':
+                      updatedReport.meetingDate = value as string;
+                      break;
+                    case 'time':
+                      updatedReport.meetingTime = value as string;
+                      break;
+                    case 'platform':
+                      updatedReport.meetingPlatform = value as string;
+                      break;
+                    case 'agenda':
+                      updatedReport.meetingAgenda = value as string;
+                      break;
+                  }
+                  setReport(updatedReport);
+                }}
+              />
           </div>
-        </div>
+          </div> */}
 
-        {/* AI Insights */}
-        <div className="mb-8">
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Star className="h-5 w-5 text-white" />
+          {/* AI Company Analytics */}
+          {/* <div className="apple-card p-6">
+            <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">AI Company Analytics</h3>
                   </div>
                   <div>
-                    <CardTitle className="text-xl text-white font-semibold">AI Insights</CardTitle>
-                    <p className="text-blue-100 text-sm mt-1">Intelligent analysis and recommendations</p>
+              <CompanyAnalysis
+                leadData={leadData}
+                apolloData={apolloPerson}
+                isEditing={isEditing}
+                existingContent={aiContent?.company}
+                onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('company', content)}
+              />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 px-3 py-1 rounded-full">
-                    <span className="text-white text-xs font-medium">AI Powered</span>
+        </div> */}
+
+        {/* Full-Width Content Sections */}
+        <div className="space-y-6 mt-6">
+          {/* BACKUP: AI Insights Section - Old Component Preserved */}
+          {/* {sections.overview && aiContent?.overview && (
+            <div className="apple-card p-6">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                  <Star className="h-4 w-4 text-purple-600" />
                   </div>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">AI Insights</h3>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+              <div>
               <AISectionContent 
                 section="overview" 
                 leadData={leadData} 
@@ -1144,31 +1499,20 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 existingContent={aiContent?.overview}
                 onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('overview', content)}
               />
-            </CardContent>
-          </Card>
         </div>
+            </div>
+          )} */}
 
-        <InteractionsSection visible={sections.interactions}>
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Users className="h-5 w-5 text-white" />
+          {/* BACKUP: Interactions Section - Old Component Preserved (info now in Strategic Brief) */}
+          {/* {sections.interactions && (
+            <div className="apple-card p-6">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-blue-600" />
                   </div>
-                  <div>
-                    <CardTitle className="text-xl text-white font-semibold">Interactions</CardTitle>
-                    <p className="text-blue-100 text-sm mt-1">Communication history and engagement</p>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Interactions</h3>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 px-3 py-1 rounded-full">
-                    <span className="text-white text-xs font-medium">Engagement</span>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+              <div>
               <AISectionContent 
                 section="interactions" 
                 leadData={leadData} 
@@ -1181,12 +1525,9 @@ export default function ReportPage({ params }: { params: { id: string } }) {
               
               {report.talkingPoints && report.talkingPoints.length > 0 && (
                 <div className="mt-8 space-y-4">
-                  <div className="space-y-4">
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
-                        <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
+                        <MessageCircle className="w-3 h-3 text-green-600" />
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900">Talking Points</h3>
                     </div>
@@ -1200,34 +1541,22 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                         </CardContent>
                       </Card>
                     ))}
-                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </InteractionsSection>
+                  </div>
+                  </div>
+          )} */}
 
-        <CompetitorsSection visible={sections.competitors}>
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl text-white font-semibold">Competitive Analysis</CardTitle>
-                    <p className="text-blue-100 text-sm mt-1">Market positioning and competitive landscape</p>
-                  </div>
+          {/* BACKUP: Competitors Section - Old Component Preserved */}
+          {/* {sections.competitors && (
+            <div className="apple-card p-6">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-red-600" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 px-3 py-1 rounded-full">
-                    <span className="text-white text-xs font-medium">Market Intel</span>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Competitive Analysis</h3>
                   </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+              <div>
               <AISectionContent 
                 section="competitors" 
                 leadData={leadData} 
@@ -1237,31 +1566,19 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 existingContent={aiContent?.competitors}
                 onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('competitors', content)}
               />
-            </CardContent>
-          </Card>
-        </CompetitorsSection>
+                  </div>
+                  </div>
+          )} */}
 
-        <TechStackSection visible={sections.techStack}>
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Cpu className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl text-white font-semibold">Technology Stack</CardTitle>
-                    <p className="text-blue-100 text-sm mt-1">Current technologies and infrastructure</p>
-                  </div>
+          {/* BACKUP: Tech Stack Section - Old Component Preserved */}
+          {/* {sections.techStack && (
+            <div className="apple-card p-6">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                  <Cpu className="h-4 w-4 text-slate-600" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 px-3 py-1 rounded-full">
-                    <span className="text-white text-xs font-medium">Tech Stack</span>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Technology Stack</h3>
                   </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="techStack" 
                 leadData={leadData} 
@@ -1271,31 +1588,18 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 existingContent={aiContent?.techStack}
                 onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('techStack', content)}
               />
-            </CardContent>
-          </Card>
-        </TechStackSection>
+            </div>
+          )} */}
 
-        <NewsSection visible={sections.news}>
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Newspaper className="h-5 w-5 text-white" />
+          {/* BACKUP: News Section - Old Component Preserved */}
+          {/* {sections.news && (
+            <div className="apple-card p-6">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                  <Newspaper className="h-4 w-4 text-orange-600" />
                   </div>
-                  <div>
-                    <CardTitle className="text-xl text-white font-semibold">News & Updates</CardTitle>
-                    <p className="text-blue-100 text-sm mt-1">Latest industry news and company updates</p>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">News & Updates</h3>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 px-3 py-1 rounded-full">
-                    <span className="text-white text-xs font-medium">Latest</span>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
               <AISectionContent 
                 section="news" 
                 leadData={leadData} 
@@ -1305,31 +1609,19 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 existingContent={aiContent?.news}
                 onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('news', content)}
               />
-            </CardContent>
-          </Card>
-        </NewsSection>
+            </div>
+          )} */}
 
-        <NextStepsSection visible={sections.nextSteps}>
-          <Card className="shadow-lg border-0 overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 border-b-0 pb-6">
-              <div className="flex flex-row items-center justify-between space-y-0 gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <ArrowRight className="h-5 w-5 text-white" />
+          {/* BACKUP: Next Steps Section - Old Component Preserved */}
+          {/* {sections.nextSteps && (
+            <div className="apple-card p-6">
+              <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                  <ArrowRight className="h-4 w-4 text-green-600" />
                   </div>
-                  <div>
-                    <CardTitle className="text-xl text-white font-semibold">AI Recommended Next Steps</CardTitle>
-                    <p className="text-blue-100 text-sm mt-1">Strategic action items for lead engagement</p>
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">AI Recommended Next Steps</h3>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-white/20 px-3 py-1 rounded-full">
-                    <span className="text-white text-xs font-medium">Action Items</span>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-8 bg-gradient-to-br from-gray-50 to-white">
+              <div>
               <AISectionContent 
                 section="nextSteps" 
                 leadData={leadData} 
@@ -1339,79 +1631,11 @@ export default function ReportPage({ params }: { params: { id: string } }) {
                 existingContent={aiContent?.nextSteps}
                 onContentUpdate={(content: Record<string, any>) => handleAiContentUpdate('nextSteps', content)}
               />
-            </CardContent>
-          </Card>
-        </NextStepsSection>
-        
-        {/* Content Footer */}
-        <div className="mt-16 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-center py-8 px-6 rounded-xl shadow-lg border border-blue-500/20">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-2 h-2 bg-white/80 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-2 h-2 bg-white/40 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
-            
-            {/* Nexuses Logo */}
-            <div className="flex justify-center mb-4">
-              <img 
-                src="https://22527425.fs1.hubspotusercontent-na1.net/hubfs/22527425/Nexuses%20logo%20white.svg" 
-                alt="Nexuses" 
-                className="h-8 w-auto opacity-90 hover:opacity-100 transition-opacity"
-              />
             </div>
-            
-            <p className="text-lg font-medium text-white/90 leading-relaxed">
-              Acquire customers at <span className="font-bold text-white">scale</span> • Increase conversion rates. Scale-up revenue.
-            </p>
-            
-            <div className="mt-3 flex items-center justify-center gap-1">
-              <div className="w-1 h-1 bg-white/60 rounded-full"></div>
-              <div className="w-1 h-1 bg-white/40 rounded-full"></div>
-              <div className="w-1 h-1 bg-white/20 rounded-full"></div>
-            </div>
-          </div>
+          )} */}
         </div>
       </main>
     </div>
   );
-}
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  return date.toLocaleString("default", { month: "short", year: "numeric" });
-}
-
-function getDuration(startDate: string) {
-  if (!startDate) return "";
-  const start = new Date(startDate);
-  const now = new Date();
-  let years = now.getFullYear() - start.getFullYear();
-  let months = now.getMonth() - start.getMonth();
-  if (months < 0) {
-    years--;
-    months += 12;
-  }
-  return `${years} yrs ${months} mos`;
-}
-
-function calculateDuration(startDate: Date, endDate: Date) {
-  if (!startDate || !endDate) return "";
-  let years = endDate.getFullYear() - startDate.getFullYear();
-  let months = endDate.getMonth() - startDate.getMonth();
-  if (months < 0) {
-    years--;
-    months += 12;
-  }
-
-  if (years === 0) {
-    return months === 1 ? "1 month" : `${months} months`;
-  } else if (years === 1 && months === 0) {
-    return "1 year";
-  } else if (months === 0) {
-    return `${years} years`;
-  } else {
-    return `${years} yrs ${months} mos`;
-  }
 }

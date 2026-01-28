@@ -349,35 +349,36 @@ async function generatePuppeteerPDF(reportId: string): Promise<Buffer | null> {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log(`PDF generation started for report: ${params.id}`);
+    const { id } = await params;
+    console.log(`PDF generation started for report: ${id}`);
     
     // Connect to database
     const client = await clientPromise;
     const db = client.db('lead-reports');
     
     // Validate report ID
-    if (!params.id || !ObjectId.isValid(params.id)) {
-      console.error(`Invalid report ID: ${params.id}`);
+    if (!id || !ObjectId.isValid(id)) {
+      console.error(`Invalid report ID: ${id}`);
       return NextResponse.json({ error: 'Invalid report ID' }, { status: 400 });
     }
 
     // Get report from database
-    console.log(`Fetching report from database: ${params.id}`);
+    console.log(`Fetching report from database: ${id}`);
     const report = await db.collection('reports').findOne({
-      _id: new ObjectId(params.id)
+      _id: new ObjectId(id)
     });
 
     if (!report) {
-      console.error(`Report not found: ${params.id}`);
+      console.error(`Report not found: ${id}`);
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
 
     // Try Puppeteer first, fall back to jsPDF if it fails
     console.log('Attempting Puppeteer PDF generation');
-    const puppeteerPdf = await generatePuppeteerPDF(params.id);
+    const puppeteerPdf = await generatePuppeteerPDF(id);
     
     if (puppeteerPdf) {
       console.log('Puppeteer PDF generation successful');

@@ -4,10 +4,11 @@ import { ObjectId } from 'mongodb';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = params.id;
+    const { id } = await params;
+    const reportId = id;
     
     if (!reportId) {
       return NextResponse.json({ error: "Report ID is required" }, { status: 400 });

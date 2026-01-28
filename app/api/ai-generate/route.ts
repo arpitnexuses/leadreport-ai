@@ -247,6 +247,8 @@ function getSectionPromptContent(section: string): string {
       return `Provide a suggested agenda, key questions, and preparation tips for an upcoming meeting.`;
     case "interactions":
       return `Provide communication preferences, personalization tips, and dos/don'ts for effective interactions.`;
+    case "strategicBrief":
+      return `Provide a strategic meeting brief with: 1) A primary objective (1-2 sentences), 2) A recommended approach pitch (2 sentences), 3) Exactly 3 key benefit points, and 4) One critical discipline warning.`;
     default:
       return `Generate content for the ${section} section of the lead report.`;
   }
@@ -488,6 +490,28 @@ function createPromptForSection(
         DO NOT make claims about the lead's specific preferences, personality, or communication style unless mentioned in the provided data.
         Format the response as JSON with 'communicationPreferences', 'personalizationTips' (array), and 'dosDonts' fields.
         If you don't have enough information, include 'insufficient_data: true' in your JSON response.
+      `;
+    case "strategicBrief":
+      return `${baseInfo}
+        ${dataQualityPrompt}
+        Based on the lead's position, company, and industry, create a focused strategic meeting brief for this sales opportunity.
+        
+        Provide:
+        1. PRIMARY OBJECTIVE: A clear 1-2 sentence goal for the meeting (what you want to achieve or secure)
+        2. RECOMMENDED APPROACH: A compelling 2-sentence pitch explaining your solution's unique value
+        3. KEY BENEFITS: Exactly 3 specific benefit points (short phrases, 3-6 words each)
+        4. CRITICAL DISCIPLINE: One specific warning or thing to avoid during the meeting
+        
+        Format as JSON with these exact fields:
+        {
+          "primaryObjective": "string",
+          "recommendedApproach": "string", 
+          "keyBenefits": ["benefit1", "benefit2", "benefit3"],
+          "criticalDiscipline": "string"
+        }
+        
+        Make all content specific to the lead's industry and role. Keep language professional and actionable.
+        If insufficient data, include 'insufficient_data: true'.
       `;
     default:
       return `${baseInfo}

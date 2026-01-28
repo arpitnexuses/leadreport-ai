@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { ReportSidebar } from "@/components/report/ReportSidebar";
 import {
   OverviewSection,
@@ -55,7 +55,9 @@ interface LeadReport {
   };
 }
 
-export default function SharedReportPage({ params }: { params: { id: string } }) {
+export default function SharedReportPage({ params }: { params: Promise<{ id: string }> }) {
+  // Unwrap the Promise using React.use()
+  const { id } = use(params);
   const [report, setReport] = useState<LeadReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState("overview");
@@ -114,7 +116,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/reports/${params.id}`);
+        const res = await fetch(`/api/reports/${id}`);
         const data = await res.json();
         if (data.status === "completed" && data.data) {
           setReport(data.data);
@@ -130,7 +132,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
     }
   };
     fetchReport();
-  }, [params.id]);
+  }, [id]);
 
   if (loading) {
     return <LoadingOverlay isVisible={true} statusMessage="Loading shared report..." />;
@@ -182,7 +184,7 @@ export default function SharedReportPage({ params }: { params: { id: string } })
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
     try {
-      const response = await fetch(`/api/generate-pdf-shared/${params.id}`);
+      const response = await fetch(`/api/generate-pdf-shared/${id}`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.details || 'Failed to generate PDF');

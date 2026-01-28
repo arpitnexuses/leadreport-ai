@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calendar, Clock, Video } from 'lucide-react';
+import React from 'react';
+import { Calendar, Clock, Video, FileText } from 'lucide-react';
 import { EditableField } from './EditableField';
 
 interface MeetingDetailsCardProps {
@@ -26,86 +26,77 @@ export function MeetingDetailsCard({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Meeting Information */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Calendar className="h-5 w-5 text-blue-600" />
+    <div className="space-y-4">
+      {/* Meeting Information - Clean Grid */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Calendar className="h-4 w-4 text-blue-600" />
           </div>
-          Meeting Information
-        </h3>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Date</div>
+            <EditableField
+              value={date}
+              onChange={(value) => handleUpdate('date', value)}
+              isEditing={isEditing}
+              className="text-sm font-bold text-gray-900"
+              placeholder="Enter meeting date"
+            />
+          </div>
+        </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-lg border border-blue-200 hover:shadow-md transition-all duration-200">
-            <div className="p-2 bg-blue-200 rounded-lg">
-              <Calendar className="h-5 w-5 text-blue-700" />
-            </div>
-            <div className="flex-1">
-              <div className="font-medium text-blue-800 text-sm mb-1">Date</div>
-              <EditableField
-                value={date}
-                onChange={(value) => handleUpdate('date', value)}
-                isEditing={isEditing}
-                className="text-gray-900 font-medium"
-                placeholder="Enter meeting date"
-              />
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+            <Clock className="h-4 w-4 text-green-600" />
           </div>
-          
-          <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-green-50 to-green-100/50 rounded-lg border border-green-200 hover:shadow-md transition-all duration-200">
-            <div className="p-2 bg-green-200 rounded-lg">
-              <Clock className="h-5 w-5 text-green-700" />
-            </div>
-            <div className="flex-1">
-              <div className="font-medium text-green-800 text-sm mb-1">Time</div>
-              <EditableField
-                value={time}
-                onChange={(value) => handleUpdate('time', value)}
-                isEditing={isEditing}
-                className="text-gray-900 font-medium"
-                placeholder="Enter meeting time"
-              />
-            </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Time</div>
+            <EditableField
+              value={time}
+              onChange={(value) => handleUpdate('time', value)}
+              isEditing={isEditing}
+              className="text-sm font-bold text-gray-900"
+              placeholder="Enter meeting time"
+            />
           </div>
-          
-          <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-lg border border-purple-200 hover:shadow-md transition-all duration-200">
-            <div className="p-2 bg-purple-200 rounded-lg">
-              <Video className="h-5 w-5 text-purple-700" />
-            </div>
-            <div className="flex-1">
-              <div className="font-medium text-purple-800 text-sm mb-1">Platform</div>
-              <EditableField
-                value={platform}
-                onChange={(value) => handleUpdate('platform', value)}
-                isEditing={isEditing}
-                className="text-gray-900 font-medium"
-                placeholder="Enter meeting platform"
-              />
-            </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+            <Video className="h-4 w-4 text-purple-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Platform</div>
+            <EditableField
+              value={platform}
+              onChange={(value) => handleUpdate('platform', value)}
+              isEditing={isEditing}
+              className="text-sm font-bold text-gray-900"
+              placeholder="Enter meeting platform"
+            />
           </div>
         </div>
       </div>
       
       {/* Meeting Agenda */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Calendar className="h-5 w-5 text-blue-600" />
+      <div className="pt-4 border-t border-gray-100">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-6 h-6 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+            <FileText className="h-3.5 w-3.5 text-gray-600" />
           </div>
-          Meeting Agenda
-        </h3>
-        <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 p-4 rounded-lg border border-gray-200 min-h-[120px] hover:shadow-md transition-all duration-200">
+          <h4 className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Meeting Agenda</h4>
+        </div>
+        <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
           <EditableField
             value={agenda}
             onChange={(value) => handleUpdate('agenda', value)}
             isEditing={isEditing}
             multiline={true}
-            className="text-gray-900 leading-relaxed"
+            className="text-[11px] text-gray-600 leading-relaxed"
             placeholder="Enter meeting agenda and discussion points..."
           />
         </div>
       </div>
     </div>
   );
-} 
+}

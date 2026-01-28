@@ -487,53 +487,54 @@ async function processReport(email: string, reportId: string) {
     // Step 2: Generate AI Report and AI Content for all sections in parallel
     console.log(`Starting parallel report generation for ${reportId}`);
     try {
-      // Start both processes in parallel
+      // Start both processes in parallel - don't await yet
       const reportPromise = generateAIReport(apolloData);
       const aiContentPromise = generateAIContentForAllSections(reportId, apolloData.person || {}, apolloData);
       
-      // Wait for the main report to be generated
-      const { report: aiReport, leadData } = await reportPromise;
+      // Wait for both to complete in parallel
+      const [reportResult, aiContentResult] = await Promise.allSettled([
+        reportPromise,
+        aiContentPromise
+      ]);
+      
+      // Handle report generation result
+      if (reportResult.status === 'rejected') {
+        throw new Error(`Failed to generate report: ${reportResult.reason}`);
+      }
+      
+      const { report: aiReport, leadData } = reportResult.value;
       
       // Preserve the project field from the existing report
       const originalProject = existingReport?.leadData?.project;
       leadData.project = originalProject && originalProject.trim() !== '' ? originalProject : 'Unassigned';
       
-      // Update status to indicate we're generating AI sections
-      await reports.updateOne(
-        { _id: new ObjectId(reportId) },
-        {
-          $set: {
-            status: "generating_ai"
-          }
-        }
-      );
+      // Prepare update object
+      const updateDoc: any = {
+        report: aiReport,
+        leadData,
+        status: "completed",
+        // Preserve meeting details
+        meetingDate: existingReport?.meetingDate,
+        meetingTime: existingReport?.meetingTime,
+        meetingPlatform: existingReport?.meetingPlatform,
+        problemPitch: existingReport?.problemPitch
+      };
       
-      // Update the report with the generated content
-      await reports.updateOne(
-        { _id: new ObjectId(reportId) },
-        {
-          $set: {
-            report: aiReport,
-            leadData,
-            status: "completed",
-            // Preserve meeting details
-            meetingDate: existingReport?.meetingDate,
-            meetingTime: existingReport?.meetingTime,
-            meetingPlatform: existingReport?.meetingPlatform,
-            problemPitch: existingReport?.problemPitch
-          }
-        }
-      );
-      
-      // Wait for AI content generation to complete (which is happening in parallel)
-      // If this fails, we'll still have a valid report, just without the AI sections
-      try {
-        await aiContentPromise;
-      } catch (aiContentError) {
-        console.error(`AI content generation error for ${reportId}:`, aiContentError);
-        // We don't throw here to avoid failing the whole report
-        // The report is still valid without AI content
+      // Add AI content if it was generated successfully
+      if (aiContentResult.status === 'fulfilled' && aiContentResult.value) {
+        updateDoc.aiContent = aiContentResult.value;
+      } else if (aiContentResult.status === 'rejected') {
+        console.error(`AI content generation error for ${reportId}:`, aiContentResult.reason);
+        updateDoc.aiContentError = aiContentResult.reason instanceof Error 
+          ? aiContentResult.reason.message 
+          : 'Failed to generate AI content';
       }
+      
+      // Single database update with all data
+      await reports.updateOne(
+        { _id: new ObjectId(reportId) },
+        { $set: updateDoc }
+      );
     } catch (reportGenError) {
       console.error(`Report generation error for ${reportId}:`, reportGenError);
       throw new Error(`Failed to generate report: ${reportGenError instanceof Error ? reportGenError.message : 'Unknown generation error'}`);

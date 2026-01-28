@@ -22,16 +22,10 @@ interface SectionToggleProps {
 export function SectionToggle({ sections, onToggle }: SectionToggleProps) {
   const [open, setOpen] = useState(false);
   
-  const sectionLabels = {
-    overview: "Overview",
-    company: "Company",
-    meeting: "Meeting",
-    interactions: "Interactions",
-    competitors: "Competitors",
-    techStack: "Tech Stack",
-    news: "News",
-    nextSteps: "Next Steps"
-  };
+  // Only show active sections (old sections removed, content consolidated into Strategic Brief)
+  const activeSections: string[] = [];
+  
+  const sectionLabels: Record<string, string> = {};
   
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -45,18 +39,20 @@ export function SectionToggle({ sections, onToggle }: SectionToggleProps) {
       <PopoverContent className="w-56 p-4" align="end">
         <h3 className="font-medium mb-3">Toggle Sections</h3>
         <div className="space-y-2">
-          {Object.entries(sections).map(([key, value]) => (
-            <div key={key} className="flex items-center justify-between">
-              <Label htmlFor={`toggle-${key}`} className="cursor-pointer">
-                {sectionLabels[key as keyof typeof sectionLabels]}
-              </Label>
-              <Switch 
-                id={`toggle-${key}`}
-                checked={value} 
-                onCheckedChange={(checked) => onToggle(key, checked)}
-              />
-            </div>
-          ))}
+          {Object.entries(sections)
+            .filter(([key]) => activeSections.includes(key))
+            .map(([key, value]) => (
+              <div key={key} className="flex items-center justify-between">
+                <Label htmlFor={`toggle-${key}`} className="cursor-pointer">
+                  {sectionLabels[key as keyof typeof sectionLabels]}
+                </Label>
+                <Switch 
+                  id={`toggle-${key}`}
+                  checked={value} 
+                  onCheckedChange={(checked) => onToggle(key, checked)}
+                />
+              </div>
+            ))}
         </div>
       </PopoverContent>
     </Popover>

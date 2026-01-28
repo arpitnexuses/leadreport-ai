@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart2 } from "lucide-react";
 import { AnalyticsCards } from "./AnalyticsCards";
@@ -26,30 +27,33 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ reports }: DashboardViewProps) {
-  const projectLeads = Object.entries(
-    reports.reduce((acc, report) => {
-      const project = report.leadData?.project?.trim();
-      
-      // Improved filtering logic - include "Unassigned" projects
-      if (project && 
-          project !== 'N/A' && 
-          project !== 'NA' && 
-          project !== 'not applicable' && 
-          project !== '-' && 
-          project !== '' &&
-          project.toLowerCase() !== 'n/a' &&
-          project.toLowerCase() !== 'na' &&
-          project.toLowerCase() !== 'not applicable') {
-        acc[project] = (acc[project] || 0) + 1;
-      }
-      return acc;
-    }, {} as { [key: string]: number })
-  )
-    .map(([project, count]): { project: string; count: number } => ({ 
-      project, 
-      count: count as number 
-    }))
-    .sort((a, b) => b.count - a.count);
+  // Memoize expensive computation - only recalculate when reports change
+  const projectLeads = useMemo(() => {
+    return Object.entries(
+      reports.reduce((acc, report) => {
+        const project = report.leadData?.project?.trim();
+        
+        // Improved filtering logic - include "Unassigned" projects
+        if (project && 
+            project !== 'N/A' && 
+            project !== 'NA' && 
+            project !== 'not applicable' && 
+            project !== '-' && 
+            project !== '' &&
+            project.toLowerCase() !== 'n/a' &&
+            project.toLowerCase() !== 'na' &&
+            project.toLowerCase() !== 'not applicable') {
+          acc[project] = (acc[project] || 0) + 1;
+        }
+        return acc;
+      }, {} as { [key: string]: number })
+    )
+      .map(([project, count]): { project: string; count: number } => ({ 
+        project, 
+        count: count as number 
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [reports]);
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">

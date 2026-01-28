@@ -62,7 +62,8 @@ export function AIGenerateAll({
     competitors: "Competitors",
     techStack: "Tech Stack",
     news: "News",
-    nextSteps: "Next Steps"
+    nextSteps: "Next Steps",
+    strategicBrief: "Strategic Brief"
   };
 
   const generateAll = async () => {
@@ -83,47 +84,49 @@ export function AIGenerateAll({
       return;
     }
     
-    const newContent: Record<string, any> = {};
-    let completedCount = 0;
-    
     try {
-      for (const section of sectionKeys) {
-        setCurrentSection(section);
-        
-        // Call the AI generate endpoint for each section
-        const response = await fetch('/api/ai-generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            section,
-            leadData,
-            apolloData
-          })
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          newContent[section] = result;
-          setGeneratedSections(prev => [...prev, section]);
-        } else {
-          console.error(`Failed to generate content for ${sectionNames[section]} section`);
-        }
-        
-        // Update progress
-        completedCount++;
-        setProgress(Math.round((completedCount / totalSections) * 100));
-      }
+      setCurrentSection('Generating all sections...');
+      setProgress(10);
       
-      // Update the parent component with all generated content
-      onContentGenerated(newContent);
+      // Use batch endpoint to generate all sections in a single API call
+      const response = await fetch('/api/ai-generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batchSections: sectionKeys,
+          leadData,
+          apolloData
+        })
+      });
       
-      // Keep dialog open for a moment to show completion
-      setTimeout(() => {
-        setIsOpen(false);
+      setProgress(90);
+      
+      if (response.ok) {
+        const newContent = await response.json();
+        
+        // Update generated sections list for UI
+        const completedSections = Object.keys(newContent).filter(
+          section => newContent[section] && !newContent[section].insufficient_data
+        );
+        setGeneratedSections(completedSections);
+        
+        // Update the parent component with all generated content
+        onContentGenerated(newContent);
+        
+        setProgress(100);
+        
+        // Keep dialog open for a moment to show completion
+        setTimeout(() => {
+          setIsOpen(false);
+          setIsGenerating(false);
+        }, 1500);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to generate content for all sections');
         setIsGenerating(false);
-      }, 1500);
+      }
       
     } catch (error) {
       console.error('Error in bulk AI generation:', error);

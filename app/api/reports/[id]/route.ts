@@ -20,10 +20,14 @@ const serializeDocument = (data: ReportData): ReportData => {
     serialized._id = serialized._id.toString();
   }
   
-  // Convert Date objects to ISO strings
+  // Convert Date objects to ISO strings and recursively serialize nested objects/arrays
   for (const key in serialized) {
     if (serialized[key] instanceof Date) {
       serialized[key] = serialized[key].toISOString();
+    } else if (Array.isArray(serialized[key])) {
+      serialized[key] = serialized[key].map((item: any) => 
+        typeof item === 'object' && item !== null ? serializeDocument(item) : item
+      );
     } else if (typeof serialized[key] === 'object' && serialized[key] !== null) {
       serialized[key] = serializeDocument(serialized[key]);
     }
@@ -34,10 +38,11 @@ const serializeDocument = (data: ReportData): ReportData => {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = params.id;
+    const { id } = await params;
+    const reportId = id;
     
     if (!reportId) {
       return NextResponse.json({ error: "Report ID is required" }, { status: 400 });
@@ -93,9 +98,10 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     
     const client = await clientPromise;
@@ -142,19 +148,15 @@ export async function PATCH(
     if (body.meetingAgenda !== undefined) updateData.$set.meetingAgenda = body.meetingAgenda;
     if (body.participants !== undefined) updateData.$set.participants = body.participants;
 
-    const result = await reports.updateOne(
-      { _id: new ObjectId(params.id) },
-      updateData
+    // Use findOneAndUpdate to do both update and retrieval in a single operation
+    const updatedReport = await reports.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      updateData,
+      { returnDocument: 'after' }
     );
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
-    }
-
-    const updatedReport = await reports.findOne({ _id: new ObjectId(params.id) });
-    // Serialize the updated report before sending it
     if (!updatedReport) {
-      return NextResponse.json({ error: 'Report not found after update' }, { status: 404 });
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
     
     const serializedReport = serializeDocument(updatedReport);

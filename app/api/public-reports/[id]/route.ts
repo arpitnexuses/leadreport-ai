@@ -4,11 +4,12 @@ import clientPromise from '@/lib/mongodb';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let client;
   
   try {
+    const { id } = await params;
     client = await clientPromise;
     const db = client.db('lead-reports');
     const reports = db.collection('reports');
@@ -16,7 +17,7 @@ export async function GET(
     // Try to parse the ObjectId, if it fails, return a 400 error
     let objectId;
     try {
-      objectId = new ObjectId(params.id);
+      objectId = new ObjectId(id);
     } catch (error) {
       return NextResponse.json({ error: 'Invalid report ID format' }, { status: 400 });
     }
