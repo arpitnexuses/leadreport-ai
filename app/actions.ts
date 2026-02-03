@@ -562,31 +562,12 @@ async function generateAIContentForAllSections(reportId: string, leadData: any, 
   const sections = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'];
   
   try {
-    // We need an API route to handle the AI generation
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    // Import the shared AI generation function
+    const { generateBatchAIContent } = await import('@/lib/ai-content-generator');
     
-    // Use the batch endpoint to generate all content in a single API call
-    console.log(`Making batch request to ${baseUrl}/api/ai-generate`);
-    const response = await fetch(`${baseUrl}/api/ai-generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        batchSections: sections,
-        leadData,
-        apolloData
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Could not get error text');
-      console.error(`Failed to generate batch content: ${response.status} ${response.statusText}`);
-      console.error(`Error details: ${errorText}`);
-      return null;
-    }
-    
-    const newContent = await response.json();
+    // Call the shared function directly - no HTTP request needed!
+    console.log(`Generating AI content for ${sections.length} sections`);
+    const newContent = await generateBatchAIContent(sections, leadData, apolloData);
     console.log(`Successfully generated AI content for all sections`);
     
     // Update the report with the generated AI content

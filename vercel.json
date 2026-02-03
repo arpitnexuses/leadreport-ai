@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/actions.ts": {
+      "maxDuration": 60
+    },
+    "app/api/ai-generate/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/reports/[id]/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
