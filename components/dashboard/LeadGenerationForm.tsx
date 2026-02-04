@@ -31,7 +31,7 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending }: LeadGener
                 <div className="space-y-6">
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-blue-600" />
+                      <Mail className="h-5 w-5 text-gray-400" />
                     </div>
                     <Input
                       type="email"
@@ -44,7 +44,7 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending }: LeadGener
                   </div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Briefcase className="h-5 w-5 text-blue-600" />
+                      <Briefcase className="h-5 w-5 text-gray-400" />
                     </div>
                     <Input
                       type="text"

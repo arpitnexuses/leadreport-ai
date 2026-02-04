@@ -245,3 +245,82 @@ html {
   background: #E5E5EA;
   border-radius: 10px;
 }
+
+/* Print Styles for PDF Generation */
+@media print {
+  body {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  .print\:h-auto {
+    height: auto !important;
+  }
+  
+  .print\:overflow-visible {
+    overflow: visible !important;
+  }
+  
+  /* Ensure content flows naturally for PDF */
+  main {
+    margin-top: 0 !important;
+    padding: 20px !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Keep grid layout for PDF - more compact and visually appealing */
+  .grid-cols-12 {
+    display: grid !important;
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+  }
+  
+  /* Ensure cards are visible and compact */
+  .apple-card {
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+  }
+  
+  /* Hide interactive elements */
+  button,
+  input,
+  textarea,
+  select {
+    display: none !important;
+  }
+  
+  /* Show all content (no hidden tabs) */
+  [role="tabpanel"] {
+    display: block !important;
+  }
+  
+  /* Keep shadows for visual appeal but remove transitions */
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  /* Ensure proper rendering */
+  .h-screen {
+    height: auto !important;
+  }
+  
+  .overflow-hidden,
+  .overflow-auto,
+  .overflow-scroll {
+    overflow: visible !important;
+  }
+  
+  .fixed {
+    position: relative !important;
+  }
+  
+  .sticky {
+    position: relative !important;
+  }
+}

@@ -121,6 +121,7 @@ export async function PATCH(
     } else {
       // Handle individual field updates
       if (body.notes) updateData.$set['leadData.notes'] = body.notes;
+      if (body.engagementTimeline) updateData.$set['leadData.engagementTimeline'] = body.engagementTimeline;
       if (body.tags) updateData.$set['leadData.tags'] = body.tags;
       if (body.status) updateData.$set['leadData.status'] = body.status;
       if (body.nextFollowUp) updateData.$set['leadData.nextFollowUp'] = body.nextFollowUp;
@@ -142,9 +143,14 @@ export async function PATCH(
     }
 
     // Handle meeting data if provided
+    if (body.reportOwnerName !== undefined) updateData.$set.reportOwnerName = body.reportOwnerName;
     if (body.meetingDate !== undefined) updateData.$set.meetingDate = body.meetingDate;
     if (body.meetingTime !== undefined) updateData.$set.meetingTime = body.meetingTime;
+    if (body.meetingTimezone !== undefined) updateData.$set.meetingTimezone = body.meetingTimezone;
     if (body.meetingPlatform !== undefined) updateData.$set.meetingPlatform = body.meetingPlatform;
+    if (body.meetingLink !== undefined) updateData.$set.meetingLink = body.meetingLink;
+    if (body.meetingLocation !== undefined) updateData.$set.meetingLocation = body.meetingLocation;
+    if (body.meetingObjective !== undefined) updateData.$set.meetingObjective = body.meetingObjective;
     if (body.meetingAgenda !== undefined) updateData.$set.meetingAgenda = body.meetingAgenda;
     if (body.participants !== undefined) updateData.$set.participants = body.participants;
 

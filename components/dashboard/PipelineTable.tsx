@@ -10,6 +10,7 @@ import { updateLeadStatus } from "@/app/actions";
 interface Report {
   _id: string;
   email: string;
+  reportOwnerName?: string;
   createdAt: string;
   meetingDate?: string;
   meetingPlatform?: string;
@@ -26,6 +27,7 @@ interface PipelineTableProps {
 export function PipelineTable({ reports }: PipelineTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [selectedOwner, setSelectedOwner] = useState<string>('all');
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -109,10 +111,22 @@ export function PipelineTable({ reports }: PipelineTableProps) {
     )
   ).sort();
 
+  // Get unique owners (report owner names) for filter dropdown
+  const uniqueOwners = Array.from(
+    new Set(
+      reports
+        .map(report => report.reportOwnerName?.trim())
+        .filter((ownerName): ownerName is string => 
+          ownerName !== undefined && ownerName !== ''
+        )
+    )
+  ).sort();
+
   const filteredReports = reports.filter(report => {
     const matchesSearch = report.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProject = selectedProject === 'all' || report.leadData?.project?.trim() === selectedProject;
-    return matchesSearch && matchesProject;
+    const matchesOwner = selectedOwner === 'all' || report.reportOwnerName?.trim() === selectedOwner;
+    return matchesSearch && matchesProject && matchesOwner;
   });
 
   // Calculate status counts based on filtered reports
@@ -301,10 +315,61 @@ export function PipelineTable({ reports }: PipelineTableProps) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Owner Filter */}
+          <div className="relative sm:w-80">
+            <Select value={selectedOwner} onValueChange={setSelectedOwner}>
+              <SelectTrigger className="h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-gray-500" />
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {selectedOwner === 'all' ? 'All Owners' : selectedOwner}
+                  </span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="w-80 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
+                <SelectItem 
+                  value="all" 
+                  className="rounded-lg p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30">
+                      <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">All Owners</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Show all leads</div>
+                    </div>
+                  </div>
+                </SelectItem>
+                {uniqueOwners.map((owner) => (
+                  <SelectItem 
+                    key={owner} 
+                    value={owner}
+                    className="rounded-lg p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30">
+                        <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                          {owner.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 dark:text-white truncate">{owner}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {reports.filter(r => r.reportOwnerName?.trim() === owner).length} leads
+                        </div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         {/* Active Filters Display */}
-        {(selectedProject !== 'all' || searchQuery) && (
+        {(selectedProject !== 'all' || selectedOwner !== 'all' || searchQuery) && (
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             <span>Active filters:</span>
             {selectedProject !== 'all' && (
@@ -313,6 +378,17 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                 <button
                   onClick={() => setSelectedProject('all')}
                   className="ml-1 hover:text-purple-900 dark:hover:text-purple-100"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {selectedOwner !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                Owner: {selectedOwner}
+                <button
+                  onClick={() => setSelectedOwner('all')}
+                  className="ml-1 hover:text-green-900 dark:hover:text-green-100"
                 >
                   ×
                 </button>
@@ -332,6 +408,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
             <button
               onClick={() => {
                 setSelectedProject('all');
+                setSelectedOwner('all');
                 setSearchQuery('');
               }}
               className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
@@ -354,7 +431,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                   Email
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Meeting Date
+                  Report Owner
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Project
@@ -379,7 +456,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                       {report.email}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.meetingDate ? formatDate(report.meetingDate) : '-'}
+                      {report.reportOwnerName || '-'}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       {report.leadData?.project || '-'}

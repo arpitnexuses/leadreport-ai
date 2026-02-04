@@ -133,6 +133,12 @@ interface LeadData {
     createdAt: Date;
     updatedAt: Date;
   }[];
+  engagementTimeline?: {
+    id: string;
+    type: 'call' | 'email' | 'meeting' | 'note';
+    content: string;
+    createdAt: Date;
+  }[];
   tags: string[];
   status: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
   nextFollowUp: Date | null;
@@ -140,6 +146,10 @@ interface LeadData {
     [key: string]: string;
   };
   project?: string;
+  leadIndustry?: string;
+  leadDesignation?: string;
+  leadBackground?: string;
+  companyOverview?: string;
 }
 
 // interface LeadReport {
@@ -315,6 +325,7 @@ async function generateAIReport(apolloData: ApolloResponse) {
     },
     project: '',
     notes: [],
+    engagementTimeline: [],
     status: 'warm',
     tags: [],
     nextFollowUp: null,
@@ -400,14 +411,27 @@ Please provide specific recommendations for engaging with this lead based on the
 
 export async function initiateReport(formData: FormData) {
   const email = formData.get("email") as string
+  const reportOwnerName = formData.get("reportOwnerName") as string
   const meetingDate = formData.get("meetingDate") as string
   const meetingTime = formData.get("meetingTime") as string
+  const meetingTimezone = formData.get("meetingTimezone") as string
   const meetingPlatform = formData.get("meetingPlatform") as string
+  const meetingLink = formData.get("meetingLink") as string
+  const meetingLocation = formData.get("meetingLocation") as string
+  const meetingObjective = formData.get("meetingObjective") as string
   const problemPitch = formData.get("problemPitch") as string
   const project = formData.get("project") as string
+  const leadIndustry = formData.get("leadIndustry") as string
+  const leadDesignation = formData.get("leadDesignation") as string
+  const leadBackground = formData.get("leadBackground") as string
+  const companyOverview = formData.get("companyOverview") as string
 
   if (!email || !email.includes('@')) {
     throw new Error("Please provide a valid email address")
+  }
+
+  if (!reportOwnerName || reportOwnerName.trim() === '') {
+    throw new Error("Please provide your name as the report owner")
   }
 
   const { reports } = await getDb()
@@ -418,6 +442,7 @@ export async function initiateReport(formData: FormData) {
   // Create an initial report entry
   const initialReport = {
     email,
+    reportOwnerName,
     apolloData: { person: {} },
     report: "",
     leadData: {
@@ -428,11 +453,21 @@ export async function initiateReport(formData: FormData) {
       contactDetails: { email: "", phone: "", linkedin: "" },
       companyDetails: { industry: "", employees: "", headquarters: "", website: "" },
       leadScoring: { rating: "", qualificationCriteria: {} },
-      project: projectName
+      project: projectName,
+      leadIndustry: leadIndustry || "",
+      leadDesignation: leadDesignation || "",
+      leadBackground: leadBackground || "",
+      companyOverview: companyOverview || "",
+      notes: [],
+      engagementTimeline: []
     },
     meetingDate,
     meetingTime,
+    meetingTimezone,
     meetingPlatform,
+    meetingLink,
+    meetingLocation,
+    meetingObjective,
     problemPitch,
     createdAt: new Date(),
     status: "processing"
@@ -470,12 +505,21 @@ async function processReport(email: string, reportId: string) {
           $set: { 
             apolloData, 
             status: "fetching_apollo",
-            // Preserve meeting details and project
+            // Preserve all meeting details and form data
+            reportOwnerName: existingReport?.reportOwnerName,
             meetingDate: existingReport?.meetingDate,
             meetingTime: existingReport?.meetingTime,
+            meetingTimezone: existingReport?.meetingTimezone,
             meetingPlatform: existingReport?.meetingPlatform,
+            meetingLink: existingReport?.meetingLink,
+            meetingLocation: existingReport?.meetingLocation,
+            meetingObjective: existingReport?.meetingObjective,
             problemPitch: existingReport?.problemPitch,
-            'leadData.project': existingReport?.leadData?.project || 'N/A'
+            'leadData.project': existingReport?.leadData?.project || 'N/A',
+            'leadData.leadIndustry': existingReport?.leadData?.leadIndustry,
+            'leadData.leadDesignation': existingReport?.leadData?.leadDesignation,
+            'leadData.leadBackground': existingReport?.leadData?.leadBackground,
+            'leadData.companyOverview': existingReport?.leadData?.companyOverview
           } 
         }
       );
@@ -513,10 +557,15 @@ async function processReport(email: string, reportId: string) {
         report: aiReport,
         leadData,
         status: "completed",
-        // Preserve meeting details
+        // Preserve all meeting details and form data
+        reportOwnerName: existingReport?.reportOwnerName,
         meetingDate: existingReport?.meetingDate,
         meetingTime: existingReport?.meetingTime,
+        meetingTimezone: existingReport?.meetingTimezone,
         meetingPlatform: existingReport?.meetingPlatform,
+        meetingLink: existingReport?.meetingLink,
+        meetingLocation: existingReport?.meetingLocation,
+        meetingObjective: existingReport?.meetingObjective,
         problemPitch: existingReport?.problemPitch
       };
       
@@ -672,6 +721,7 @@ export async function getReports() {
     return {
       _id: report._id.toString(),
       email: report.email || '',
+      reportOwnerName: report.reportOwnerName || undefined,
       createdAt: report.createdAt ? new Date(report.createdAt).toISOString() : new Date().toISOString(),
       isCompleted: report.status === 'completed',
       meetingDate: report.meetingDate || undefined,

@@ -50,7 +50,6 @@ import {
   FileText,
   CheckCircle2,
   Star,
-  Download,
   Share2,
   AlertCircle,
   Info,
@@ -76,12 +75,14 @@ import {
   Paperclip,
   Target,
   Bell,
-  User
+  User,
+  ArrowLeft
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AIGenerateAll } from "@/components/report/AIGenerateAll";
 import {
   Tooltip,
   TooltipContent,
@@ -110,6 +111,7 @@ interface LeadData {
     qualificationCriteria: Record<string, string>;
   };
   notes?: { id: string; content: string; createdAt: Date; updatedAt: Date }[];
+  engagementTimeline?: { id: string; type: 'call' | 'email' | 'meeting' | 'note'; content: string; createdAt: Date }[];
   tags?: string[];
   status?: string;
   nextFollowUp?: string;
@@ -164,6 +166,7 @@ interface ApolloResponse {
 interface LeadReport {
   _id: string;
   email: string;
+  reportOwnerName?: string;
   apolloData: ApolloResponse;
   report: string;
   leadData: LeadData;
@@ -172,7 +175,11 @@ interface LeadReport {
   error?: string;
   meetingDate?: string;
   meetingTime?: string;
+  meetingTimezone?: string;
   meetingPlatform?: string;
+  meetingLink?: string;
+  meetingLocation?: string;
+  meetingObjective?: string;
   problemPitch?: string;
   meetingAgenda?: string;
   participants?: { name: string; title: string; organization: string; isClient?: boolean }[];
@@ -200,16 +207,19 @@ const ReportLoader = dynamic(
 
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [report, setReport] = useState<LeadReport | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<{
     notes: { id: string; content: string; createdAt: Date; updatedAt: Date }[];
+    engagementTimeline: { id: string; type: 'call' | 'email' | 'meeting' | 'note'; content: string; createdAt: Date }[];
     tags: string[];
     status: string;
     nextFollowUp: string;
     customFields: { [key: string]: string };
   }>({
     notes: [],
+    engagementTimeline: [],
     tags: [],
     status: "warm",
     nextFollowUp: "",
@@ -235,6 +245,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     news: true,
     nextSteps: true
   });
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [activityType, setActivityType] = useState<'call' | 'email' | 'meeting' | 'note'>('call');
+  const [activityContent, setActivityContent] = useState('');
 
   useEffect(() => {
     if (report) {
@@ -252,10 +265,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       const languagesData = languagesFromData.length > 0 ? languagesFromData : [];
       
       const loadedNotes = report.leadData.notes || [];
+      const loadedTimeline = report.leadData.engagementTimeline || [];
       console.log('Loading notes from report:', loadedNotes);
+      console.log('Loading timeline from report:', loadedTimeline);
       
       setEditedData({
         notes: loadedNotes,
+        engagementTimeline: loadedTimeline,
         tags: report.leadData.tags || [],
         status: report.leadData.status || "warm",
         nextFollowUp: report.leadData.nextFollowUp
@@ -386,6 +402,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       const mergedLeadData = {
         ...editedLeadData,
         notes: editedData.notes,
+        engagementTimeline: editedData.engagementTimeline,
         tags: editedData.tags,
         status: editedData.status,
         nextFollowUp: editedData.nextFollowUp,
@@ -403,9 +420,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           languages: editedLanguages,
           aiContent: aiContent,
           sections: sections,
+          reportOwnerName: currentReport?.reportOwnerName,
           meetingDate: currentReport?.meetingDate,
           meetingTime: currentReport?.meetingTime,
+          meetingTimezone: currentReport?.meetingTimezone,
           meetingPlatform: currentReport?.meetingPlatform,
+          meetingLink: currentReport?.meetingLink,
+          meetingLocation: currentReport?.meetingLocation,
+          meetingObjective: currentReport?.meetingObjective,
           meetingAgenda: currentReport?.meetingAgenda
         }),
       });
@@ -517,8 +539,28 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     setEditedLeadData(updatedData);
   };
 
-  const handleExportPDF = async () => {
-    window.print();
+  const handleAddActivity = () => {
+    if (!activityContent.trim()) return;
+    
+    const newActivity = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: activityType,
+      content: activityContent.trim(),
+      createdAt: new Date(),
+    };
+    
+    setEditedData(prev => ({
+      ...prev,
+      engagementTimeline: [
+        ...(Array.isArray(prev.engagementTimeline) ? prev.engagementTimeline : []),
+        newActivity,
+      ],
+    }));
+    
+    // Reset and close modal
+    setActivityContent('');
+    setActivityType('call');
+    setShowActivityModal(false);
   };
 
   if (!report) {
@@ -532,27 +574,144 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const leadScore = parseInt(leadData.leadScoring?.rating || "0") || 88;
 
     return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", backgroundColor: '#F5F5F7', color: '#1D1D1F' }}>
+    <div className="h-screen flex flex-col overflow-hidden print:h-auto print:overflow-visible" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", backgroundColor: '#F5F5F7', color: '#1D1D1F' }}>
+      {/* Activity Modal */}
+      {showActivityModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Activity</h3>
+              <button
+                onClick={() => {
+                  setShowActivityModal(false);
+                  setActivityContent('');
+                  setActivityType('call');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Activity Type Selection */}
+            <div className="mb-6">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 block">Activity Type</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActivityType('call')}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    activityType === 'call'
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Phone className={`w-5 h-5 ${activityType === 'call' ? 'text-green-600' : 'text-gray-400'}`} />
+                  <span className={`text-sm font-semibold ${activityType === 'call' ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    Call
+                  </span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setActivityType('email')}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    activityType === 'email'
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Mail className={`w-5 h-5 ${activityType === 'email' ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span className={`text-sm font-semibold ${activityType === 'email' ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    Email
+                  </span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setActivityType('meeting')}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    activityType === 'meeting'
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Video className={`w-5 h-5 ${activityType === 'meeting' ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <span className={`text-sm font-semibold ${activityType === 'meeting' ? 'text-purple-700 dark:text-purple-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    Meeting
+                  </span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setActivityType('note')}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    activityType === 'note'
+                      ? 'border-gray-500 bg-gray-50 dark:bg-gray-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileText className={`w-5 h-5 ${activityType === 'note' ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <span className={`text-sm font-semibold ${activityType === 'note' ? 'text-gray-700 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                    Note
+                  </span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Description Input */}
+            <div className="mb-6">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Description</label>
+              <textarea
+                value={activityContent}
+                onChange={(e) => setActivityContent(e.target.value)}
+                placeholder="Enter activity details..."
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 outline-none resize-none"
+              />
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowActivityModal(false);
+                  setActivityContent('');
+                  setActivityType('call');
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddActivity}
+                disabled={!activityContent.trim()}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Activity
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Glass Header */}
-      <header className="glass h-14 flex items-center justify-between px-6 fixed w-full z-50">
+      <header className="glass h-14 flex items-center justify-between px-6 fixed w-full z-50 print:hidden">
             <div className="flex items-center gap-4">
-          <div className="flex gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#FF5F57] border border-[#E0443E]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#FEBC2E] border border-[#D89E24]"></div>
-            <div className="w-3 h-3 rounded-full bg-[#28C840] border border-[#1AAB29]"></div>
-                </div>
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer"
+            aria-label="Go back to dashboard"
+          >
+            <ArrowLeft className="w-4 h-4 text-gray-600 group-hover:text-black transition-colors" />
+            <span className="text-sm font-medium text-gray-600 group-hover:text-black transition-colors">Back</span>
+          </Link>
           <div className="h-4 w-[1px] bg-gray-300 mx-2"></div>
           <span className="text-sm font-medium text-gray-500">
             Reports / <span className="text-black font-semibold">{leadData.name}</span>
                     </span>
                   </div>
         <div className="flex gap-3">
-          <button
-            onClick={handleExportPDF}
-            className="text-xs font-medium text-gray-600 hover:text-black transition"
-          >
-            Export PDF
-          </button>
             <TooltipProvider>
               <Tooltip open={showShareTooltip}>
                 <TooltipTrigger asChild>
@@ -891,6 +1050,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                         </div>
                         <input
                           type="text"
+                          value={report.meetingTimezone || ''}
+                          onChange={(e) => setReport({ ...report, meetingTimezone: e.target.value })}
+                          placeholder="Timezone (e.g., EST, PST, IST)"
+                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                        />
+                        <input
+                          type="text"
                           value={report.meetingPlatform || ''}
                           onChange={(e) => setReport({ ...report, meetingPlatform: e.target.value })}
                           placeholder="Platform (e.g., Zoom, Google Meet)"
@@ -898,9 +1064,16 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                         />
                         <input
                           type="text"
-                          value={report.meetingAgenda || ''}
+                          value={report.meetingLocation || ''}
+                          onChange={(e) => setReport({ ...report, meetingLocation: e.target.value })}
+                          placeholder="Physical location (if applicable)"
+                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                        />
+                        <input
+                          type="text"
+                          value={report.meetingAgenda || report.meetingObjective || ''}
                           onChange={(e) => setReport({ ...report, meetingAgenda: e.target.value })}
-                          placeholder="Meeting agenda"
+                          placeholder="Meeting agenda/objective"
                           className="text-sm font-bold border border-gray-300 rounded px-2 py-1 w-full"
                         />
                       </div>
@@ -909,22 +1082,33 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            {report.meetingTime} • {report.meetingPlatform || 'Video Call'}
+                            {report.meetingTime}
+                            {report.meetingTimezone && ` ${report.meetingTimezone}`}
+                            {' • '}
+                            {report.meetingPlatform || 'Video Call'}
                           </span>
                         </div>
                         <h3 className="text-base font-bold text-gray-900">
-                          {report.meetingAgenda || 'Meeting Scheduled'}
+                          {report.meetingAgenda || report.meetingObjective || 'Meeting Scheduled'}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">{report.meetingPlatform || 'Video Call'}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {report.meetingLocation ? `${report.meetingLocation} • ` : ''}
+                          {report.meetingPlatform || 'Video Call'}
+                        </p>
                       </>
                     ) : (
                       <p className="text-sm text-gray-500 italic">No meeting scheduled</p>
                     )}
                   </div>
                   {!isEditing && report.meetingDate && report.meetingTime && (
-                    <button className="bg-[#0071E3] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm">
+                    <a
+                      href={report.meetingLink || '#'}
+                      target={report.meetingLink ? '_blank' : '_self'}
+                      rel={report.meetingLink ? 'noopener noreferrer' : ''}
+                      className="bg-[#0071E3] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm"
+                    >
                       Join
-                    </button>
+                    </a>
                   )}
                 </div>
               </div>
@@ -1017,6 +1201,23 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     <p className="text-[12px] text-gray-600 leading-relaxed">
                       {leadData.position} at {leadData.companyName}, focused on driving business growth and operational efficiency.
                     </p>
+                    
+                    {/* Lead Industry & Designation */}
+                    {(leadData.companyDetails?.industry || leadData.position) && (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {leadData.companyDetails?.industry && (
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-100">
+                            {leadData.companyDetails.industry}
+                          </span>
+                        )}
+                        {leadData.position && (
+                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-lg border border-purple-100">
+                            {leadData.position}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
                     {aiContent?.overview?.keyInsights && (
                       <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-blue-400">
                         {aiContent.overview.keyInsights.slice(0, 3).map((insight: string, idx: number) => (
@@ -1038,11 +1239,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     </h3>
                   </div>
                   <div className="space-y-3">
+                    {/* Company Overview */}
                     <p className="text-[12px] text-gray-600 leading-relaxed">
                       {apolloPerson?.organization?.description?.substring(0, 120) || 
                         `${leadData.companyName} is a growing company in the ${leadData.companyDetails.industry} industry.`}
                       {apolloPerson?.organization?.description && apolloPerson.organization.description.length > 120 ? '...' : ''}
                     </p>
+                    
                     {aiContent?.company?.keyPoints && (
                       <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-indigo-400">
                         {aiContent.company.keyPoints.slice(0, 3).map((point: string, idx: number) => (
@@ -1171,84 +1374,100 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {/* Activity Timeline */}
+            {/* Engagement Timeline */}
             <div className="apple-card p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
                     <History className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900">Activity Timeline</h3>
+                  <h3 className="text-base font-bold text-gray-900">Engagement Timeline</h3>
                 </div>
                 {isEditing && (
                   <button 
-                    onClick={() => {
-                      const note = prompt("Add activity note:");
-                      if (note) handleAddNote(note);
-                    }}
+                    onClick={() => setShowActivityModal(true)}
                     className="text-[10px] font-bold text-[#0071E3] hover:underline flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" />
-                    Add Note
+                    Add Activity
                   </button>
                 )}
               </div>
 
-              {Array.isArray(editedData.notes) && editedData.notes.length > 0 ? (
+              {Array.isArray(editedData.engagementTimeline) && editedData.engagementTimeline.length > 0 ? (
                 <div className="space-y-4 relative timeline-line pl-8">
-                  {editedData.notes
+                  {editedData.engagementTimeline
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                     .slice(0, 10)
-                    .map((note, idx) => (
-                      <div key={note.id} className="relative hover:bg-gray-50/50 p-3 -m-3 rounded-xl transition-all group">
-                        <div className={`absolute -left-[27px] top-3 w-4 h-4 rounded-full ${idx === 0 ? 'bg-blue-500' : 'bg-slate-200'} border-4 border-white shadow-sm z-10`}></div>
-                        <div className="flex justify-between items-start gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-gray-900 mb-1">
-                              {note.content}
-                            </p>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">
-                              {new Date(note.createdAt).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric',
-                                year: new Date(note.createdAt).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                              })}
-                            </span>
+                    .map((activity, idx) => {
+                      const typeConfig = {
+                        call: { icon: Phone, color: 'bg-green-500', label: 'Call' },
+                        email: { icon: Mail, color: 'bg-blue-500', label: 'Email' },
+                        meeting: { icon: Video, color: 'bg-purple-500', label: 'Meeting' },
+                        note: { icon: FileText, color: 'bg-gray-500', label: 'Note' }
+                      }[activity.type];
+                      const IconComponent = typeConfig.icon;
+                      
+                      return (
+                        <div key={activity.id} className="relative hover:bg-gray-50/50 p-3 -m-3 rounded-xl transition-all group">
+                          <div className={`absolute -left-[27px] top-3 w-4 h-4 rounded-full ${idx === 0 ? typeConfig.color : 'bg-slate-200'} border-4 border-white shadow-sm z-10 flex items-center justify-center`}>
+                            {idx === 0 && <IconComponent className="w-2 h-2 text-white" />}
                           </div>
-                          {isEditing && (
-                            <button
-                              onClick={() => {
-                                if (confirm('Delete this note?')) {
-                                  setEditedData(prev => ({
-                                    ...prev,
-                                    notes: (Array.isArray(prev.notes) ? prev.notes : []).filter(n => n.id !== note.id)
-                                  }));
-                                }
-                              }}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <div className="flex justify-between items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                  activity.type === 'call' ? 'bg-green-100 text-green-700' :
+                                  activity.type === 'email' ? 'bg-blue-100 text-blue-700' :
+                                  activity.type === 'meeting' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {typeConfig.label}
+                                </span>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                  {new Date(activity.createdAt).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    year: new Date(activity.createdAt).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                                  })}
+                                </span>
+                              </div>
+                              <p className="text-[11px] font-bold text-gray-900">
+                                {activity.content}
+                              </p>
+                            </div>
+                            {isEditing && (
+                              <button
+                                onClick={() => {
+                                  if (confirm('Delete this activity?')) {
+                                    setEditedData(prev => ({
+                                      ...prev,
+                                      engagementTimeline: (Array.isArray(prev.engagementTimeline) ? prev.engagementTimeline : []).filter(a => a.id !== activity.id)
+                                    }));
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
                     <History className="w-6 h-6 text-gray-400" />
                   </div>
-                  <p className="text-[11px] text-gray-500 mb-3">No activity recorded yet</p>
+                  <p className="text-[11px] text-gray-500 mb-3">No engagement activities yet</p>
                   {isEditing && (
                     <button 
-                      onClick={() => {
-                        const note = prompt("Add first activity note:");
-                        if (note) handleAddNote(note);
-                      }}
+                      onClick={() => setShowActivityModal(true)}
                       className="text-[11px] font-bold text-[#0071E3] hover:underline"
                     >
-                      Add First Note
+                      Add First Activity
                     </button>
                   )}
                 </div>
@@ -1264,13 +1483,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                    {report.email.charAt(0).toUpperCase()}
+                    {report.reportOwnerName ? report.reportOwnerName.charAt(0).toUpperCase() : report.email.charAt(0).toUpperCase()}
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
                 <div>
                   <p className="text-[13px] font-bold text-gray-900">
-                    {report.email.split('@')[0]}
+                    {report.reportOwnerName || report.email.split('@')[0]}
                   </p>
                   <p className="text-[10px] text-gray-500 font-medium">
                     {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -1314,24 +1533,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     </div>
                   </div>
                 )}
-              </div>
-
-              <div className="section-tint">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-[9px] font-bold text-gray-500 uppercase tracking-widest px-1">
-                    Action Registry
-                  </h4>
-                  {/* <SectionToggle sections={sections} onToggle={handleSectionToggle} /> */}
-                </div>
-                <AIGenerateAll 
-                  sections={sections}
-                  leadData={leadData}
-                  apolloData={report?.apolloData}
-                  onContentGenerated={(newContent) => setAiContent(prevContent => ({...prevContent, ...newContent}))}
-                  onSave={handleSave}
-                  isEditing={isEditing}
-                  isGeneratingInitial={isGeneratingAI}
-                />
               </div>
             </div>
 

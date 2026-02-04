@@ -12,6 +12,7 @@ import ProjectDistributionPieChart from "./ProjectDistributionPieChart";
 interface Report {
   _id: string;
   email: string;
+  reportOwnerName?: string;
   createdAt: string;
   isCompleted: boolean;
   companyName?: string;

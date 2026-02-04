@@ -214,6 +214,14 @@ export async function GET(
 
     let yPos = 20;
 
+    // Helper to check if we need a new page
+    const checkPageBreak = (spaceNeeded: number = 40): void => {
+      if (yPos + spaceNeeded > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+    };
+
     // Header
     doc.setFontSize(24);
     doc.setTextColor(30, 64, 175);
@@ -232,9 +240,38 @@ export async function GET(
       month: 'long', 
       day: 'numeric' 
     })}`, 20, yPos);
-    yPos += 20;
+    yPos += 8;
+
+    // Report owner if available
+    if (report.reportOwnerName || report.email) {
+      doc.text(`Report by: ${report.reportOwnerName || report.email.split('@')[0]}`, 20, yPos);
+      yPos += 8;
+    }
+    yPos += 10;
+
+    // Lead Score & Status
+    checkPageBreak(30);
+    doc.setFontSize(16);
+    doc.setTextColor(30, 64, 175);
+    doc.text('Lead Overview', 20, yPos);
+    yPos += 10;
+
+    doc.setFontSize(12);
+    doc.setTextColor(75, 85, 99);
+    
+  if (leadData.leadScoring?.rating) {
+    doc.text(`Lead Score: ${leadData.leadScoring.rating}/5 stars`, 20, yPos);
+    yPos += 8;
+  }
+    
+    if (leadData.status) {
+      doc.text(`Status: ${leadData.status.charAt(0).toUpperCase() + leadData.status.slice(1).replace('_', ' ')}`, 20, yPos);
+      yPos += 8;
+    }
+    yPos += 10;
 
     // Company Profile
+    checkPageBreak(40);
     doc.setFontSize(16);
     doc.setTextColor(30, 64, 175);
     doc.text('Company Profile', 20, yPos);
@@ -243,28 +280,39 @@ export async function GET(
     doc.setFontSize(12);
     doc.setTextColor(75, 85, 99);
     
-    if (leadData.companyDetails.industry) {
+    if (leadData.companyDetails?.industry) {
       doc.text(`Industry: ${leadData.companyDetails.industry}`, 20, yPos);
       yPos += 8;
     }
     
-    if (leadData.companyDetails.employees) {
+    if (leadData.companyDetails?.employees) {
       doc.text(`Employees: ${leadData.companyDetails.employees}`, 20, yPos);
       yPos += 8;
     }
     
-    if (leadData.companyDetails.headquarters) {
+    if (leadData.companyDetails?.headquarters) {
       doc.text(`Headquarters: ${leadData.companyDetails.headquarters}`, 20, yPos);
       yPos += 8;
     }
     
-    if (leadData.companyDetails.website) {
+    if (leadData.companyDetails?.website) {
       doc.text(`Website: ${leadData.companyDetails.website}`, 20, yPos);
       yPos += 8;
+    }
+
+    // Company overview from form
+    if (leadData.companyOverview) {
+      yPos += 5;
+      doc.setFontSize(11);
+      doc.setTextColor(75, 85, 99);
+      const overviewLines = doc.splitTextToSize(leadData.companyOverview, 170);
+      doc.text(overviewLines, 20, yPos);
+      yPos += overviewLines.length * 6;
     }
     yPos += 10;
 
     // Contact Details
+    checkPageBreak(30);
     doc.setFontSize(16);
     doc.setTextColor(30, 64, 175);
     doc.text('Contact Details', 20, yPos);
@@ -273,57 +321,256 @@ export async function GET(
     doc.setFontSize(12);
     doc.setTextColor(75, 85, 99);
     
-    if (leadData.contactDetails.email) {
+    if (leadData.contactDetails?.email) {
       doc.text(`Email: ${leadData.contactDetails.email}`, 20, yPos);
       yPos += 8;
     }
     
-    if (leadData.contactDetails.phone) {
+    if (leadData.contactDetails?.phone) {
       doc.text(`Phone: ${leadData.contactDetails.phone}`, 20, yPos);
       yPos += 8;
     }
     
-    if (leadData.contactDetails.linkedin) {
+    if (leadData.contactDetails?.linkedin) {
       doc.text(`LinkedIn: ${leadData.contactDetails.linkedin}`, 20, yPos);
       yPos += 8;
     }
-    yPos += 15;
+    yPos += 10;
 
-    // Add sections function
-    const addSection = (title: string, content: any, startY: number): number => {
-      let y = startY;
-      
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
-      }
-      
-      // Section header with blue background
-      doc.setFillColor(30, 64, 175);
-      doc.rect(15, y - 5, 180, 12, 'F');
-      
+    // Lead Qualification
+    if (leadData.leadScoring?.qualificationCriteria && Object.keys(leadData.leadScoring.qualificationCriteria).length > 0) {
+      checkPageBreak(50);
       doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.text(title, 20, y + 2);
-      y += 15;
+      doc.setTextColor(30, 64, 175);
+      doc.text('Lead Qualification', 20, yPos);
+      yPos += 10;
+
+      doc.setFontSize(11);
+      doc.setTextColor(75, 85, 99);
       
+      Object.entries(leadData.leadScoring.qualificationCriteria).forEach(([key, value]) => {
+        checkPageBreak(15);
+        const label = key.replace(/([A-Z])/g, ' $1').trim();
+        doc.text(`${label}: ${value}`, 25, yPos);
+        yPos += 7;
+      });
+      yPos += 10;
+    }
+
+    // Meeting Details
+    if (report.meetingDate || report.meetingTime) {
+      checkPageBreak(40);
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175);
+      doc.text('Meeting Details', 20, yPos);
+      yPos += 10;
+
       doc.setFontSize(12);
       doc.setTextColor(75, 85, 99);
       
-      if (!content) {
-        doc.text('No information available', 20, y);
-        return y + 10;
+      if (report.meetingDate) {
+        doc.text(`Date: ${new Date(report.meetingDate).toLocaleDateString()}`, 20, yPos);
+        yPos += 8;
       }
       
-      const formattedContent = formatSectionContent(content);
-      if (formattedContent) {
-        const textLines = doc.splitTextToSize(formattedContent, 170);
-        doc.text(textLines, 20, y);
-        y += textLines.length * 7;
+      if (report.meetingTime) {
+        doc.text(`Time: ${report.meetingTime}${report.meetingTimezone ? ` ${report.meetingTimezone}` : ''}`, 20, yPos);
+        yPos += 8;
       }
       
+      if (report.meetingPlatform) {
+        doc.text(`Platform: ${report.meetingPlatform}`, 20, yPos);
+        yPos += 8;
+      }
+      
+      if (report.meetingLocation) {
+        doc.text(`Location: ${report.meetingLocation}`, 20, yPos);
+        yPos += 8;
+      }
+      
+      if (report.meetingAgenda || report.meetingObjective) {
+        yPos += 3;
+        doc.setFontSize(11);
+        doc.text('Agenda:', 20, yPos);
+        yPos += 6;
+        const agendaLines = doc.splitTextToSize(report.meetingAgenda || report.meetingObjective, 165);
+        doc.text(agendaLines, 25, yPos);
+        yPos += agendaLines.length * 6;
+      }
+      yPos += 10;
+    }
+
+    // Strategic Brief
+    if (aiContent.strategicBrief) {
+      checkPageBreak(60);
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175);
+      doc.text('Strategic Meeting Brief', 20, yPos);
+      yPos += 10;
+
+      doc.setFontSize(11);
+      doc.setTextColor(75, 85, 99);
+      
+      if (aiContent.strategicBrief.primaryObjective) {
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128);
+        doc.text('PRIMARY OBJECTIVE:', 20, yPos);
+        yPos += 6;
+        doc.setFontSize(11);
+        doc.setTextColor(75, 85, 99);
+        const objectiveLines = doc.splitTextToSize(aiContent.strategicBrief.primaryObjective, 165);
+        doc.text(objectiveLines, 25, yPos);
+        yPos += objectiveLines.length * 6 + 5;
+      }
+      
+      if (aiContent.strategicBrief.recommendedApproach) {
+        checkPageBreak(20);
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128);
+        doc.text('RECOMMENDED APPROACH:', 20, yPos);
+        yPos += 6;
+        doc.setFontSize(11);
+        doc.setTextColor(75, 85, 99);
+        const approachLines = doc.splitTextToSize(aiContent.strategicBrief.recommendedApproach, 165);
+        doc.text(approachLines, 25, yPos);
+        yPos += approachLines.length * 6 + 5;
+      }
+      
+      if (aiContent.strategicBrief.keyBenefits && aiContent.strategicBrief.keyBenefits.length > 0) {
+        checkPageBreak(30);
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128);
+        doc.text('KEY BENEFITS:', 20, yPos);
+        yPos += 6;
+        doc.setFontSize(11);
+        doc.setTextColor(75, 85, 99);
+        aiContent.strategicBrief.keyBenefits.forEach((benefit: string) => {
+          checkPageBreak(10);
+          const benefitLines = doc.splitTextToSize(`• ${benefit}`, 165);
+          doc.text(benefitLines, 25, yPos);
+          yPos += benefitLines.length * 6;
+        });
+        yPos += 5;
+      }
+      
+      if (aiContent.strategicBrief.criticalDiscipline) {
+        checkPageBreak(20);
+      doc.setFontSize(10);
+      doc.setTextColor(220, 38, 38);
+      doc.text('!! CRITICAL DISCIPLINE:', 20, yPos);
+      yPos += 6;
+        doc.setFontSize(11);
+        doc.setTextColor(75, 85, 99);
+        const disciplineLines = doc.splitTextToSize(aiContent.strategicBrief.criticalDiscipline, 165);
+        doc.text(disciplineLines, 25, yPos);
+        yPos += disciplineLines.length * 6;
+      }
+      yPos += 10;
+    }
+
+    // Engagement Timeline
+    if (leadData.engagementTimeline && Array.isArray(leadData.engagementTimeline) && leadData.engagementTimeline.length > 0) {
+      checkPageBreak(40);
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175);
+      doc.text('Engagement Timeline', 20, yPos);
+      yPos += 10;
+
+      doc.setFontSize(11);
+      doc.setTextColor(75, 85, 99);
+      
+      leadData.engagementTimeline
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 10)
+        .forEach((activity: any) => {
+          checkPageBreak(15);
+          const typeLabel = activity.type.charAt(0).toUpperCase() + activity.type.slice(1);
+          const dateStr = new Date(activity.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          doc.setFontSize(10);
+          doc.setTextColor(107, 114, 128);
+          doc.text(`${dateStr} - ${typeLabel}`, 20, yPos);
+          yPos += 6;
+          doc.setFontSize(11);
+          doc.setTextColor(75, 85, 99);
+          const contentLines = doc.splitTextToSize(activity.content, 165);
+          doc.text(contentLines, 25, yPos);
+          yPos += contentLines.length * 6 + 3;
+        });
+      yPos += 10;
+    }
+
+    // Notes
+    if (leadData.notes && Array.isArray(leadData.notes) && leadData.notes.length > 0) {
+      checkPageBreak(40);
+      doc.setFontSize(16);
+      doc.setTextColor(30, 64, 175);
+      doc.text('Internal Notes', 20, yPos);
+      yPos += 10;
+
+      doc.setFontSize(11);
+      doc.setTextColor(75, 85, 99);
+      
+      leadData.notes.forEach((note: any) => {
+        checkPageBreak(20);
+        const dateStr = new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        doc.setFontSize(10);
+        doc.setTextColor(107, 114, 128);
+        doc.text(`${dateStr}:`, 20, yPos);
+        yPos += 6;
+        doc.setFontSize(11);
+        doc.setTextColor(75, 85, 99);
+        const noteLines = doc.splitTextToSize(note.content, 165);
+        doc.text(noteLines, 25, yPos);
+        yPos += noteLines.length * 6 + 5;
+      });
+      yPos += 10;
+    }
+    yPos += 5;
+
+  // Add sections function with consistent page break logic
+  const addSection = (title: string, content: any, startY: number): number => {
+    let y = startY;
+    
+    // Check if we need a new page for the section header
+    if (y + 50 > 270) {
+      doc.addPage();
+      y = 20;
+    }
+    
+    // Section header with blue background
+    doc.setFillColor(30, 64, 175);
+    doc.rect(15, y - 5, 180, 12, 'F');
+    
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, 20, y + 2);
+    y += 15;
+    
+    doc.setFontSize(11);
+    doc.setTextColor(75, 85, 99);
+    
+    if (!content) {
+      doc.text('No information available', 20, y);
       return y + 10;
-    };
+    }
+    
+    const formattedContent = formatSectionContent(content);
+    if (formattedContent) {
+      const textLines = doc.splitTextToSize(formattedContent, 170);
+      
+      // Add lines with page break checking
+      textLines.forEach((line: string, index: number) => {
+        if (y + 10 > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, 20, y);
+        y += 6;
+      });
+    }
+    
+    return y + 10;
+  };
 
     // Add sections in same order as shared report
     const sectionOrder = ['overview', 'company', 'competitors', 'techStack', 'meeting', 'news', 'interactions', 'nextSteps'];
