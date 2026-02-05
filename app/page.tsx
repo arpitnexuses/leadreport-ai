@@ -25,6 +25,7 @@ export default function Home() {
   const [pollStartTime, setPollStartTime] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
+  const [availableReportOwners, setAvailableReportOwners] = useState<string[]>([]);
 
   useEffect(() => {
     const loadReports = async () => {
@@ -37,10 +38,22 @@ export default function Home() {
           new Set(
             data
               .map(r => r.leadData?.project)
-              .filter(p => p && p !== 'N/A' && p !== 'Unassigned')
+              .filter(p => p && p !== 'N/A' && p !== 'Unassigned' && p.trim() !== '')
           )
         ) as string[];
         setAvailableProjects(projects);
+        
+        // Extract unique report owners from reports
+        const owners = Array.from(
+          new Set(
+            data
+              .map(r => r.reportOwnerName)
+              .filter(name => name && name.trim() !== '')
+          )
+        ) as string[];
+        setAvailableReportOwners(owners);
+        
+        console.log('Page: Loaded', data.length, 'reports,', projects.length, 'projects,', owners.length, 'owners');
       } catch (error) {
         console.error('Failed to load reports:', error);
       }
@@ -172,6 +185,8 @@ export default function Home() {
             onSubmit={handleSubmit}
             isLoading={isLoading}
             isPending={isPending}
+            projects={availableProjects}
+            reportOwners={availableReportOwners}
           />
         );
       case 'pipeline':

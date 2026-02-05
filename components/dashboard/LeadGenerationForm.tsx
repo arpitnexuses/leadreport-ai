@@ -12,24 +12,60 @@ interface LeadGenerationFormProps {
   onSubmit: (formData: FormData) => void;
   isLoading: boolean;
   isPending: boolean;
+  projects?: string[];
+  reportOwners?: string[];
 }
 
-export function LeadGenerationForm({ onSubmit, isLoading, isPending }: LeadGenerationFormProps) {
-  const [projects, setProjects] = useState<string[]>([]);
-  const [reportOwners, setReportOwners] = useState<string[]>([]);
+export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = [], reportOwners = [] }: LeadGenerationFormProps) {
+  const [localProjects, setLocalProjects] = useState<string[]>(projects);
+  const [localReportOwners, setLocalReportOwners] = useState<string[]>(reportOwners);
+
+  // Update local state when props change
+  useEffect(() => {
+    if (projects.length > 0) {
+      console.log('LeadGenerationForm: Updating projects from props:', projects.length);
+      setLocalProjects(projects);
+    }
+  }, [projects]);
 
   useEffect(() => {
-    // Fetch existing projects and report owners
-    fetch('/api/form-options')
-      .then(res => res.json())
-      .then(data => {
-        setProjects(data.projects || []);
-        setReportOwners(data.reportOwners || []);
+    if (reportOwners.length > 0) {
+      console.log('LeadGenerationForm: Updating report owners from props:', reportOwners.length);
+      setLocalReportOwners(reportOwners);
+    }
+  }, [reportOwners]);
+
+  // Fallback: Fetch from API if props are empty (for backwards compatibility)
+  useEffect(() => {
+    if (projects.length === 0 && reportOwners.length === 0) {
+      console.log('LeadGenerationForm: Props empty, fetching form options from /api/form-options');
+      fetch('/api/form-options', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
-      .catch(error => {
-        console.error('Error fetching form options:', error);
-      });
-  }, []);
+        .then(res => {
+          console.log('LeadGenerationForm: Response status:', res.status);
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(data => {
+          console.log('LeadGenerationForm: Received data:', data);
+          console.log('LeadGenerationForm: Projects count:', data.projects?.length || 0);
+          console.log('LeadGenerationForm: Report owners count:', data.reportOwners?.length || 0);
+          setLocalProjects(data.projects || []);
+          setLocalReportOwners(data.reportOwners || []);
+        })
+        .catch(error => {
+          console.error('LeadGenerationForm: Error fetching form options:', error);
+          console.error('LeadGenerationForm: Error details:', error.message);
+        });
+    }
+  }, [projects.length, reportOwners.length]);
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-12">
@@ -62,11 +98,11 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending }: LeadGener
                   <AutocompleteInput
                     name="project"
                     placeholder="Select or enter project name"
-                    options={projects}
+                    options={localProjects}
                     disabled={isLoading || isPending}
                     icon={<Briefcase className="h-5 w-5 text-gray-400" />}
                   />
-                  <MeetingDetailsForm reportOwners={reportOwners} disabled={isLoading || isPending} />
+                  <MeetingDetailsForm reportOwners={localReportOwners} disabled={isLoading || isPending} />
                 </div>
                 <div className="pt-4">
                   <Button
