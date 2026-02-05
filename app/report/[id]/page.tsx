@@ -945,7 +945,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 />
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <MapPin className="w-3 h-3" />
-                  <span className="text-sm font-bold uppercase tracking-wide">
+                  <span className="text-[10px] font-bold uppercase tracking-wide">
                     {leadData.companyDetails.headquarters || 'Location N/A'}
                   </span>
             </div>
@@ -1469,6 +1469,19 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                             report.meetingPlatform || 'Video Call'
                           )}
                         </p>
+                        {report.meetingLink && !report.meetingLocation && (
+                          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Meeting Link:</p>
+                            <a 
+                              href={report.meetingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                            >
+                              {report.meetingLink}
+                            </a>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <p className="text-sm text-gray-500 italic">No meeting scheduled</p>

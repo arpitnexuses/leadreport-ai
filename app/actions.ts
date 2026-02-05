@@ -422,7 +422,12 @@ async function generateAIReport(apolloData: ApolloResponse) {
     status: 'warm',
     tags: [],
     nextFollowUp: null,
-    customFields: {}
+    customFields: {},
+    // Custom form fields (will be populated from existing report if available)
+    leadIndustry: '',
+    leadDesignation: '',
+    leadBackground: '',
+    companyOverview: ''
   };
 
   const reportPrompt = `
@@ -697,6 +702,18 @@ async function processReport(email: string, reportId: string) {
       // Preserve the project field from the existing report
       const originalProject = existingReport?.leadData?.project;
       leadData.project = originalProject && originalProject.trim() !== '' ? originalProject : 'Unassigned';
+      
+      // Preserve notes and engagement timeline from initial form submission
+      leadData.notes = existingReport?.leadData?.notes || [];
+      leadData.engagementTimeline = existingReport?.leadData?.engagementTimeline || [];
+      
+      // Preserve custom form fields (industry, designation, background, company overview)
+      leadData.leadIndustry = existingReport?.leadData?.leadIndustry || "";
+      leadData.leadDesignation = existingReport?.leadData?.leadDesignation || "";
+      leadData.leadBackground = existingReport?.leadData?.leadBackground || "";
+      leadData.companyOverview = existingReport?.leadData?.companyOverview || "";
+      
+      console.log('Preserving notes:', leadData.notes.length, 'timeline:', leadData.engagementTimeline.length);
       
       // Prepare update object
       const updateDoc: any = {
