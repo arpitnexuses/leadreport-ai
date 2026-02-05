@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, History, Settings, LogOut, Sparkles } from "lucide-react";
+import { LayoutDashboard, History, Settings, LogOut, Sparkles, Users } from "lucide-react";
 import Image from "next/image";
 import { TabType } from "@/types/dashboard";
 
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  isAdmin?: boolean;
 }
 
-export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, isAdmin = false }: SidebarProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -54,25 +55,32 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     id: TabType;
     label: string;
     icon: typeof Settings;
+    adminOnly?: boolean;
   }> = [
     {
       id: 'settings',
       label: 'Preferences',
       icon: Settings,
     },
+    ...(isAdmin ? [{
+      id: 'users' as TabType,
+      label: 'Users',
+      icon: Users,
+      adminOnly: true,
+    }] : []),
   ];
 
   return (
     <div className="w-72 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 border-r border-blue-700/50 flex flex-col">
-      <div className="p-6 border-b border-blue-700/50">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-16 w-48 flex items-center justify-center">
+      <div className="py-8 px-6 border-b border-blue-700/50">
+        <div className="flex flex-col items-center">
+          <div className="h-12 w-40 flex items-center justify-center">
             <Image
-              src="https://22527425.fs1.hubspotusercontent-na1.net/hubfs/22527425/Nexuses%20logo%20white.svg"
+              src="https://cdn-nexlink.s3.us-east-2.amazonaws.com/Nexuses-logo-white_fcc59df4-b0be-47d1-b2ae-aeea3835a1b0.png"
               alt="Brand Name"
-              width={180}
-              height={45}
-              className="object-contain"
+              width={140}
+              height={35}
+              className="object-contain brightness-0 invert"
               priority
             />
           </div>

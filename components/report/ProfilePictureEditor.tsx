@@ -109,7 +109,7 @@ export function ProfilePictureEditor({
             size="sm"
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
-            className="h-8 px-2 text-xs"
+            className="h-8 px-2 text-sm"
           >
             <Upload className="h-3 w-3 mr-1" />
             Upload
@@ -118,7 +118,7 @@ export function ProfilePictureEditor({
             size="sm"
             variant="secondary"
             onClick={() => setIsUrlInputVisible(true)}
-            className="h-8 px-2 text-xs"
+            className="h-8 px-2 text-sm"
           >
             <Link className="h-3 w-3 mr-1" />
             URL
@@ -128,7 +128,7 @@ export function ProfilePictureEditor({
               size="sm"
               variant="destructive"
               onClick={handleRemovePhoto}
-              className="h-8 px-2 text-xs"
+              className="h-8 px-2 text-sm"
             >
               <X className="h-3 w-3 mr-1" />
               Remove

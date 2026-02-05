@@ -36,9 +36,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create JWT token
+    // Create JWT token with role and assignedProjects
     const token = sign(
-      { userId: user._id, email: user.email },
+      { 
+        userId: user._id, 
+        email: user.email,
+        role: user.role || 'admin',
+        assignedProjects: user.assignedProjects || []
+      },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '1d' }
     );

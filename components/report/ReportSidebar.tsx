@@ -27,7 +27,7 @@ export function ReportSidebar({
       <div className="px-8 py-10">
         <div className="mb-10">
           <h1 className="text-5xl font-bold text-blue-600 mb-2 mt-[-12px]">Nexuses</h1>
-          <p className="text-base text-blue-600 font-medium tracking-wide uppercase">Lead Report</p>
+          <p className="text-sm text-blue-600 font-medium tracking-wide uppercase">Lead Report</p>
           <div className="w-16 h-1 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full mt-4"></div>
         </div>
         <nav className="space-y-2">

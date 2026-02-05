@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb'
+import { MongoClient, Db, Collection } from 'mongodb'
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Please add your Mongo URI to .env.local')
@@ -7,7 +7,9 @@ if (!process.env.MONGODB_URI) {
 const uri = process.env.MONGODB_URI
 const options = {}
 
-let client
+let client: MongoClient | null = null
+let db: Db | null = null
+let reports: Collection | null = null
 let clientPromise: Promise<MongoClient>
 
 if (process.env.NODE_ENV === 'development') {
@@ -26,6 +28,19 @@ if (process.env.NODE_ENV === 'development') {
   // In production mode, it's best to not use a global variable.
   client = new MongoClient(uri, options)
   clientPromise = client.connect()
+}
+
+// Helper function to get database and collections
+export async function getDb() {
+  if (!client) {
+    client = await clientPromise
+    db = client.db("lead-reports")
+    reports = db.collection("reports")
+  }
+  if (!reports) {
+    throw new Error("Failed to initialize database connection")
+  }
+  return { db, reports }
 }
 
 // Export a module-scoped MongoClient promise. By doing this in a

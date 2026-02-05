@@ -42,7 +42,7 @@ export function NextStepsContent({ content }: NextStepsContentProps) {
                   </div>
                   {action.priority && (
                     <span
-                      className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1
+                      className={`text-sm font-semibold px-2 py-0.5 rounded-full mt-1
                         ${
                           action.priority.toLowerCase() === 'high'
                             ? 'bg-red-100 text-red-700 border border-red-200'
@@ -59,14 +59,14 @@ export function NextStepsContent({ content }: NextStepsContentProps) {
                 {/* Content */}
                 <div className="flex-1 min-w-0 space-y-2">
                   <div>
-                    <span className="block text-xs font-semibold text-gray-500 mb-1">Description</span>
-                    <div className="text-base font-medium text-gray-900 leading-relaxed">
+                    <span className="block text-sm font-semibold text-gray-500 mb-1">Description</span>
+                    <div className="text-sm font-medium text-gray-900 leading-relaxed">
                       {action.description}
                     </div>
                   </div>
                   {action.rationale && (
                     <div>
-                      <span className="block text-xs font-semibold text-gray-500 mb-1">Rationale</span>
+                      <span className="block text-sm font-semibold text-gray-500 mb-1">Rationale</span>
                       <div className="text-sm text-gray-700">{action.rationale}</div>
                     </div>
                   )}

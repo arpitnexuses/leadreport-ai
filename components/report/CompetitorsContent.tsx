@@ -45,14 +45,14 @@ export function CompetitorsContent({ content }: CompetitorsContentProps) {
             
             {competitor.strengths && competitor.strengths.length > 0 && (
               <div className="mt-3">
-                <h4 className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <h4 className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
                   <Zap className="h-3 w-3 text-yellow-500" />
                   Strengths
                 </h4>
-                <ul className="text-xs space-y-1">
+                <ul className="text-sm space-y-1">
                   {competitor.strengths.map((strength: string, i: number) => (
                     <li key={i} className="flex items-baseline gap-2">
-                      <span className="text-yellow-500 text-xs">•</span>
+                      <span className="text-yellow-500 text-sm">•</span>
                       <span>{strength}</span>
                     </li>
                   ))}
@@ -62,14 +62,14 @@ export function CompetitorsContent({ content }: CompetitorsContentProps) {
             
             {competitor.weaknesses && competitor.weaknesses.length > 0 && (
               <div className="mt-3">
-                <h4 className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <h4 className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
                   <Shield className="h-3 w-3 text-blue-500" />
                   Weaknesses
                 </h4>
-                <ul className="text-xs space-y-1">
+                <ul className="text-sm space-y-1">
                   {competitor.weaknesses.map((weakness: string, i: number) => (
                     <li key={i} className="flex items-baseline gap-2">
-                      <span className="text-blue-500 text-xs">•</span>
+                      <span className="text-blue-500 text-sm">•</span>
                       <span>{weakness}</span>
                     </li>
                   ))}
@@ -79,14 +79,14 @@ export function CompetitorsContent({ content }: CompetitorsContentProps) {
             
             {competitor.marketTrends && competitor.marketTrends.length > 0 && (
               <div className="mt-3">
-                <h4 className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <h4 className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
                   <TrendingUp className="h-3 w-3 text-green-500" />
                   Market Trends
                 </h4>
-                <ul className="text-xs space-y-1">
+                <ul className="text-sm space-y-1">
                   {competitor.marketTrends.map((trend: string, i: number) => (
                     <li key={i} className="flex items-baseline gap-2">
-                      <span className="text-green-500 text-xs">•</span>
+                      <span className="text-green-500 text-sm">•</span>
                       <span>{trend}</span>
                     </li>
                   ))}

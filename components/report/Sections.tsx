@@ -258,7 +258,7 @@ export function CompanyInfoCard({
         <div>
           <h3 className="font-semibold text-2xl text-gray-900">{companyName}</h3>
           {industry && (
-            <p className="text-base text-gray-600 mt-1">{industry}</p>
+            <p className="text-sm text-gray-600 mt-1">{industry}</p>
           )}
         </div>
       </div>
@@ -267,7 +267,7 @@ export function CompanyInfoCard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <div className="space-y-4">
-          <h4 className="text-base font-medium text-gray-900 uppercase tracking-wide">Basic Information</h4>
+          <h4 className="text-sm font-medium text-gray-900 uppercase tracking-wide">Basic Information</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -282,7 +282,7 @@ export function CompanyInfoCard({
                     value={industry} 
                     onChange={(value) => handleUpdate('industry', value)} 
                     isEditing={isEditing}
-                    className="text-base font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900"
                   />
                 </div>
               </div>
@@ -301,7 +301,7 @@ export function CompanyInfoCard({
                     value={employees} 
                     onChange={(value) => handleUpdate('employees', value)} 
                     isEditing={isEditing}
-                    className="text-base font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900"
                   />
                 </div>
               </div>
@@ -321,7 +321,7 @@ export function CompanyInfoCard({
                     value={headquarters} 
                     onChange={(value) => handleUpdate('headquarters', value)} 
                     isEditing={isEditing}
-                    className="text-base font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900"
                   />
                 </div>
               </div>
@@ -331,7 +331,7 @@ export function CompanyInfoCard({
 
         {/* Financial Information */}
         <div className="space-y-4">
-          <h4 className="text-base font-medium text-gray-700 uppercase tracking-wide">Financial Information</h4>
+          <h4 className="text-sm font-medium text-gray-700 uppercase tracking-wide">Financial Information</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
@@ -346,7 +346,7 @@ export function CompanyInfoCard({
                     value={fundingStage || ''} 
                     onChange={(value) => handleUpdate('fundingStage', value)} 
                     isEditing={isEditing}
-                    className="text-base font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900"
                   />
                 </div>
               </div>
@@ -365,7 +365,7 @@ export function CompanyInfoCard({
                     value={typeof fundingTotal === 'number' ? `$${fundingTotal.toLocaleString()}` : (fundingTotal || '')} 
                     onChange={(value) => handleUpdate('fundingTotal', value)} 
                     isEditing={isEditing}
-                    className="text-base font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900"
                   />
                 </div>
               </div>
@@ -384,7 +384,7 @@ export function CompanyInfoCard({
                     value={website} 
                     onChange={(value) => handleUpdate('website', value)} 
                     isEditing={isEditing}
-                    className="text-base font-medium text-gray-900"
+                    className="text-sm font-medium text-gray-900"
                   />
                 </div>
               </div>
@@ -396,14 +396,14 @@ export function CompanyInfoCard({
       {/* Company Description */}
       {companyDescription && (
         <div className="pt-4 border-t border-gray-100">
-          <h4 className="text-base font-medium text-gray-700 uppercase tracking-wide mb-3">Company Description</h4>
+          <h4 className="text-sm font-medium text-gray-700 uppercase tracking-wide mb-3">Company Description</h4>
           <div className="bg-gray-50 rounded-lg p-4">
             <EditableField 
               value={companyDescription} 
               onChange={(value) => handleUpdate('companyDescription', value)} 
               isEditing={isEditing}
               multiline={true}
-              className="text-base text-gray-700 leading-relaxed"
+              className="text-sm text-gray-700 leading-relaxed"
             />
           </div>
         </div>

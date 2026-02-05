@@ -26,6 +26,7 @@ import { SectionToggle } from "@/components/report/SectionToggle";
 import { EditableField } from "@/components/report/EditableField";
 import { ProfilePictureEditor } from "@/components/report/ProfilePictureEditor";
 import { AISectionContent } from "@/components/report/AISectionContent";
+import { NewsContent } from "@/components/report/NewsContent";
 // import { CompanyAnalysis } from "@/components/report/CompanyAnalysis";
 // import {
 //   CompanyInfoCard,
@@ -76,7 +77,8 @@ import {
   Target,
   Bell,
   User,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState, useEffect, use } from "react";
@@ -171,6 +173,7 @@ interface LeadReport {
   report: string;
   leadData: LeadData;
   createdAt: Date;
+  updatedAt?: Date;
   status: string;
   error?: string;
   meetingDate?: string;
@@ -188,6 +191,17 @@ interface LeadReport {
   followUpTimeline?: { title: string; day: string; description: string; isCompleted: boolean }[];
   talkingPoints?: { title: string; content: string }[];
   aiContent?: Record<string, any>;
+  companyNews?: {
+    articles: {
+      title: string;
+      description?: string;
+      url: string;
+      source: string;
+      publishedAt: string;
+      urlToImage?: string;
+    }[];
+    totalResults: number;
+  };
   sections?: {
     overview: boolean;
     company: boolean;
@@ -227,6 +241,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   });
   const [newNote, setNewNote] = useState("");
   const [editedLeadData, setEditedLeadData] = useState<LeadData | null>(null);
+  const [originalLeadData, setOriginalLeadData] = useState<LeadData | null>(null);
+  const [originalEditedData, setOriginalEditedData] = useState<typeof editedData | null>(null);
   const [editedSkills, setEditedSkills] = useState<string[]>([]);
   const [editedLanguages, setEditedLanguages] = useState<
     { name: string; level: string }[]
@@ -248,6 +264,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activityType, setActivityType] = useState<'call' | 'email' | 'meeting' | 'note'>('call');
   const [activityContent, setActivityContent] = useState('');
+  const [isRefreshingNews, setIsRefreshingNews] = useState(false);
 
   useEffect(() => {
     if (report) {
@@ -406,7 +423,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         tags: editedData.tags,
         status: editedData.status,
         nextFollowUp: editedData.nextFollowUp,
-        customFields: editedData.customFields
+        customFields: {
+          ...editedData.customFields,
+          ...editedLeadData?.customFields
+        }
       };
       
       const response = await fetch(`/api/reports/${id}`, {
@@ -439,7 +459,24 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       const updatedReport = await response.json();
       console.log('Updated report after save:', updatedReport);
       console.log('Notes in updated report:', updatedReport.leadData?.notes);
+      console.log('CustomFields in updated report:', updatedReport.leadData?.customFields);
       setReport(updatedReport);
+      
+      // Update editedLeadData with the saved data
+      setEditedLeadData(JSON.parse(JSON.stringify(updatedReport.leadData)));
+      
+      // Update editedData with the saved data
+      setEditedData({
+        notes: updatedReport.leadData.notes || [],
+        engagementTimeline: updatedReport.leadData.engagementTimeline || [],
+        tags: updatedReport.leadData.tags || [],
+        status: updatedReport.leadData.status || "warm",
+        nextFollowUp: updatedReport.leadData.nextFollowUp
+          ? new Date(updatedReport.leadData.nextFollowUp).toISOString().split("T")[0]
+          : "",
+        customFields: updatedReport.leadData.customFields || {},
+      });
+      
       setIsEditing(false);
     } catch (error) {
       console.error('Save error:', error);
@@ -530,6 +567,37 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const handleRefreshNews = async () => {
+    if (!report) return;
+    
+    setIsRefreshingNews(true);
+    try {
+      const response = await fetch(`/api/refresh-news/${id}`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.companyNews) {
+        // Update the report with fresh news
+        setReport({
+          ...report,
+          companyNews: data.companyNews
+        });
+        alert(`✅ Successfully refreshed news! Found ${data.companyNews.articles.length} articles.`);
+      } else if (data.success && data.companyNews?.articles.length === 0) {
+        alert('ℹ️ No recent news articles found for this company.');
+      } else {
+        throw new Error(data.error || 'Failed to refresh news');
+      }
+    } catch (error) {
+      console.error('Error refreshing news:', error);
+      alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to refresh news'}`);
+    } finally {
+      setIsRefreshingNews(false);
+    }
+  };
+
   const handleProfilePictureChange = (photoUrl: string | null) => {
     if (!isEditing || !editedLeadData) return;
     const updatedData = {
@@ -595,7 +663,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             
             {/* Activity Type Selection */}
             <div className="mb-6">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 block">Activity Type</label>
+              <label className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3 block">Activity Type</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -661,7 +729,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             
             {/* Description Input */}
             <div className="mb-6">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Description</label>
+              <label className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2 block">Description</label>
               <textarea
                 value={activityContent}
                 onChange={(e) => setActivityContent(e.target.value)}
@@ -707,9 +775,11 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             <span className="text-sm font-medium text-gray-600 group-hover:text-black transition-colors">Back</span>
           </Link>
           <div className="h-4 w-[1px] bg-gray-300 mx-2"></div>
-          <span className="text-sm font-medium text-gray-500">
-            Reports / <span className="text-black font-semibold">{leadData.name}</span>
-                    </span>
+          <img 
+            src="https://cdn-nexlink.s3.us-east-2.amazonaws.com/Nexuses-full-logo-dark_8d412ea3-bf11-4fc6-af9c-bee7e51ef494.png" 
+            alt="Nexuses Logo" 
+            className="h-5"
+          />
                   </div>
         <div className="flex gap-3">
             <TooltipProvider>
@@ -717,7 +787,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 <TooltipTrigger asChild>
                 <button
                     onClick={handleShare}
-                  className="px-4 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition"
+                  className="px-4 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-sm font-semibold text-gray-700 transition"
                   >
                   Share Report
                 </button>
@@ -727,16 +797,38 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          {isEditing && (
+            <button
+              onClick={() => {
+                // Restore original data
+                if (originalLeadData) {
+                  setEditedLeadData(JSON.parse(JSON.stringify(originalLeadData)));
+                }
+                if (originalEditedData) {
+                  setEditedData(JSON.parse(JSON.stringify(originalEditedData)));
+                }
+                setIsEditing(false);
+              }}
+              className="px-4 py-1.5 rounded-full bg-gray-200 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-300 transition"
+            >
+              Cancel
+            </button>
+          )}
           <button
               onClick={() => {
                 if (isEditing) {
                   handleSave();
                 } else {
+                  // Store original data before entering edit mode
+                  if (editedLeadData) {
+                    setOriginalLeadData(JSON.parse(JSON.stringify(editedLeadData)));
+                  }
+                  setOriginalEditedData(JSON.parse(JSON.stringify(editedData)));
                   setIsEditing(true);
                 }
               }}
             disabled={isSaving}
-            className="px-4 py-1.5 rounded-full bg-[#0071E3] text-xs font-semibold text-white shadow-sm hover:bg-[#0077ED] transition disabled:opacity-50"
+            className="px-4 py-1.5 rounded-full bg-[#0071E3] text-sm font-semibold text-white shadow-sm hover:bg-[#0077ED] transition disabled:opacity-50"
           >
             {isEditing ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit Profile'}
           </button>
@@ -797,12 +889,63 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     </>
                   )}
               </div>
-                <h2 className="text-lg font-black text-gray-900 tracking-tight">{leadData.name}</h2>
-                <p className="text-[11px] font-bold text-[#0071E3] mt-0.5">{leadData.position}</p>
-                <p className="text-[10px] font-medium text-gray-500 mb-2">{leadData.companyName}</p>
+                <EditableField
+                  value={
+                    isEditing && editedLeadData
+                      ? editedLeadData.name
+                      : leadData.name
+                  }
+                  onChange={(value) => {
+                    if (isEditing && editedLeadData) {
+                      setEditedLeadData({
+                        ...editedLeadData,
+                        name: value
+                      });
+                    }
+                  }}
+                  isEditing={isEditing}
+                  placeholder="Enter name"
+                  className="text-lg font-black text-gray-900 tracking-tight text-center"
+                />
+                <EditableField
+                  value={
+                    isEditing && editedLeadData
+                      ? editedLeadData.position
+                      : leadData.position
+                  }
+                  onChange={(value) => {
+                    if (isEditing && editedLeadData) {
+                      setEditedLeadData({
+                        ...editedLeadData,
+                        position: value
+                      });
+                    }
+                  }}
+                  isEditing={isEditing}
+                  placeholder="Enter position"
+                  className="text-sm font-bold text-[#0071E3] mt-0.5 text-center"
+                />
+                <EditableField
+                  value={
+                    isEditing && editedLeadData
+                      ? editedLeadData.companyName
+                      : leadData.companyName
+                  }
+                  onChange={(value) => {
+                    if (isEditing && editedLeadData) {
+                      setEditedLeadData({
+                        ...editedLeadData,
+                        companyName: value
+                      });
+                    }
+                  }}
+                  isEditing={isEditing}
+                  placeholder="Enter company name"
+                  className="text-sm font-medium text-gray-500 mb-2 text-center"
+                />
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <MapPin className="w-3 h-3" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide">
+                  <span className="text-sm font-bold uppercase tracking-wide">
                     {leadData.companyDetails.headquarters || 'Location N/A'}
                   </span>
             </div>
@@ -816,14 +959,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   className="w-full py-2 flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-[#128C7E] transition shadow-sm border border-[#25D366]/20"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
+                  <span className="text-sm font-black uppercase tracking-widest">WhatsApp</span>
                 </a>
                 <a
                   href={`mailto:${leadData.contactDetails.email}`}
                   className="w-full py-2 flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-[#0071E3] transition shadow-sm border border-blue-100"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Email</span>
+                  <span className="text-sm font-black uppercase tracking-widest">Email</span>
                 </a>
               </div>
 
@@ -834,13 +977,80 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 className="w-full py-2.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-white transition-all shadow-sm"
                 >
                 <Linkedin className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-black uppercase tracking-widest">LinkedIn Profile</span>
+                <span className="text-sm font-black uppercase tracking-widest">LinkedIn Profile</span>
                 </a>
               </div>
 
+            {/* Contact Details */}
+            <div className="apple-card p-5">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Details</h3>
+              <div className="space-y-4">
+                <div className="section-tint">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-500 font-bold uppercase">Email</p>
+                      <EditableField
+                        value={
+                          isEditing && editedLeadData
+                            ? editedLeadData.contactDetails.email
+                            : leadData.contactDetails.email
+                        }
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              contactDetails: {
+                                ...editedLeadData.contactDetails,
+                                email: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        placeholder="Enter email address"
+                        className="text-sm font-bold text-gray-900 truncate"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-500 font-bold uppercase">Phone</p>
+                      <EditableField
+                        value={
+                          isEditing && editedLeadData
+                            ? editedLeadData.contactDetails.phone
+                            : leadData.contactDetails.phone
+                        }
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              contactDetails: {
+                                ...editedLeadData.contactDetails,
+                                phone: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        placeholder="Enter phone number"
+                        className="text-sm font-bold text-gray-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* CRM Intelligence */}
             <div className="apple-card p-5">
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
               <div className="space-y-4">
                 <div className="section-tint">
                   <div className="flex items-center gap-3 mb-4">
@@ -848,7 +1058,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       <Zap className="w-4 h-4" />
               </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Lead Stage</p>
+                      <p className="text-sm text-gray-500 font-bold uppercase">Lead Stage</p>
                       <p className="text-sm font-bold text-gray-900">
                         {leadData.status?.toUpperCase() || 'WARM'}
                       </p>
@@ -859,7 +1069,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       <Send className="w-4 h-4" />
             </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Source</p>
+                      <p className="text-sm text-gray-500 font-bold uppercase">Source</p>
                       <p className="text-sm font-bold text-gray-900">Inbound</p>
           </div>
                   </div>
@@ -868,7 +1078,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       <Clock className="w-4 h-4" />
                       </div>
                       <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Created</p>
+                      <p className="text-sm text-gray-500 font-bold uppercase">Created</p>
                       <p className="text-sm font-bold text-gray-900">
                         {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
@@ -880,63 +1090,200 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
             {/* Company Context */}
             <div className="apple-card p-5">
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
               <div className="space-y-4">
                 <div className="section-tint">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
                       <Banknote className="w-4 h-4" />
                     </div>
-                    <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Industry</p>
-                      <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.industry}</p>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 font-bold uppercase">Industry</p>
+                      <EditableField
+                        value={
+                          isEditing && editedLeadData
+                            ? editedLeadData.companyDetails.industry
+                            : leadData.companyDetails.industry
+                        }
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              companyDetails: {
+                                ...editedLeadData.companyDetails,
+                                industry: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        className="text-sm font-bold text-gray-900"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600">
                       <Users2 className="w-4 h-4" />
                     </div>
-                    <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Employees</p>
-                      <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.employees}</p>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 font-bold uppercase">Employees</p>
+                      <EditableField
+                        value={
+                          isEditing && editedLeadData
+                            ? editedLeadData.companyDetails.employees
+                            : leadData.companyDetails.employees
+                        }
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              companyDetails: {
+                                ...editedLeadData.companyDetails,
+                                employees: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        className="text-sm font-bold text-gray-900"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
                       <Landmark className="w-4 h-4" />
                     </div>
-                    <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Location</p>
-                      <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.headquarters}</p>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-500 font-bold uppercase">Location</p>
+                      <EditableField
+                        value={
+                          isEditing && editedLeadData
+                            ? editedLeadData.companyDetails.headquarters
+                            : leadData.companyDetails.headquarters
+                        }
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              companyDetails: {
+                                ...editedLeadData.companyDetails,
+                                headquarters: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        className="text-sm font-bold text-gray-900"
+                      />
                     </div>
                   </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600">
                       <Fingerprint className="w-4 h-4" />
                       </div>
-                      <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Ownership</p>
-                      <p className="text-sm font-bold text-gray-900">
-                        {apolloPerson?.organization?.funding_stage || 'N/A'}
-                      </p>
+                      <div className="flex-1">
+                      <p className="text-sm text-gray-500 font-bold uppercase">Ownership</p>
+                      <EditableField
+                        value={(() => {
+                          // Check custom field first
+                          if (editedLeadData?.customFields?.fundingStage) {
+                            return editedLeadData.customFields.fundingStage;
+                          }
+                          // Check Apollo data
+                          if (apolloPerson?.organization?.funding_stage) {
+                            return apolloPerson.organization.funding_stage;
+                          }
+                          // Default
+                          return 'N/A';
+                        })()}
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              customFields: {
+                                ...editedLeadData.customFields,
+                                fundingStage: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        placeholder="Enter funding stage"
+                        className="text-sm font-bold text-gray-900"
+                      />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <Globe className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-500 font-bold uppercase">Website</p>
+                        <EditableField
+                          value={
+                            isEditing && editedLeadData
+                              ? editedLeadData.companyDetails.website
+                              : leadData.companyDetails.website
+                          }
+                          onChange={(value) => {
+                            if (isEditing && editedLeadData) {
+                              setEditedLeadData({
+                                ...editedLeadData,
+                                companyDetails: {
+                                  ...editedLeadData.companyDetails,
+                                  website: value
+                                }
+                              });
+                            }
+                          }}
+                          isEditing={isEditing}
+                          placeholder="Enter website URL"
+                          className="text-sm font-bold text-blue-600 truncate"
+                        />
                       </div>
                     </div>
                       </div>
 
-                {apolloPerson?.organization?.description && (
+                {(apolloPerson?.organization?.description || isEditing || editedLeadData?.customFields?.companyDescription) && (
                   <div className="section-tint mt-4">
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
-                    <p className="text-[11px] text-gray-600 leading-relaxed">
-                      {apolloPerson.organization.description.substring(0, 150)}
-                      {apolloPerson.organization.description.length > 150 ? '...' : ''}
-                    </p>
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
+                    <EditableField
+                      value={(() => {
+                        // First check if there's a custom description saved
+                        if (editedLeadData?.customFields?.companyDescription) {
+                          return editedLeadData.customFields.companyDescription;
+                        }
+                        // Then check Apollo data
+                        if (apolloPerson?.organization?.description) {
+                          const desc = apolloPerson.organization.description;
+                          return desc.length > 150 ? desc.substring(0, 150) + '...' : desc;
+                        }
+                        // Default empty string for new entries
+                        return '';
+                      })()}
+                      onChange={(value) => {
+                        if (isEditing && editedLeadData) {
+                          setEditedLeadData({
+                            ...editedLeadData,
+                            customFields: {
+                              ...editedLeadData.customFields,
+                              companyDescription: value
+                            }
+                          });
+                        }
+                      }}
+                      isEditing={isEditing}
+                      multiline={true}
+                      placeholder="Add company description..."
+                      className="text-sm text-gray-600 leading-relaxed"
+                    />
                     </div>
                 )}
 
                 {/* Technology Stack */}
                 {aiContent?.techStack && (aiContent.techStack.technologies || aiContent.techStack.tools) && (
                   <div className="section-tint mt-4">
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology Stack</p>
+                    <p className="text-sm text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology Stack</p>
                     <div className="flex flex-wrap gap-2">
                       {(aiContent.techStack.technologies || aiContent.techStack.tools || [])
                         .slice(0, 4)
@@ -950,7 +1297,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                           return (
                             <span
                               key={idx}
-                              className={`px-2 py-1 ${colors[idx % colors.length]} text-[10px] font-bold rounded-lg border`}
+                              className={`px-2 py-1 ${colors[idx % colors.length]} text-sm font-bold rounded-lg border`}
                             >
                               {tech}
                             </span>
@@ -964,7 +1311,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
             {/* Lead Qualification */}
             <div className="apple-card p-5">
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Lead Qualification</h3>
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Lead Qualification</h3>
                   {leadData.leadScoring?.qualificationCriteria &&
                   Object.keys(leadData.leadScoring.qualificationCriteria).length > 0 ? (
                     <LeadQualification
@@ -1004,7 +1351,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
                   ) : (
-                <div className="text-gray-500 italic text-[11px] py-4">
+                <div className="text-gray-500 italic text-sm py-4">
                       No qualification criteria available
                     </div>
                   )}
@@ -1017,12 +1364,16 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             {(report.meetingDate && report.meetingTime) || isEditing ? (
               <div className="apple-card p-0 overflow-hidden flex shadow-sm min-h-[100px]">
                 {report.meetingDate ? (
-                  <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center">
+                  <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center relative">
+                    <Calendar className="w-4 h-4 absolute top-2 left-2 opacity-30" />
                     <span className="text-2xl font-bold">
                       {new Date(report.meetingDate).getDate()}
                     </span>
-                    <span className="text-[10px] font-medium uppercase opacity-90">
+                    <span className="text-sm font-medium uppercase opacity-90">
                       {new Date(report.meetingDate).toLocaleDateString('en-US', { month: 'short' })}
+                    </span>
+                    <span className="text-sm font-bold uppercase opacity-75 mt-0.5">
+                      {new Date(report.meetingDate).toLocaleDateString('en-US', { year: 'numeric' })}
                     </span>
                     </div>
                 ) : isEditing && (
@@ -1039,13 +1390,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                             type="date"
                             value={report.meetingDate || ''}
                             onChange={(e) => setReport({ ...report, meetingDate: e.target.value })}
-                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                            className="text-sm border border-gray-300 rounded px-2 py-1"
                           />
                           <input
                             type="time"
                             value={report.meetingTime || ''}
                             onChange={(e) => setReport({ ...report, meetingTime: e.target.value })}
-                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                            className="text-sm border border-gray-300 rounded px-2 py-1"
                           />
                         </div>
                         <input
@@ -1053,21 +1404,28 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                           value={report.meetingTimezone || ''}
                           onChange={(e) => setReport({ ...report, meetingTimezone: e.target.value })}
                           placeholder="Timezone (e.g., EST, PST, IST)"
-                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                          className="text-sm border border-gray-300 rounded px-2 py-1 w-full"
                         />
                         <input
                           type="text"
                           value={report.meetingPlatform || ''}
                           onChange={(e) => setReport({ ...report, meetingPlatform: e.target.value })}
                           placeholder="Platform (e.g., Zoom, Google Meet)"
-                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                          className="text-sm border border-gray-300 rounded px-2 py-1 w-full"
+                        />
+                        <input
+                          type="text"
+                          value={report.meetingLink || ''}
+                          onChange={(e) => setReport({ ...report, meetingLink: e.target.value })}
+                          placeholder="Meeting link (for virtual meetings)"
+                          className="text-sm border border-gray-300 rounded px-2 py-1 w-full"
                         />
                         <input
                           type="text"
                           value={report.meetingLocation || ''}
                           onChange={(e) => setReport({ ...report, meetingLocation: e.target.value })}
                           placeholder="Physical location (if applicable)"
-                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                          className="text-sm border border-gray-300 rounded px-2 py-1 w-full"
                         />
                         <input
                           type="text"
@@ -1081,33 +1439,72 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       <>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                          <span className="text-sm font-bold text-gray-400 uppercase tracking-wide">
                             {report.meetingTime}
                             {report.meetingTimezone && ` ${report.meetingTimezone}`}
                             {' • '}
-                            {report.meetingPlatform || 'Video Call'}
+                            {report.meetingLocation ? (
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Physical Meeting
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1">
+                                <Video className="w-3 h-3" />
+                                {report.meetingPlatform || 'Video Call'}
+                              </span>
+                            )}
                           </span>
                         </div>
-                        <h3 className="text-base font-bold text-gray-900">
+                        <h3 className="text-sm font-bold text-gray-900">
                           {report.meetingAgenda || report.meetingObjective || 'Meeting Scheduled'}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {report.meetingLocation ? `${report.meetingLocation} • ` : ''}
-                          {report.meetingPlatform || 'Video Call'}
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {report.meetingLocation ? (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {report.meetingLocation}
+                            </span>
+                          ) : (
+                            report.meetingPlatform || 'Video Call'
+                          )}
                         </p>
                       </>
                     ) : (
                       <p className="text-sm text-gray-500 italic">No meeting scheduled</p>
                     )}
                   </div>
-                  {!isEditing && report.meetingDate && report.meetingTime && (
+                  {!isEditing && report.meetingDate && report.meetingTime && (report.meetingLocation || report.meetingLink) && (
                     <a
-                      href={report.meetingLink || '#'}
-                      target={report.meetingLink ? '_blank' : '_self'}
-                      rel={report.meetingLink ? 'noopener noreferrer' : ''}
-                      className="bg-[#0071E3] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm"
+                      href={
+                        report.meetingLocation 
+                          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.meetingLocation)}`
+                          : report.meetingLink
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => {
+                        console.log('Button clicked - meetingLocation:', report.meetingLocation);
+                        console.log('Button clicked - meetingLink:', report.meetingLink);
+                        console.log('Navigating to:', e.currentTarget.href);
+                      }}
+                      className={`${
+                        report.meetingLocation 
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' 
+                          : 'bg-[#0071E3] hover:bg-blue-600'
+                      } text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm flex items-center gap-2`}
                     >
-                      Join
+                      {report.meetingLocation ? (
+                        <>
+                          <MapPin className="w-4 h-4" />
+                          View Map
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-4 h-4" />
+                          Join
+                        </>
+                      )}
                     </a>
                   )}
                 </div>
@@ -1118,52 +1515,77 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             <div className="apple-card p-6">
               <div className="flex justify-between items-start mb-6">
                     <div>
-                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">
                     Pipeline Stage
                   </h3>
                   <div className="flex items-center gap-2">
                     <span className="text-xl font-black text-[#0071E3]">
                       {leadData.status ? leadData.status.charAt(0).toUpperCase() + leadData.status.slice(1).replace('_', ' ') : 'Qualified'}
                     </span>
-                    <span className="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-[10px] font-bold rounded-md">
+                    <span className="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-sm font-bold rounded-md">
                       Active
                     </span>
                     </div>
                   </div>
                 <div className="flex items-center gap-4">
-                  <div className="relative w-16 h-16 flex items-center justify-center">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        stroke="currentColor"
-                        strokeWidth="5"
-                        fill="transparent"
-                        className="text-gray-100"
+                  {isEditing ? (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm font-bold text-gray-500 uppercase">Lead Score</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={editedLeadData?.leadScoring?.rating || leadScore}
+                        onChange={(e) => {
+                          const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                          if (editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              leadScoring: {
+                                ...editedLeadData.leadScoring,
+                                rating: value.toString()
+                              }
+                            });
+                          }
+                        }}
+                        className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
                       />
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        stroke="currentColor"
-                        strokeWidth="5"
-                        fill="transparent"
-                        strokeDasharray="176"
-                        strokeDashoffset={176 - (176 * (leadScore || 88)) / 100}
-                        className="text-[#0071E3] transition-all duration-1000 ease-out"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <div className="absolute flex flex-col items-center">
-                      <span className="text-sm font-black text-gray-900 leading-none">
-                        {leadScore || 88}
-                      </span>
-                      <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">
-                        Score
-                      </span>
-                </div>
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="relative w-16 h-16 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          stroke="currentColor"
+                          strokeWidth="5"
+                          fill="transparent"
+                          className="text-gray-100"
+                        />
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          stroke="currentColor"
+                          strokeWidth="5"
+                          fill="transparent"
+                          strokeDasharray="176"
+                          strokeDashoffset={176 - (176 * (leadScore || 88)) / 100}
+                          className="text-[#0071E3] transition-all duration-1000 ease-out"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute flex flex-col items-center">
+                        <span className="text-sm font-black text-gray-900 leading-none">
+                          {leadScore || 88}
+                        </span>
+                        <span className="text-sm font-bold text-gray-400 uppercase tracking-tighter mt-0.5">
+                          Score
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-2 h-2 mb-3">
@@ -1174,13 +1596,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 <div className="flex-1 bg-gray-100 rounded-full"></div>
               </div>
               <div className="flex justify-between px-0.5">
-                <span className="text-[8px] font-bold text-emerald-600 uppercase">New</span>
-                <span className="text-[8px] font-bold text-blue-500 uppercase">Discovery</span>
-                <span className="text-[8px] font-black text-[#0071E3] uppercase underline underline-offset-2">
+                <span className="text-sm font-bold text-emerald-600 uppercase">New</span>
+                <span className="text-sm font-bold text-blue-500 uppercase">Discovery</span>
+                <span className="text-sm font-black text-[#0071E3] uppercase underline underline-offset-2">
                   Qualified
                 </span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Proposal</span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Closed</span>
+                <span className="text-sm font-bold text-gray-400 uppercase">Proposal</span>
+                <span className="text-sm font-bold text-gray-400 uppercase">Closed</span>
               </div>
             </div>
 
@@ -1193,25 +1615,48 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                       <User className="w-3.5 h-3.5" />
                     </div>
-                    <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">
                       About {leadData.name.split(' ')[0]}
                     </h3>
                   </div>
                   <div className="space-y-3">
-                    <p className="text-[12px] text-gray-600 leading-relaxed">
-                      {leadData.position} at {leadData.companyName}, focused on driving business growth and operational efficiency.
-                    </p>
+                    <EditableField
+                      value={(() => {
+                        // Check if there's a custom about lead saved
+                        if (editedLeadData?.customFields?.aboutLead) {
+                          return editedLeadData.customFields.aboutLead;
+                        }
+                        // Default description using editedLeadData to reflect any changes
+                        const position = editedLeadData?.position || leadData.position;
+                        const companyName = editedLeadData?.companyName || leadData.companyName;
+                        return `${position} at ${companyName}, focused on driving business growth and operational efficiency.`;
+                      })()}
+                      onChange={(value) => {
+                        if (isEditing && editedLeadData) {
+                          setEditedLeadData({
+                            ...editedLeadData,
+                            customFields: {
+                              ...editedLeadData.customFields,
+                              aboutLead: value
+                            }
+                          });
+                        }
+                      }}
+                      isEditing={isEditing}
+                      multiline={true}
+                      className="text-sm text-gray-600 leading-relaxed"
+                    />
                     
                     {/* Lead Industry & Designation */}
                     {(leadData.companyDetails?.industry || leadData.position) && (
                       <div className="flex flex-wrap gap-2 pt-2">
                         {leadData.companyDetails?.industry && (
-                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-100">
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-sm font-bold rounded-lg border border-blue-100">
                             {leadData.companyDetails.industry}
                           </span>
                         )}
                         {leadData.position && (
-                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-lg border border-purple-100">
+                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-sm font-bold rounded-lg border border-purple-100">
                             {leadData.position}
                           </span>
                         )}
@@ -1219,7 +1664,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     )}
                     
                     {aiContent?.overview?.keyInsights && (
-                      <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-blue-400">
+                      <ul className="space-y-1.5 text-sm text-gray-500 list-disc pl-4 marker:text-blue-400">
                         {aiContent.overview.keyInsights.slice(0, 3).map((insight: string, idx: number) => (
                           <li key={idx}>{insight}</li>
                         ))}
@@ -1234,20 +1679,46 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                       <Building2 className="w-4 h-4" />
                     </div>
-                    <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-widest">
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">
                       About {leadData.companyName}
                     </h3>
                   </div>
                   <div className="space-y-3">
                     {/* Company Overview */}
-                    <p className="text-[12px] text-gray-600 leading-relaxed">
-                      {apolloPerson?.organization?.description?.substring(0, 120) || 
-                        `${leadData.companyName} is a growing company in the ${leadData.companyDetails.industry} industry.`}
-                      {apolloPerson?.organization?.description && apolloPerson.organization.description.length > 120 ? '...' : ''}
-                    </p>
+                    <EditableField
+                      value={(() => {
+                        // Check if there's a custom about company saved
+                        if (editedLeadData?.customFields?.aboutCompany) {
+                          return editedLeadData.customFields.aboutCompany;
+                        }
+                        // Check Apollo data
+                        if (apolloPerson?.organization?.description) {
+                          const desc = apolloPerson.organization.description;
+                          return desc.length > 120 ? desc.substring(0, 120) + '...' : desc;
+                        }
+                        // Default description using editedLeadData to reflect any changes
+                        const companyName = editedLeadData?.companyName || leadData.companyName;
+                        const industry = editedLeadData?.companyDetails?.industry || leadData.companyDetails.industry;
+                        return `${companyName} is a growing company in the ${industry} industry.`;
+                      })()}
+                      onChange={(value) => {
+                        if (isEditing && editedLeadData) {
+                          setEditedLeadData({
+                            ...editedLeadData,
+                            customFields: {
+                              ...editedLeadData.customFields,
+                              aboutCompany: value
+                            }
+                          });
+                        }
+                      }}
+                      isEditing={isEditing}
+                      multiline={true}
+                      className="text-sm text-gray-600 leading-relaxed"
+                    />
                     
                     {aiContent?.company?.keyPoints && (
-                      <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-indigo-400">
+                      <ul className="space-y-1.5 text-sm text-gray-500 list-disc pl-4 marker:text-indigo-400">
                         {aiContent.company.keyPoints.slice(0, 3).map((point: string, idx: number) => (
                           <li key={idx}>{point}</li>
                         ))}
@@ -1259,7 +1730,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       href={leadData.companyDetails.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-[9px] font-bold text-gray-900 transition shadow-sm"
+                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 transition shadow-sm"
                     >
                       <Globe className="w-3.5 h-3.5 text-gray-400" />
                       Official Website
@@ -1268,7 +1739,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-[9px] font-bold text-white transition shadow-sm"
+                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-sm font-bold text-white transition shadow-sm"
                     >
                       <Linkedin className="w-3.5 h-3.5" />
                       LinkedIn
@@ -1285,20 +1756,44 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#0071E3]">
                     <Target className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900">Strategic Meeting Brief</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Strategic Meeting Brief</h3>
                 </div>
-                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-widest">
+                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-sm font-black rounded-lg border border-amber-100 uppercase tracking-widest">
                   High Stakes
                 </span>
               </div>
 
               <div className="space-y-6">
+                {/* Meeting Agenda/Objective */}
+                {(report.meetingAgenda || report.meetingObjective) && (
+                  <section className="bg-purple-50/50 p-5 rounded-2xl border border-purple-100/50">
+                    <h4 className="text-sm font-black text-purple-600 uppercase tracking-widest mb-2">
+                      Meeting Agenda
+                    </h4>
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
+                      {report.meetingAgenda || report.meetingObjective}
+                    </p>
+                  </section>
+                )}
+
+                {/* Problem/Pitch */}
+                {report.problemPitch && (
+                  <section className="bg-orange-50/50 p-5 rounded-2xl border border-orange-100/50">
+                    <h4 className="text-sm font-black text-orange-600 uppercase tracking-widest mb-2">
+                      Problem/Pitch
+                    </h4>
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
+                      {report.problemPitch}
+                    </p>
+                  </section>
+                )}
+
                 <section>
-                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    Primary Objective
+                  <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-2">
+                    AI-Generated Primary Objective
                   </h4>
                   {aiContent?.strategicBrief ? (
-                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
                       {aiContent.strategicBrief.primaryObjective}
                     </p>
                   ) : (
@@ -1319,7 +1814,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                           .then(data => handleAiContentUpdate('strategicBrief', data))
                           .catch(err => console.error('Failed to generate strategic brief:', err));
                         }}
-                        className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                       >
                         Generate Strategic Brief
                       </button>
@@ -1332,11 +1827,11 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     <section className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/50">
                       <div className="flex items-center gap-2 mb-3">
                         <Lightbulb className="w-4 h-4 text-blue-600" />
-                        <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest">
+                        <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest">
                           Recommended Approach
                         </h4>
                   </div>
-                      <p className="text-[12px] text-gray-700 leading-relaxed mb-4 italic font-medium">
+                      <p className="text-sm text-gray-700 leading-relaxed mb-4 italic font-medium">
                         {aiContent.strategicBrief.recommendedApproach}
                       </p>
                       
@@ -1345,10 +1840,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                         <div className="grid grid-cols-3 gap-3">
                           {aiContent.strategicBrief.keyBenefits.slice(0, 3).map((point: string, idx: number) => (
                             <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-blue-100/30">
-                              <p className="text-[8px] font-black text-blue-600 uppercase mb-1">
+                              <p className="text-sm font-black text-blue-600 uppercase mb-1">
                                 {String(idx + 1).padStart(2, '0')}
                               </p>
-                              <p className="text-[10px] font-bold text-gray-900 leading-tight">
+                              <p className="text-sm font-bold text-gray-900 leading-tight">
                                 {point}
                               </p>
                 </div>
@@ -1362,9 +1857,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
                         <div className="flex items-center gap-2 mb-1.5 text-rose-700">
                           <AlertOctagon className="w-3.5 h-3.5" />
-                          <h4 className="text-[9px] font-black uppercase tracking-widest">CRITICAL DISCIPLINE</h4>
+                          <h4 className="text-sm font-black uppercase tracking-widest">CRITICAL DISCIPLINE</h4>
                         </div>
-                        <p className="text-[11px] text-rose-800 font-medium">
+                        <p className="text-sm text-rose-800 font-medium">
                           {aiContent.strategicBrief.criticalDiscipline}
                         </p>
                       </div>
@@ -1374,6 +1869,68 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
+            {/* Company News Section */}
+            {sections.news && (
+              <div className="apple-card p-6">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
+                      <Newspaper className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <h3 className="text-sm font-bold text-gray-900">Company News & Updates</h3>
+                  </div>
+                  {/* Refresh News Button */}
+                  <button
+                    onClick={handleRefreshNews}
+                    disabled={isRefreshingNews}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Fetch latest news"
+                  >
+                    {isRefreshingNews ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Refreshing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Refresh News</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                {(report.companyNews || aiContent?.news) ? (
+                  <NewsContent
+                    content={aiContent?.news}
+                    companyNews={report.companyNews}
+                    isEditing={isEditing}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <Newspaper className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-500 mb-4">No news available for this report yet.</p>
+                    <button
+                      onClick={handleRefreshNews}
+                      disabled={isRefreshingNews}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+                    >
+                      {isRefreshingNews ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Fetching News...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Fetch Company News</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Engagement Timeline */}
             <div className="apple-card p-6">
               <div className="flex items-center justify-between mb-6">
@@ -1381,12 +1938,12 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
                     <History className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900">Engagement Timeline</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Engagement Timeline</h3>
                 </div>
                 {isEditing && (
                   <button 
                     onClick={() => setShowActivityModal(true)}
-                    className="text-[10px] font-bold text-[#0071E3] hover:underline flex items-center gap-1"
+                    className="text-sm font-bold text-[#0071E3] hover:underline flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" />
                     Add Activity
@@ -1416,7 +1973,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                           <div className="flex justify-between items-start gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                <span className={`text-sm font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
                                   activity.type === 'call' ? 'bg-green-100 text-green-700' :
                                   activity.type === 'email' ? 'bg-blue-100 text-blue-700' :
                                   activity.type === 'meeting' ? 'bg-purple-100 text-purple-700' :
@@ -1424,7 +1981,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                                 }`}>
                                   {typeConfig.label}
                                 </span>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                <span className="text-sm font-bold text-gray-400 uppercase">
                                   {new Date(activity.createdAt).toLocaleDateString('en-US', { 
                                     month: 'short', 
                                     day: 'numeric',
@@ -1432,7 +1989,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                                   })}
                                 </span>
                               </div>
-                              <p className="text-[11px] font-bold text-gray-900">
+                              <p className="text-sm font-bold text-gray-900">
                                 {activity.content}
                               </p>
                             </div>
@@ -1461,11 +2018,11 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
                     <History className="w-6 h-6 text-gray-400" />
                   </div>
-                  <p className="text-[11px] text-gray-500 mb-3">No engagement activities yet</p>
+                  <p className="text-sm text-gray-500 mb-3">No engagement activities yet</p>
                   {isEditing && (
                     <button 
                       onClick={() => setShowActivityModal(true)}
-                      className="text-[11px] font-bold text-[#0071E3] hover:underline"
+                      className="text-sm font-bold text-[#0071E3] hover:underline"
                     >
                       Add First Activity
                     </button>
@@ -1479,7 +2036,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           <div className="col-span-12 lg:col-span-3 flex flex-col gap-5">
             {/* SDR Owner Card */}
             <div className="apple-card p-4">
-              <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Report Owner</h3>
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Report Owner</h3>
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
@@ -1488,10 +2045,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-gray-900">
+                  <p className="text-sm font-bold text-gray-900">
                     {report.reportOwnerName || report.email.split('@')[0]}
                   </p>
-                  <p className="text-[10px] text-gray-500 font-medium">
+                  <p className="text-sm text-gray-500 font-medium">
                     {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 </div>
@@ -1500,18 +2057,18 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
             {/* Strategic Timeline */}
             <div className="apple-card p-5">
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
                 Strategic Timeline
               </h3>
 
               <div className="grid grid-cols-1 gap-3 mb-5">
                 <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100/50 flex items-center justify-between">
                   <div>
-                    <p className="text-[8px] text-emerald-600 font-black uppercase tracking-widest">
+                    <p className="text-sm text-emerald-600 font-black uppercase tracking-widest">
                       Last Updated
                     </p>
-                    <p className="text-[11px] font-bold text-gray-800 mt-0.5">
-                      {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    <p className="text-sm font-bold text-gray-800 mt-0.5">
+                      {new Date(report.updatedAt || report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
@@ -1521,10 +2078,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 {leadData.nextFollowUp && (
                   <div className="bg-amber-50/50 p-3 rounded-2xl border border-amber-100/50 flex items-center justify-between">
                     <div>
-                      <p className="text-[8px] text-amber-600 font-black uppercase tracking-widest">
+                      <p className="text-sm text-amber-600 font-black uppercase tracking-widest">
                         Next Follow-up
                       </p>
-                      <p className="text-[11px] font-bold text-gray-800 mt-0.5">
+                      <p className="text-sm font-bold text-gray-800 mt-0.5">
                         {new Date(leadData.nextFollowUp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
@@ -1537,24 +2094,24 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             </div>
 
             {/* Internal Notes */}
-            <div className="apple-card p-5 flex-1 flex flex-col min-h-[400px]">
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+            <div className="apple-card p-5">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">
                 Internal Notes
               </h3>
 
-              <div className="space-y-3 overflow-y-auto pr-1 flex-1 custom-scroll mb-4">
+              <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto pr-1 custom-scroll">
                 {editedData.notes && editedData.notes.length > 0 ? (
                   editedData.notes.map((note) => (
                     <div key={note.id} className="bg-[#FFFDF2] p-4 rounded-xl border border-[#EEE1A8]/50 shadow-sm">
-                      <p className="text-[10px] font-bold text-gray-800 mb-1">
+                      <p className="text-sm font-bold text-gray-800 mb-1">
                         {new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • Note
                       </p>
-                      <p className="text-[11px] text-gray-700 leading-relaxed">{note.content}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{note.content}</p>
                     </div>
                   ))
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <p className="text-[11px] text-gray-500 text-center">No notes yet</p>
+                    <p className="text-sm text-gray-500 text-center">No notes yet</p>
                     </div>
                 )}
                   </div>
@@ -1565,14 +2122,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     rows={3}
-                    className="w-full bg-white rounded-xl border border-gray-200 p-3 text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all"
+                    className="w-full bg-white rounded-xl border border-gray-200 p-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all"
                     placeholder="Type a new note..."
                   />
                   <Paperclip className="absolute bottom-3 left-3 w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-pointer" />
                     </div>
                 <button
                   onClick={addNote}
-                  className="w-full py-2.5 bg-[#1D1D1F] hover:bg-black text-white text-[11px] font-bold rounded-xl transition-all shadow-sm"
+                  className="w-full py-2.5 bg-[#1D1D1F] hover:bg-black text-white text-sm font-bold rounded-xl transition-all shadow-sm"
                 >
                   Add Note
                 </button>

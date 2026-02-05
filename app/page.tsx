@@ -8,6 +8,7 @@ import { DashboardView } from "@/components/dashboard/DashboardView";
 import { LeadGenerationForm } from "@/components/dashboard/LeadGenerationForm";
 import { PipelineTable } from "@/components/dashboard/PipelineTable";
 import { SettingsView } from "@/components/dashboard/SettingsView";
+import { UserManagement } from "@/components/dashboard/UserManagement";
 import { Report, TabType } from "@/types/dashboard";
 import { useRouter } from "next/navigation";
 
@@ -22,18 +23,43 @@ export default function Home() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [pollStartTime, setPollStartTime] = useState<number>(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [availableProjects, setAvailableProjects] = useState<string[]>([]);
 
   useEffect(() => {
     const loadReports = async () => {
       try {
         const data = await getReports();
         setReports(data);
+        
+        // Extract unique projects from reports
+        const projects = Array.from(
+          new Set(
+            data
+              .map(r => r.leadData?.project)
+              .filter(p => p && p !== 'N/A' && p !== 'Unassigned')
+          )
+        ) as string[];
+        setAvailableProjects(projects);
       } catch (error) {
         console.error('Failed to load reports:', error);
       }
     };
 
+    const checkUserRole = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setIsAdmin(data.role === 'admin');
+        }
+      } catch (error) {
+        console.error('Failed to check user role:', error);
+      }
+    };
+
     loadReports();
+    checkUserRole();
   }, []);
 
   const handleError = (message: string) => {
@@ -152,6 +178,8 @@ export default function Home() {
         return <PipelineTable reports={reports} />;
       case 'settings':
         return <SettingsView />;
+      case 'users':
+        return isAdmin ? <UserManagement availableProjects={availableProjects} /> : <DashboardView reports={reports} />;
       default:
         return <DashboardView reports={reports} />;
     }
@@ -162,7 +190,7 @@ export default function Home() {
       <LoadingOverlay isVisible={isLoading || isPending} statusMessage={generationStatus} hasError={hasError} errorMessage={errorMessage} onRetry={handleRetry} />
 
       <div className="flex h-screen">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} />
         
         <div className="flex-1 overflow-auto">
           <div className="p-8">

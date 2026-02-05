@@ -60,7 +60,7 @@ export function AIAssistant({ section, leadData, apolloData, onContentGenerated 
         <Button 
           variant="outline" 
           size="sm" 
-          className="flex items-center gap-1 text-xs"
+          className="flex items-center gap-1 text-sm"
         >
           {isGenerating ? (
             <>
@@ -81,7 +81,7 @@ export function AIAssistant({ section, leadData, apolloData, onContentGenerated 
           <p className="text-sm text-gray-500">
             Our AI can analyze the lead data and generate relevant content for the {getSectionName(section)} section.
           </p>
-          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-md">
+          <div className="text-sm text-gray-500 bg-gray-50 p-2 rounded-md">
             <strong>Note:</strong> AI generation relies on the data available about this lead and company. 
             Results may vary based on data quality.
           </div>

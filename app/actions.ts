@@ -166,6 +166,7 @@ interface LeadData {
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const MONGODB_URI = process.env.MONGODB_URI
+const NEWS_API_KEY = process.env.NEWS_API_KEY
 
 if (!APOLLO_API_KEY || !OPENAI_API_KEY || !MONGODB_URI) {
   throw new Error("Missing environment variables")
@@ -290,6 +291,98 @@ export async function fetchApolloData(email: string) {
   };
 
   return data;
+}
+
+// Function to fetch company news from NewsAPI.org
+export async function fetchCompanyNews(companyName: string, industry?: string) {
+  console.log('=== FETCHING COMPANY NEWS ===');
+  console.log('Company Name:', companyName);
+  console.log('Industry:', industry);
+  console.log('NEWS_API_KEY exists:', !!NEWS_API_KEY);
+  console.log('NEWS_API_KEY length:', NEWS_API_KEY?.length || 0);
+  
+  // If no NEWS_API_KEY is set, return empty results
+  if (!NEWS_API_KEY) {
+    console.log('⚠️ NEWS_API_KEY not set, skipping news fetch');
+    return {
+      articles: [],
+      totalResults: 0
+    };
+  }
+
+  try {
+    // Clean company name for search query
+    const searchQuery = companyName.replace(/\s+(Inc|LLC|Ltd|Corporation|Corp)\.?$/i, '').trim();
+    console.log('Search query:', searchQuery);
+    
+    // Calculate date from 30 days ago for recent news
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
+    console.log('Date range from:', fromDate);
+
+    // Build search query - ONLY search for the specific company name
+    // Using quotes for exact phrase matching to get company-specific news
+    const query = `"${searchQuery}"`;
+    console.log('Full query:', query);
+
+    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&from=${fromDate}&sortBy=publishedAt&language=en&pageSize=5&apiKey=${NEWS_API_KEY}`;
+    console.log('Fetching from NewsAPI...');
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'LeadReport-AI/1.0'
+      }
+    });
+
+    console.log('NewsAPI Response Status:', response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ NewsAPI Error Response:', errorData);
+      
+      if (response.status === 429) {
+        console.error('❌ NewsAPI rate limit exceeded');
+        return { articles: [], totalResults: 0 };
+      }
+      if (response.status === 401) {
+        console.error('❌ Invalid NewsAPI key');
+        return { articles: [], totalResults: 0 };
+      }
+      throw new Error(`NewsAPI request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ NewsAPI Response:', {
+      totalResults: data.totalResults,
+      articlesCount: data.articles?.length || 0
+    });
+    
+    // Format news articles
+    const articles = (data.articles || []).slice(0, 5).map((article: any) => ({
+      title: article.title,
+      description: article.description,
+      url: article.url,
+      source: article.source?.name || 'Unknown',
+      publishedAt: article.publishedAt,
+      urlToImage: article.urlToImage
+    }));
+
+    console.log('✅ Formatted articles:', articles.length);
+    console.log('=== NEWS FETCH COMPLETE ===');
+
+    return {
+      articles,
+      totalResults: data.totalResults || 0
+    };
+  } catch (error) {
+    console.error('❌ Error fetching company news:', error);
+    // Return empty results on error rather than failing the entire report
+    return {
+      articles: [],
+      totalResults: 0
+    };
+  }
 }
 
 async function generateAIReport(apolloData: ApolloResponse) {
@@ -425,6 +518,8 @@ export async function initiateReport(formData: FormData) {
   const leadDesignation = formData.get("leadDesignation") as string
   const leadBackground = formData.get("leadBackground") as string
   const companyOverview = formData.get("companyOverview") as string
+  const initialNote = formData.get("initialNote") as string
+  const initialActivity = formData.get("initialActivity") as string
 
   if (!email || !email.includes('@')) {
     throw new Error("Please provide a valid email address")
@@ -434,10 +529,47 @@ export async function initiateReport(formData: FormData) {
     throw new Error("Please provide your name as the report owner")
   }
 
-  const { reports } = await getDb()
+  // Check user permissions for the project
+  const { getCurrentUser, canAccessProject } = await import('@/lib/auth');
+  const user = await getCurrentUser();
+  
+  if (!user) {
+    throw new Error("You must be logged in to create reports")
+  }
 
   // Handle empty project name
   const projectName = project && project.trim() !== '' ? project : 'Unassigned';
+
+  // Validate project access for project_user role
+  if (user.role === 'project_user' && projectName !== 'Unassigned') {
+    if (!canAccessProject(user, projectName)) {
+      throw new Error(`You don't have permission to create reports for the project: ${projectName}`)
+    }
+  }
+
+  const { reports } = await getDb()
+
+  // Create initial notes array (internal notes for team)
+  const initialNotes = [];
+  if (initialNote && initialNote.trim() !== '') {
+    initialNotes.push({
+      id: crypto.randomUUID(),
+      content: initialNote.trim(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
+
+  // Create initial engagement timeline entry (activity tracking)
+  const initialTimeline = [];
+  if (initialActivity && initialActivity.trim() !== '') {
+    initialTimeline.push({
+      id: crypto.randomUUID(),
+      type: 'note',
+      content: initialActivity.trim(),
+      createdAt: new Date()
+    });
+  }
 
   // Create an initial report entry
   const initialReport = {
@@ -458,8 +590,8 @@ export async function initiateReport(formData: FormData) {
       leadDesignation: leadDesignation || "",
       leadBackground: leadBackground || "",
       companyOverview: companyOverview || "",
-      notes: [],
-      engagementTimeline: []
+      notes: initialNotes,
+      engagementTimeline: initialTimeline
     },
     meetingDate,
     meetingTime,
@@ -494,16 +626,30 @@ async function processReport(email: string, reportId: string) {
       throw new Error(`Report with ID ${reportId} not found`);
     }
     
-    // Step 1: Fetch Apollo Data
-    console.log(`Fetching Apollo data for ${email}`);
+    // Step 1: Fetch Apollo Data and Company News in parallel
+    console.log(`Fetching Apollo data and company news for ${email}`);
     let apolloData;
+    let companyNews;
     try {
       apolloData = await fetchApolloData(email);
+      
+      // Fetch company news in parallel (don't let it block the report if it fails)
+      const companyName = apolloData?.person?.organization?.name;
+      const industry = apolloData?.person?.organization?.industry;
+      
+      if (companyName && companyName !== 'N/A') {
+        console.log(`Fetching news for company: ${companyName}`);
+        companyNews = await fetchCompanyNews(companyName, industry);
+      } else {
+        companyNews = { articles: [], totalResults: 0 };
+      }
+      
       await reports.updateOne(
         { _id: new ObjectId(reportId) },
         { 
           $set: { 
             apolloData, 
+            companyNews,
             status: "fetching_apollo",
             // Preserve all meeting details and form data
             reportOwnerName: existingReport?.reportOwnerName,
@@ -557,6 +703,8 @@ async function processReport(email: string, reportId: string) {
         report: aiReport,
         leadData,
         status: "completed",
+        // Preserve company news if fetched
+        companyNews: companyNews || { articles: [], totalResults: 0 },
         // Preserve all meeting details and form data
         reportOwnerName: existingReport?.reportOwnerName,
         meetingDate: existingReport?.meetingDate,
@@ -707,6 +855,9 @@ export async function deleteReport(formData: FormData) {
 }
 
 export async function getReports() {
+  const { getCurrentUser } = await import('@/lib/auth');
+  const user = await getCurrentUser();
+  
   const { reports } = await getDb()
   const allReports = await reports.find({}).sort({ createdAt: -1 }).toArray()
   
@@ -736,6 +887,16 @@ export async function getReports() {
     };
   });
   
+  // Filter reports based on user role and assigned projects
+  if (user && user.role === 'project_user') {
+    const assignedProjects = user.assignedProjects || [];
+    return transformedReports.filter(report => {
+      const reportProject = report.leadData?.project;
+      return reportProject && assignedProjects.includes(reportProject);
+    });
+  }
+  
+  // Admins see all reports
   return transformedReports;
 }
 

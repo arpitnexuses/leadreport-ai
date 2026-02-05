@@ -3,8 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { Mail, Briefcase, Sparkles, CheckCircle2 } from "lucide-react";
 import { MeetingDetailsForm } from '@/components/ui/input';
+import { useState, useEffect } from "react";
 
 interface LeadGenerationFormProps {
   onSubmit: (formData: FormData) => void;
@@ -13,6 +15,21 @@ interface LeadGenerationFormProps {
 }
 
 export function LeadGenerationForm({ onSubmit, isLoading, isPending }: LeadGenerationFormProps) {
+  const [projects, setProjects] = useState<string[]>([]);
+  const [reportOwners, setReportOwners] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch existing projects and report owners
+    fetch('/api/form-options')
+      .then(res => res.json())
+      .then(data => {
+        setProjects(data.projects || []);
+        setReportOwners(data.reportOwners || []);
+      })
+      .catch(error => {
+        console.error('Error fetching form options:', error);
+      });
+  }, []);
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-12">
@@ -39,22 +56,17 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending }: LeadGener
                       placeholder="Enter business email address"
                       required
                       disabled={isLoading || isPending}
-                      className="pl-12 h-14 text-lg rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 shadow-sm"
+                      className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400"
                     />
                   </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Briefcase className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <Input
-                      type="text"
-                      name="project"
-                      placeholder="Enter project name"
-                      disabled={isLoading || isPending}
-                      className="pl-12 h-14 text-lg rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 shadow-sm"
-                    />
-                  </div>
-                  <MeetingDetailsForm />
+                  <AutocompleteInput
+                    name="project"
+                    placeholder="Select or enter project name"
+                    options={projects}
+                    disabled={isLoading || isPending}
+                    icon={<Briefcase className="h-5 w-5 text-gray-400" />}
+                  />
+                  <MeetingDetailsForm reportOwners={reportOwners} disabled={isLoading || isPending} />
                 </div>
                 <div className="pt-4">
                   <Button

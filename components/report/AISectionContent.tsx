@@ -182,7 +182,7 @@ export function AISectionContent({
             <p className="text-sm">
               {content.message || "The AI analysis is based on limited information and may not be fully accurate."}
             </p>
-            <p className="text-xs mt-2 text-amber-600">
+            <p className="text-sm mt-2 text-amber-600">
               Rather than presenting potentially incorrect information, we&apos;ve limited the AI content for this section.
             </p>
           </div>
@@ -204,7 +204,7 @@ export function AISectionContent({
   // Render appropriate content based on section type
   return (
     <div className="space-y-4">
-      <div className="bg-gray-50 p-2 rounded-md text-xs text-gray-500 flex items-start gap-2">
+      <div className="bg-gray-50 p-2 rounded-md text-sm text-gray-500 flex items-start gap-2">
         <span className="text-blue-500 flex-shrink-0 mt-0.5">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clipRule="evenodd" />
@@ -494,7 +494,7 @@ export function AISectionContent({
                               />
                               {competitor.strengths && (
                                 <div className="mt-2">
-                                  <p className="text-xs font-medium text-gray-500">Strengths:</p>
+                                  <p className="text-sm font-medium text-gray-500">Strengths:</p>
                                   <EditableField
                                     value={competitor.strengths}
                                     onChange={(value) => handleNestedContentChange(competitorsKey, index, 'strengths', value)}
@@ -506,7 +506,7 @@ export function AISectionContent({
                               )}
                               {competitor.weaknesses && (
                                 <div className="mt-2">
-                                  <p className="text-xs font-medium text-gray-500">Weaknesses:</p>
+                                  <p className="text-sm font-medium text-gray-500">Weaknesses:</p>
                                   <EditableField
                                     value={competitor.weaknesses}
                                     onChange={(value) => handleNestedContentChange(competitorsKey, index, 'weaknesses', value)}
@@ -576,7 +576,7 @@ export function AISectionContent({
                             />
                             {competitor.strengths && (
                               <div className="mt-2">
-                                <p className="text-xs font-medium text-gray-500">Strengths:</p>
+                                <p className="text-sm font-medium text-gray-500">Strengths:</p>
                                 <EditableField
                                   value={competitor.strengths}
                                   onChange={(value) => handleNestedContentChange(competitorsKey, index, 'strengths', value)}
@@ -588,7 +588,7 @@ export function AISectionContent({
                             )}
                             {competitor.weaknesses && (
                               <div className="mt-2">
-                                <p className="text-xs font-medium text-gray-500">Weaknesses:</p>
+                                <p className="text-sm font-medium text-gray-500">Weaknesses:</p>
                                 <EditableField
                                   value={competitor.weaknesses}
                                   onChange={(value) => handleNestedContentChange(competitorsKey, index, 'weaknesses', value)}
@@ -694,7 +694,7 @@ export function AISectionContent({
                             />
                           </h4>
                           {action.priority && (
-                            <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                            <span className={`text-sm font-medium px-3 py-1 rounded-full ${
                               action.priority.toLowerCase() === 'high' 
                                 ? 'bg-red-100 text-red-700 border border-red-200' 
                                 : action.priority.toLowerCase() === 'medium'
@@ -818,7 +818,7 @@ export function AISectionContent({
                             {action.description}
                           </h4>
                           {action.priority && (
-                            <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                            <span className={`text-sm font-medium px-3 py-1 rounded-full ${
                               action.priority.toLowerCase() === 'high' 
                                 ? 'bg-red-100 text-red-700 border border-red-200' 
                                 : action.priority.toLowerCase() === 'medium'
@@ -875,7 +875,7 @@ export function AISectionContent({
                                 {(value as any).description || key}
                               </h4>
                               {(value as any).priority && (
-                                <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                                <span className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
                                   {(value as any).priority}
                                 </span>
                               )}
@@ -1234,7 +1234,7 @@ export function AISectionContent({
           </div>
           
           {/* Debug view for content structure */}
-          <details className="text-xs mt-2 border border-gray-200 p-2 rounded">
+          <details className="text-sm mt-2 border border-gray-200 p-2 rounded">
             <summary className="text-gray-500 cursor-pointer font-medium">Debug: View Raw Content Data</summary>
             <div className="mt-2 p-2 bg-gray-50 overflow-auto rounded">
               <div className="mb-2">
@@ -1472,8 +1472,8 @@ function renderInteractionsContent(content: any) {
             {content.history.map((interaction: any, index: number) => (
               <div key={index} className="bg-gray-50 p-2 rounded-md">
                 <div className="font-medium text-sm">{interaction.type}</div>
-                <div className="text-xs mt-1">{interaction.description}</div>
-                <div className="text-xs text-gray-500 mt-1">{interaction.date}</div>
+                <div className="text-sm mt-1">{interaction.description}</div>
+                <div className="text-sm text-gray-500 mt-1">{interaction.date}</div>
               </div>
             ))}
           </div>

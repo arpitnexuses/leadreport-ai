@@ -40,17 +40,17 @@ export function LeadQualification({
             key={index}
             className={`flex justify-between items-center py-2.5 ${index !== Object.entries(qualificationCriteria).length - 1 ? 'mb-3' : ''}`}
           >
-            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wide">
+            <span className="text-sm font-bold text-gray-900 capitalize">
               {key.replace(/([A-Z])/g, " $1").trim()}
             </span>
             <Badge
               className={
                 value.toLowerCase() === "high" ||
                 value.toLowerCase() === "yes"
-                  ? "bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 border-green-200 text-[9px] font-bold uppercase"
+                  ? "bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-800 border-green-200 text-sm font-bold uppercase"
                   : value.toLowerCase() === "medium"
-                  ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 hover:text-yellow-800 border-yellow-200 text-[9px] font-bold uppercase"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-800 border-gray-200 text-[9px] font-bold uppercase"
+                  ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 hover:text-yellow-800 border-yellow-200 text-sm font-bold uppercase"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-800 border-gray-200 text-sm font-bold uppercase"
               }
             >
               {value}
@@ -67,7 +67,7 @@ export function LeadQualification({
               <Star className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <p className="text-[9px] text-gray-500 font-bold uppercase">Overall Score</p>
+              <p className="text-sm font-bold text-gray-900 capitalize">Overall Score</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

@@ -21,6 +21,18 @@ export interface Report {
     leadDesignation?: string;
     leadBackground?: string;
     companyOverview?: string;
+    engagementTimeline?: {
+      id: string;
+      type: 'call' | 'email' | 'meeting' | 'note';
+      content: string;
+      createdAt: Date | string;
+    }[];
+    notes?: {
+      id: string;
+      content: string;
+      createdAt: Date | string;
+      updatedAt: Date | string;
+    }[];
   };
 }
 
@@ -29,4 +41,4 @@ export interface ProjectLead {
   count: number;
 }
 
-export type TabType = 'dashboard' | 'generate' | 'pipeline' | 'settings'; 
+export type TabType = 'dashboard' | 'generate' | 'pipeline' | 'settings' | 'users'; 

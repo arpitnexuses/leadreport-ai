@@ -34,6 +34,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: '22527425.fs1.hubspotusercontent-na1.net',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn-nexlink.s3.us-east-2.amazonaws.com',
+        pathname: '/**',
       }
     ],
     dangerouslyAllowSVG: true,

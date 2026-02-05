@@ -1,8 +1,27 @@
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
-import { hash } from 'bcryptjs';
+// import clientPromise from '@/lib/mongodb';
+// import { hash } from 'bcryptjs';
+
+/**
+ * PUBLIC SIGNUP DISABLED
+ * 
+ * Public user registration has been disabled for security.
+ * New users must be created by administrators through the User Management interface.
+ * 
+ * To re-enable public signup, uncomment the code below and the imports above.
+ */
 
 export async function POST(req: Request) {
+  return NextResponse.json(
+    { 
+      message: 'Public signup is disabled. Please contact your administrator to create an account.',
+      disabled: true
+    },
+    { status: 403 }
+  );
+
+  // ORIGINAL CODE (DISABLED) - Uncomment to re-enable public signup
+  /*
   try {
     const { email, password } = await req.json();
 
@@ -29,11 +48,16 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await hash(password, 12);
 
-    // Create user
+    // Create user - first user is admin, rest are admins by default
+    // (can be changed through user management)
+    const userCount = await db.collection('users').countDocuments();
     const result = await db.collection('users').insertOne({
       email,
       password: hashedPassword,
+      role: userCount === 0 ? 'admin' : 'admin', // First user is always admin
+      assignedProjects: [], // Empty for admins, will be set for project_users
       createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     return NextResponse.json(
@@ -47,4 +71,5 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+  */
 } 

@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/dashboard/LoadingOverlay";
 import { AISectionContent } from "@/components/report/AISectionContent";
+import { NewsContent } from "@/components/report/NewsContent";
 import { 
   Mail, Phone, Linkedin, MapPin, Globe, Star, Briefcase, Calendar, 
   FileText, Check, MessageCircle, User, Building2, Banknote, Users2, 
   Landmark, Fingerprint, Zap, Send, Clock, Target, Lightbulb, 
-  AlertOctagon, History, Video, X, Download, Loader2
+  AlertOctagon, History, Video, X, Download, Loader2, Newspaper, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -115,6 +116,17 @@ interface LeadReport {
   followUpTimeline?: { title: string; day: string; description: string; isCompleted: boolean }[];
   talkingPoints?: { title: string; content: string }[];
   aiContent?: Record<string, any>;
+  companyNews?: {
+    articles: {
+      title: string;
+      description?: string;
+      url: string;
+      source: string;
+      publishedAt: string;
+      urlToImage?: string;
+    }[];
+    totalResults: number;
+  };
   sections?: {
     overview: boolean;
     company: boolean;
@@ -133,6 +145,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isRefreshingNews, setIsRefreshingNews] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -185,6 +198,37 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleRefreshNews = async () => {
+    if (!report) return;
+    
+    setIsRefreshingNews(true);
+    try {
+      const response = await fetch(`/api/refresh-news/${id}`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.companyNews) {
+        // Update the report with fresh news
+        setReport({
+          ...report,
+          companyNews: data.companyNews
+        });
+        alert(`✅ Successfully refreshed news! Found ${data.companyNews.articles.length} articles.`);
+      } else if (data.success && data.companyNews?.articles.length === 0) {
+        alert('ℹ️ No recent news articles found for this company.');
+      } else {
+        throw new Error(data.error || 'Failed to refresh news');
+      }
+    } catch (error) {
+      console.error('Error refreshing news:', error);
+      alert(`❌ Error: ${error instanceof Error ? error.message : 'Failed to refresh news'}`);
+    } finally {
+      setIsRefreshingNews(false);
+    }
+  };
+
   if (loading) {
     return <LoadingOverlay isVisible={true} statusMessage="Loading shared report..." />;
   }
@@ -216,9 +260,11 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
         borderBottom: '1px solid rgba(0, 0, 0, 0.1)'
       }}>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-gray-500">
-            Shared Report / <span className="text-black font-semibold">{leadData.name}</span>
-          </span>
+          <img 
+            src="https://cdn-nexlink.s3.us-east-2.amazonaws.com/Nexuses-full-logo-dark_8d412ea3-bf11-4fc6-af9c-bee7e51ef494.png" 
+            alt="Nexuses Logo" 
+            className="h-5"
+          />
         </div>
         <div className="flex gap-3">
           <button
@@ -403,18 +449,21 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <div>
                       <p className="text-[9px] text-gray-500 font-bold uppercase">Ownership</p>
                       <p className="text-sm font-bold text-gray-900">
-                        {apolloPerson?.organization?.funding_stage || 'N/A'}
+                        {leadData.customFields?.fundingStage || apolloPerson?.organization?.funding_stage || 'N/A'}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {apolloPerson?.organization?.description && (
+                {(apolloPerson?.organization?.description || leadData.customFields?.companyDescription) && (
                   <div className="section-tint mt-4" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
                     <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
                     <p className="text-[11px] text-gray-600 leading-relaxed">
-                      {apolloPerson.organization.description.substring(0, 150)}
-                      {apolloPerson.organization.description.length > 150 ? '...' : ''}
+                      {leadData.customFields?.companyDescription ||
+                        (apolloPerson?.organization?.description 
+                          ? (apolloPerson.organization.description.substring(0, 150) + 
+                             (apolloPerson.organization.description.length > 150 ? '...' : ''))
+                          : '')}
                     </p>
                   </div>
                 )}
@@ -503,12 +552,16 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                 border: '1px solid rgba(0, 0, 0, 0.05)'
               }}>
-                <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center">
+                <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center relative">
+                  <Calendar className="w-4 h-4 absolute top-2 left-2 opacity-30" />
                   <span className="text-2xl font-bold">
                     {new Date(report.meetingDate).getDate()}
                   </span>
                   <span className="text-[10px] font-medium uppercase opacity-90">
                     {new Date(report.meetingDate).toLocaleDateString('en-US', { month: 'short' })}
+                  </span>
+                  <span className="text-[8px] font-bold uppercase opacity-75 mt-0.5">
+                    {new Date(report.meetingDate).toLocaleDateString('en-US', { year: 'numeric' })}
                   </span>
                 </div>
                 <div className="p-4 flex-1 flex justify-between items-center bg-white relative">
@@ -519,25 +572,64 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                         {report.meetingTime}
                         {report.meetingTimezone && ` ${report.meetingTimezone}`}
                         {' • '}
-                        {report.meetingPlatform || 'Video Call'}
+                        {report.meetingLocation ? (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            Physical Meeting
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            <Video className="w-3 h-3" />
+                            {report.meetingPlatform || 'Video Call'}
+                          </span>
+                        )}
                       </span>
                     </div>
                     <h3 className="text-base font-bold text-gray-900">
                       {report.meetingAgenda || report.meetingObjective || 'Meeting Scheduled'}
                     </h3>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {report.meetingLocation ? `${report.meetingLocation} • ` : ''}
-                      {report.meetingPlatform || 'Video Call'}
+                      {report.meetingLocation ? (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {report.meetingLocation}
+                        </span>
+                      ) : (
+                        report.meetingPlatform || 'Video Call'
+                      )}
                     </p>
                   </div>
-                  {report.meetingLink && (
+                  {(report.meetingLocation || report.meetingLink) && (
                     <a
-                      href={report.meetingLink}
+                      href={
+                        report.meetingLocation 
+                          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(report.meetingLocation)}`
+                          : report.meetingLink
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-[#0071E3] hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm"
+                      onClick={(e) => {
+                        console.log('Button clicked - meetingLocation:', report.meetingLocation);
+                        console.log('Button clicked - meetingLink:', report.meetingLink);
+                        console.log('Navigating to:', e.currentTarget.href);
+                      }}
+                      className={`${
+                        report.meetingLocation 
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' 
+                          : 'bg-[#0071E3] hover:bg-blue-600'
+                      } text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-2`}
                     >
-                      Join
+                      {report.meetingLocation ? (
+                        <>
+                          <MapPin className="w-4 h-4" />
+                          View Map
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-4 h-4" />
+                          Join
+                        </>
+                      )}
                     </a>
                   )}
                 </div>
@@ -639,28 +731,22 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   </div>
                   <div className="space-y-3">
                     <p className="text-[12px] text-gray-600 leading-relaxed">
-                      {leadData.position} at {leadData.companyName}, focused on driving business growth and operational efficiency.
+                      {leadData.customFields?.aboutLead || 
+                        `${leadData.position} at ${leadData.companyName}, focused on driving business growth and operational efficiency.`}
                     </p>
                     
-                    {(leadData.leadIndustry || leadData.leadDesignation) && (
+                    {(leadData.companyDetails?.industry || leadData.position) && (
                       <div className="flex flex-wrap gap-2 pt-2">
-                        {leadData.leadIndustry && (
+                        {leadData.companyDetails?.industry && (
                           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-100">
-                            {leadData.leadIndustry}
+                            {leadData.companyDetails.industry}
                           </span>
                         )}
-                        {leadData.leadDesignation && (
+                        {leadData.position && (
                           <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-lg border border-purple-100">
-                            {leadData.leadDesignation}
+                            {leadData.position}
                           </span>
                         )}
-                      </div>
-                    )}
-                    
-                    {leadData.leadBackground && (
-                      <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50">
-                        <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-1">Background</p>
-                        <p className="text-[11px] text-gray-700 leading-relaxed">{leadData.leadBackground}</p>
                       </div>
                     )}
                     
@@ -685,17 +771,13 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     </h3>
                   </div>
                   <div className="space-y-3">
-                    {leadData.companyOverview ? (
-                      <p className="text-[12px] text-gray-600 leading-relaxed">
-                        {leadData.companyOverview}
-                      </p>
-                    ) : (
-                      <p className="text-[12px] text-gray-600 leading-relaxed">
-                        {apolloPerson?.organization?.description?.substring(0, 120) || 
-                          `${leadData.companyName} is a growing company in the ${leadData.companyDetails.industry} industry.`}
-                        {apolloPerson?.organization?.description && apolloPerson.organization.description.length > 120 ? '...' : ''}
-                      </p>
-                    )}
+                    <p className="text-[12px] text-gray-600 leading-relaxed">
+                      {leadData.customFields?.aboutCompany ||
+                        (apolloPerson?.organization?.description 
+                          ? (apolloPerson.organization.description.substring(0, 120) + 
+                             (apolloPerson.organization.description.length > 120 ? '...' : ''))
+                          : `${leadData.companyName} is a growing company in the ${leadData.companyDetails.industry} industry.`)}
+                    </p>
                     
                     {aiContent?.company?.keyPoints && (
                       <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-indigo-400">
@@ -750,9 +832,33 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="space-y-6">
+                {/* Meeting Agenda/Objective */}
+                {(report.meetingAgenda || report.meetingObjective) && (
+                  <section className="bg-purple-50/50 p-5 rounded-2xl border border-purple-100/50">
+                    <h4 className="text-[9px] font-black text-purple-600 uppercase tracking-widest mb-2">
+                      Meeting Agenda
+                    </h4>
+                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                      {report.meetingAgenda || report.meetingObjective}
+                    </p>
+                  </section>
+                )}
+
+                {/* Problem/Pitch */}
+                {report.problemPitch && (
+                  <section className="bg-orange-50/50 p-5 rounded-2xl border border-orange-100/50">
+                    <h4 className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-2">
+                      Problem/Pitch
+                    </h4>
+                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                      {report.problemPitch}
+                    </p>
+                  </section>
+                )}
+
                 <section>
                   <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    Primary Objective
+                    AI-Generated Primary Objective
                   </h4>
                   {aiContent?.strategicBrief ? (
                     <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
@@ -810,6 +916,71 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Company News Section */}
+            <div className="apple-card p-6" style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+              border: '1px solid rgba(0, 0, 0, 0.05)'
+            }}>
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
+                    <Newspaper className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Company News & Updates</h3>
+                </div>
+                {/* Refresh News Button */}
+                <button
+                  onClick={handleRefreshNews}
+                  disabled={isRefreshingNews}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Fetch latest news"
+                >
+                  {isRefreshingNews ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Refreshing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Refresh News</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              {(report.companyNews || aiContent?.news) ? (
+                <NewsContent
+                  content={aiContent?.news}
+                  companyNews={report.companyNews}
+                  isEditing={false}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <Newspaper className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-gray-500 mb-4">No news available for this report yet.</p>
+                  <button
+                    onClick={handleRefreshNews}
+                    disabled={isRefreshingNews}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+                  >
+                    {isRefreshingNews ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Fetching News...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        <span>Fetch Company News</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Engagement Timeline */}
