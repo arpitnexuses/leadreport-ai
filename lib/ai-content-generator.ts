@@ -57,6 +57,23 @@ export async function generateBatchAIContent(
     return processedResponses;
   } catch (error) {
     console.error('Error generating batch AI content:', error);
+    
+    // Check if it's a quota error
+    if (error instanceof Error && error.message.includes('insufficient_quota')) {
+      console.warn('⚠️ OpenAI quota exceeded - returning empty AI content for all sections');
+      
+      // Return a structure indicating quota exceeded for all sections
+      const quotaExceededResponses: Record<string, any> = {};
+      for (const section of sections) {
+        quotaExceededResponses[section] = {
+          insufficient_data: true,
+          quota_exceeded: true,
+          message: "AI content generation is temporarily unavailable due to API quota limits. Please check your OpenAI billing or try again later."
+        };
+      }
+      return quotaExceededResponses;
+    }
+    
     throw error;
   }
 }
@@ -118,11 +135,18 @@ async function generateBatchWithAI(combinedPrompt: string, sections: string[]) {
     if (!response.ok) {
       // Try to get detailed error information
       let errorInfo = "Could not parse error response";
+      let errorData: any = null;
+      
       try {
-        const errorData = await response.json();
+        errorData = await response.json();
         errorInfo = JSON.stringify(errorData);
       } catch (e) {
         errorInfo = await response.text().catch(() => "Could not get error text");
+      }
+      
+      // Check for quota errors specifically
+      if (errorData?.error?.code === 'insufficient_quota' || response.status === 429) {
+        throw new Error('insufficient_quota: You exceeded your current OpenAI API quota. Please check your plan and billing details.');
       }
       
       const statusText = `${response.status} ${response.statusText}`;

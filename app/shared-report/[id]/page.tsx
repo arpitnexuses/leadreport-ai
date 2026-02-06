@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/dashboard/LoadingOverlay";
 import { AISectionContent } from "@/components/report/AISectionContent";
 import { NewsContent } from "@/components/report/NewsContent";
+import { LeadQualification } from "@/components/report/LeadQualification";
 import { 
   Mail, Phone, Linkedin, MapPin, Globe, Star, Briefcase, Calendar, 
   FileText, Check, MessageCircle, User, Building2, Banknote, Users2, 
@@ -298,12 +299,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
           {/* LEFT SIDEBAR: Lead & CRM Context */}
           <div className="col-span-12 lg:col-span-3 flex flex-col gap-5">
             {/* Lead Profile Card */}
-            <div className="apple-card p-5" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-5">
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="relative mb-3">
                   {leadData.photo ? (
@@ -363,15 +359,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* CRM Intelligence */}
-            <div className="apple-card p-5" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-5">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
               <div className="space-y-4">
-                <div className="section-tint" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
+                <div className="section-tint">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
                       <Zap className="w-4 h-4" />
@@ -408,15 +399,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Company Context */}
-            <div className="apple-card p-5" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-5">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
               <div className="space-y-4">
-                <div className="section-tint" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
+                <div className="section-tint">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
                       <Banknote className="w-4 h-4" />
@@ -458,7 +444,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 </div>
 
                 {(apolloPerson?.organization?.description || leadData.customFields?.companyDescription) && (
-                  <div className="section-tint mt-4" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
+                  <div className="section-tint mt-4">
                     <p className="text-xs text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
                     <p className="text-sm text-gray-600 leading-relaxed">
                       {leadData.customFields?.companyDescription ||
@@ -472,7 +458,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
 
                 {/* Technology Stack */}
                 {aiContent?.techStack && (aiContent.techStack.technologies || aiContent.techStack.tools) && (
-                  <div className="section-tint mt-4" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
+                  <div className="section-tint mt-4">
                     <p className="text-xs text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology Stack</p>
                     <div className="flex flex-wrap gap-2">
                       {(aiContent.techStack.technologies || aiContent.techStack.tools || [])
@@ -500,42 +486,17 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Lead Qualification */}
-            <div className="apple-card p-5" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-5">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Lead Qualification</h3>
               {leadData.leadScoring?.qualificationCriteria &&
               Object.keys(leadData.leadScoring.qualificationCriteria).length > 0 ? (
-                <div className="space-y-3">
-                  {Object.entries(leadData.leadScoring.qualificationCriteria).map(([key, value]: [string, any], index) => (
-                    <div key={index} className="flex justify-between items-center pb-2 border-b border-gray-100">
-                      <span className="font-medium text-gray-700 text-xs capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
-                      <Badge className={
-                        typeof value === 'string' && (value.toLowerCase() === "high" || value.toLowerCase() === "yes")
-                          ? "bg-green-100 text-green-800 text-xs"
-                          : typeof value === 'string' && value.toLowerCase() === "medium"
-                          ? "bg-yellow-100 text-yellow-800 text-xs"
-                          : "bg-gray-100 text-gray-800 text-xs"
-                      }>{value as string}</Badge>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-2 mt-4 pt-2 border-t border-gray-200">
-                    <div className="text-sm font-bold text-gray-900">Overall Score:</div>
-                    <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-lg font-bold flex items-center text-sm">
-                      {leadData.leadScoring?.rating || "N/A"}
-                      {leadData.leadScoring?.rating && Number(leadData.leadScoring.rating) > 0 && (
-                        <span className="ml-2 flex">
-                          {Array.from({ length: Number(leadData.leadScoring.rating) }).map((_, i) => (
-                            <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          ))}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <LeadQualification
+                  qualificationCriteria={leadData.leadScoring?.qualificationCriteria || {}}
+                  rating={leadData.leadScoring?.rating || ""}
+                  isEditing={false}
+                  onCriteriaChange={() => {}}
+                  onRatingChange={() => {}}
+                />
               ) : (
                 <div className="text-gray-500 italic text-sm py-4">
                   No qualification criteria available
@@ -548,12 +509,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
           <div className="col-span-12 lg:col-span-6 flex flex-col gap-5">
             {/* Upcoming Meeting */}
             {report.meetingDate && report.meetingTime && (
-              <div className="apple-card p-0 overflow-hidden flex shadow-sm min-h-[100px]" style={{
-                backgroundColor: 'white',
-                borderRadius: '16px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-                border: '1px solid rgba(0, 0, 0, 0.05)'
-              }}>
+              <div className="apple-card p-0 overflow-hidden flex shadow-sm min-h-[100px]">
                 <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center relative">
                   <span className="text-xl font-bold">
                     {new Date(report.meetingDate).getDate()}
@@ -638,12 +594,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             )}
 
             {/* Pipeline Stage & Metrics */}
-            <div className="apple-card p-6" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-6">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
@@ -713,12 +664,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* About Section Grid */}
-            <div className="apple-card p-0 overflow-hidden" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-0 overflow-hidden">
               <div className="grid grid-cols-2">
                 {/* About Lead */}
                 <div className="p-6">
@@ -814,12 +760,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
 
 
             {/* Strategic Meeting Brief */}
-            <div className="apple-card p-6" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#0071E3]">
@@ -920,12 +861,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Company News Section */}
-            <div className="apple-card p-6" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-6">
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
@@ -985,12 +921,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Engagement Timeline */}
-            <div className="apple-card p-6" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
@@ -1063,12 +994,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
           {/* RIGHT SIDEBAR */}
           <div className="col-span-12 lg:col-span-3 flex flex-col gap-5">
             {/* SDR Owner Card */}
-            <div className="apple-card p-4" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-4">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Report Owner</h3>
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -1089,12 +1015,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Strategic Timeline */}
-            <div className="apple-card p-5" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-5">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                 Strategic Timeline
               </h3>
@@ -1132,24 +1053,16 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Internal Notes */}
-            <div className="apple-card p-5 flex-1 flex flex-col min-h-[400px]" style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
+            <div className="apple-card p-5">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                 Internal Notes
               </h3>
 
-              <div className="space-y-3 overflow-y-auto pr-1 flex-1" style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(0, 0, 0, 0.2) transparent'
-              }}>
+              <div className="space-y-3 mb-4 max-h-[300px] overflow-y-auto pr-1 custom-scroll">
                 {leadData.notes && leadData.notes.length > 0 ? (
                   leadData.notes.map((note) => (
                     <div key={note.id} className="bg-[#FFFDF2] p-4 rounded-xl border border-[#EEE1A8]/50 shadow-sm">
-                      <p className="text-xs font-bold text-gray-800 mb-1">
+                      <p className="text-sm font-bold text-gray-800 mb-1">
                         {new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • Note
                       </p>
                       <p className="text-sm text-gray-700 leading-relaxed">{note.content}</p>
@@ -1157,7 +1070,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   ))
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <p className="text-sm text-gray-500 text-center">No notes available in this shared report</p>
+                    <p className="text-sm text-gray-500 text-center">No notes yet</p>
                   </div>
                 )}
               </div>

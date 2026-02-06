@@ -858,6 +858,30 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
 
+        {/* AI Generation Error/Warning Banner */}
+        {((report as any)?.aiContentError || (report as any)?.reportGenerationWarning) && !isGeneratingAI && (
+          <div className="mb-6 apple-card p-4 flex items-start gap-3 bg-amber-50 border-amber-200">
+            <div className="p-2 bg-amber-100 rounded-full">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-amber-800">AI Content Unavailable</h3>
+              <div className="text-sm text-amber-700 mt-1 space-y-1">
+                {(report as any)?.aiContentError && (
+                  <p>{(report as any).aiContentError}</p>
+                )}
+                {(report as any)?.reportGenerationWarning && (
+                  <p>{(report as any).reportGenerationWarning}</p>
+                )}
+                <p className="mt-2">
+                  <strong>You can still:</strong> View lead data from Apollo.io, manually edit the report, and use all CRM features. 
+                  Try regenerating AI content later when quota is restored.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Three Column Grid */}
         <div className="grid grid-cols-12 gap-5">
           {/* LEFT SIDEBAR: Lead & CRM Context */}

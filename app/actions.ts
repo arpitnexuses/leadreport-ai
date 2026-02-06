@@ -471,40 +471,65 @@ Please provide specific recommendations for engaging with this lead based on the
   // Use a faster model for the initial report generation
   const model = "gpt-3.5-turbo";
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional lead researcher. Create a detailed, well-structured report based on the provided data. Focus on business value, decision-making capacity, and potential engagement strategies. Use markdown formatting for better readability.",
-        },
-        {
-          role: "user",
-          content: reportPrompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 1500,
-    }),
-  });
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional lead researcher. Create a detailed, well-structured report based on the provided data. Focus on business value, decision-making capacity, and potential engagement strategies. Use markdown formatting for better readability.",
+          },
+          {
+            role: "user",
+            content: reportPrompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 1500,
+      }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    console.error('OpenAI API error:', errorData);
-    throw new Error("Failed to generate AI report. Please try again later.");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('OpenAI API error:', errorData);
+      
+      // Check if it's a quota error
+      if (errorData?.error?.code === 'insufficient_quota' || response.status === 429) {
+        console.warn('⚠️ OpenAI quota exceeded. Creating report without AI enhancement.');
+        // Return a basic report without AI enhancement
+        return {
+          report: reportPrompt,
+          leadData: leadData,
+          aiGenerationSkipped: true,
+          skipReason: 'OpenAI quota exceeded'
+        };
+      }
+      
+      throw new Error("Failed to generate AI report. Please try again later.");
+    }
+
+    const data = await response.json();
+    return {
+      report: data.choices[0].message.content,
+      leadData: leadData
+    };
+  } catch (error) {
+    console.error('Error in generateAIReport:', error);
+    // Return basic report structure instead of failing
+    console.warn('⚠️ Falling back to basic report structure due to error');
+    return {
+      report: reportPrompt,
+      leadData: leadData,
+      aiGenerationSkipped: true,
+      skipReason: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
-
-  const data = await response.json();
-  return {
-    report: data.choices[0].message.content,
-    leadData: leadData
-  };
 }
 
 export async function initiateReport(formData: FormData) {
@@ -696,11 +721,69 @@ async function processReport(email: string, reportId: string) {
       ]);
       
       // Handle report generation result
-      if (reportResult.status === 'rejected') {
-        throw new Error(`Failed to generate report: ${reportResult.reason}`);
-      }
+      let aiReport, leadData, reportGenerationSkipped = false, reportSkipReason = '';
       
-      const { report: aiReport, leadData } = reportResult.value;
+      if (reportResult.status === 'rejected') {
+        console.error(`⚠️ Report generation failed: ${reportResult.reason}`);
+        // Don't throw - continue with basic report structure
+        reportGenerationSkipped = true;
+        reportSkipReason = reportResult.reason instanceof Error ? reportResult.reason.message : String(reportResult.reason);
+        
+        // Use Apollo data to create a basic report structure
+        const personData = apolloData.person || {};
+        const org = personData.organization || {};
+        
+        leadData = {
+          companyName: org.name || 'N/A',
+          position: personData.title || 'N/A',
+          name: personData.name || 'N/A',
+          contactDetails: {
+            linkedin: personData.linkedin_url || 'N/A',
+            email: personData.email || 'N/A'
+          },
+          photo: personData.photo_url || null,
+          aboutLead: `${personData.name || 'The lead'} is ${personData.title || 'a professional'} at ${org.name || 'their organization'}`,
+          aboutCompany: org.short_description || 'N/A',
+          companyDetails: {
+            headquarters: org.country ? `${org.city || ''}, ${org.state || ''}, ${org.country || ''}`.replace(/, ,/g, ',').replace(/^,/, '').replace(/,$/, '') : 'N/A',
+            website: org.website_url || 'N/A',
+            industry: org.industry || 'N/A',
+            employees: org.estimated_num_employees || 'N/A'
+          },
+          leadScoring: {
+            rating: '3',
+            score: 88,
+            qualificationCriteria: {
+              decisionMaker: 'YES',
+              viewedSolutionDeck: 'NO',
+              haveBudget: 'NO',
+              need: 'YES'
+            }
+          },
+          project: '',
+          notes: [],
+          engagementTimeline: [],
+          status: 'warm',
+          tags: [],
+          nextFollowUp: null,
+          customFields: {},
+          leadIndustry: '',
+          leadDesignation: '',
+          leadBackground: '',
+          companyOverview: ''
+        };
+        
+        aiReport = `# ${leadData.name}\n## ${leadData.position} at ${leadData.companyName}\n\n### Profile\nLead information from Apollo.io\n\n*Note: AI-enhanced report could not be generated due to API limitations. Please edit the report manually.*`;
+      } else {
+        const reportValue = reportResult.value;
+        aiReport = reportValue.report;
+        leadData = reportValue.leadData;
+        
+        if (reportValue.aiGenerationSkipped) {
+          reportGenerationSkipped = true;
+          reportSkipReason = reportValue.skipReason || 'AI generation skipped';
+        }
+      }
       
       // Preserve the project field from the existing report
       const originalProject = existingReport?.leadData?.project;
@@ -742,10 +825,22 @@ async function processReport(email: string, reportId: string) {
       if (aiContentResult.status === 'fulfilled' && aiContentResult.value) {
         updateDoc.aiContent = aiContentResult.value;
       } else if (aiContentResult.status === 'rejected') {
-        console.error(`AI content generation error for ${reportId}:`, aiContentResult.reason);
-        updateDoc.aiContentError = aiContentResult.reason instanceof Error 
+        const errorReason = aiContentResult.reason instanceof Error 
           ? aiContentResult.reason.message 
-          : 'Failed to generate AI content';
+          : String(aiContentResult.reason);
+        
+        console.error(`AI content generation error for ${reportId}:`, errorReason);
+        updateDoc.aiContentError = errorReason;
+        
+        // Check if it's a quota error and add a user-friendly message
+        if (errorReason.includes('insufficient_quota') || errorReason.includes('quota')) {
+          updateDoc.aiContentError = '⚠️ OpenAI API quota exceeded. AI insights are not available. You can manually edit the report or regenerate when quota is restored.';
+        }
+      }
+      
+      // Add warnings if AI generation was skipped
+      if (reportGenerationSkipped) {
+        updateDoc.reportGenerationWarning = `⚠️ AI report enhancement skipped: ${reportSkipReason}`;
       }
       
       // Single database update with all data
