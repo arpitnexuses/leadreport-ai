@@ -21,7 +21,7 @@ export function ReportDetailCard({
       <CardHeader className={`${bgColor} border-b pb-4 flex flex-row items-center space-y-0 gap-2`}>
         {icon && <span className="text-blue-600">{icon}</span>}
         <div>
-          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardTitle className="text-lg">{title}</CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </div>
       </CardHeader>

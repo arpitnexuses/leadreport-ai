@@ -516,6 +516,7 @@ export async function initiateReport(formData: FormData) {
   const meetingPlatform = formData.get("meetingPlatform") as string
   const meetingLink = formData.get("meetingLink") as string
   const meetingLocation = formData.get("meetingLocation") as string
+  const meetingName = formData.get("meetingName") as string
   const meetingObjective = formData.get("meetingObjective") as string
   const problemPitch = formData.get("problemPitch") as string
   const project = formData.get("project") as string
@@ -589,7 +590,7 @@ export async function initiateReport(formData: FormData) {
       photo: null,
       contactDetails: { email: "", phone: "", linkedin: "" },
       companyDetails: { industry: "", employees: "", headquarters: "", website: "" },
-      leadScoring: { rating: "", qualificationCriteria: {} },
+      leadScoring: { rating: "", score: 88, qualificationCriteria: {} },
       project: projectName,
       leadIndustry: leadIndustry || "",
       leadDesignation: leadDesignation || "",
@@ -604,6 +605,7 @@ export async function initiateReport(formData: FormData) {
     meetingPlatform,
     meetingLink,
     meetingLocation,
+    meetingName,
     meetingObjective,
     problemPitch,
     createdAt: new Date(),
@@ -664,6 +666,7 @@ async function processReport(email: string, reportId: string) {
             meetingPlatform: existingReport?.meetingPlatform,
             meetingLink: existingReport?.meetingLink,
             meetingLocation: existingReport?.meetingLocation,
+            meetingName: existingReport?.meetingName,
             meetingObjective: existingReport?.meetingObjective,
             problemPitch: existingReport?.problemPitch,
             'leadData.project': existingReport?.leadData?.project || 'N/A',
@@ -730,6 +733,7 @@ async function processReport(email: string, reportId: string) {
         meetingPlatform: existingReport?.meetingPlatform,
         meetingLink: existingReport?.meetingLink,
         meetingLocation: existingReport?.meetingLocation,
+        meetingName: existingReport?.meetingName,
         meetingObjective: existingReport?.meetingObjective,
         problemPitch: existingReport?.problemPitch
       };

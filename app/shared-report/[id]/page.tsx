@@ -32,6 +32,7 @@ interface LeadData {
   };
   leadScoring: {
     rating: string;
+    score?: number;
     qualificationCriteria: Record<string, string>;
   };
   notes?: { id: string; content: string; createdAt: Date; updatedAt: Date }[];
@@ -107,6 +108,7 @@ interface LeadReport {
   meetingPlatform?: string;
   meetingLink?: string;
   meetingLocation?: string;
+  meetingName?: string;
   meetingObjective?: string;
   problemPitch?: string;
   meetingAgenda?: string;
@@ -248,7 +250,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const leadData = report.leadData;
   const apolloPerson = report?.apolloData?.person;
   const aiContent = report.aiContent || {};
-  const leadScore = parseInt(leadData.leadScoring?.rating || "0") || 88;
+  const leadScore = leadData.leadScoring?.score ?? (parseInt(leadData.leadScoring?.rating || "0") > 10 ? parseInt(leadData.leadScoring?.rating || "0") : 88);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden print:h-auto print:overflow-visible" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", backgroundColor: '#F5F5F7', color: '#1D1D1F' }}>
@@ -319,12 +321,12 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <Check className="w-2.5 h-2.5 text-white" />
                   </div>
                 </div>
-                <h2 className="text-lg font-black text-gray-900 tracking-tight">{leadData.name}</h2>
-                <p className="text-[11px] font-bold text-[#0071E3] mt-0.5">{leadData.position}</p>
-                <p className="text-[10px] font-medium text-gray-500 mb-2">{leadData.companyName}</p>
+                <h2 className="text-base font-black text-gray-900 tracking-tight">{leadData.name}</h2>
+                <p className="text-sm font-bold text-[#0071E3] mt-0.5">{leadData.position}</p>
+                <p className="text-sm font-medium text-gray-500 mb-2">{leadData.companyName}</p>
                 <div className="flex items-center gap-1.5 text-gray-500">
                   <MapPin className="w-3 h-3" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide">
+                  <span className="text-xs font-bold uppercase tracking-wide">
                     {leadData.companyDetails.headquarters || 'Location N/A'}
                   </span>
                 </div>
@@ -338,14 +340,14 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   className="w-full py-2 flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-[#128C7E] transition shadow-sm border border-[#25D366]/20"
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
+                  <span className="text-xs font-black uppercase tracking-widest">WhatsApp</span>
                 </a>
                 <a
                   href={`mailto:${leadData.contactDetails.email}`}
                   className="w-full py-2 flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-[#0071E3] transition shadow-sm border border-blue-100"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Email</span>
+                  <span className="text-xs font-black uppercase tracking-widest">Email</span>
                 </a>
               </div>
 
@@ -354,10 +356,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-2.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-white transition-all shadow-sm"
-              >
+                >
                 <Linkedin className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-black uppercase tracking-widest">LinkedIn Profile</span>
-              </a>
+                <span className="text-xs font-black uppercase tracking-widest">LinkedIn Profile</span>
+                </a>
             </div>
 
             {/* CRM Intelligence */}
@@ -367,7 +369,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">CRM Intelligence</h3>
               <div className="space-y-4">
                 <div className="section-tint" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
                   <div className="flex items-center gap-3 mb-4">
@@ -375,7 +377,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Zap className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Lead Stage</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Lead Stage</p>
                       <p className="text-sm font-bold text-gray-900">
                         {leadData.status?.toUpperCase() || 'WARM'}
                       </p>
@@ -386,7 +388,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Send className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Source</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Source</p>
                       <p className="text-sm font-bold text-gray-900">Shared Report</p>
                     </div>
                   </div>
@@ -395,7 +397,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Clock className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Created</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Created</p>
                       <p className="text-sm font-bold text-gray-900">
                         {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
@@ -412,7 +414,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Company Context</h3>
               <div className="space-y-4">
                 <div className="section-tint" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
                   <div className="flex items-center gap-3 mb-4">
@@ -420,7 +422,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Banknote className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Industry</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Industry</p>
                       <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.industry}</p>
                     </div>
                   </div>
@@ -429,7 +431,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Users2 className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Employees</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Employees</p>
                       <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.employees}</p>
                     </div>
                   </div>
@@ -438,7 +440,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Landmark className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Location</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Location</p>
                       <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.headquarters}</p>
                     </div>
                   </div>
@@ -447,7 +449,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <Fingerprint className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Ownership</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Ownership</p>
                       <p className="text-sm font-bold text-gray-900">
                         {leadData.customFields?.fundingStage || apolloPerson?.organization?.funding_stage || 'N/A'}
                       </p>
@@ -457,8 +459,8 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
 
                 {(apolloPerson?.organization?.description || leadData.customFields?.companyDescription) && (
                   <div className="section-tint mt-4" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
-                    <p className="text-[11px] text-gray-600 leading-relaxed">
+                    <p className="text-xs text-gray-400 font-bold uppercase mb-3 tracking-widest">Company Description</p>
+                    <p className="text-sm text-gray-600 leading-relaxed">
                       {leadData.customFields?.companyDescription ||
                         (apolloPerson?.organization?.description 
                           ? (apolloPerson.organization.description.substring(0, 150) + 
@@ -471,7 +473,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 {/* Technology Stack */}
                 {aiContent?.techStack && (aiContent.techStack.technologies || aiContent.techStack.tools) && (
                   <div className="section-tint mt-4" style={{ backgroundColor: '#FBFBFC', padding: '12px', borderRadius: '12px' }}>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology Stack</p>
+                    <p className="text-xs text-gray-400 font-bold uppercase mb-3 tracking-widest">Technology Stack</p>
                     <div className="flex flex-wrap gap-2">
                       {(aiContent.techStack.technologies || aiContent.techStack.tools || [])
                         .slice(0, 4)
@@ -485,7 +487,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                           return (
                             <span
                               key={idx}
-                              className={`px-2 py-1 ${colors[idx % colors.length]} text-[10px] font-bold rounded-lg border`}
+                              className={`px-2 py-1 ${colors[idx % colors.length]} text-sm font-bold rounded-lg border`}
                             >
                               {tech}
                             </span>
@@ -504,7 +506,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Lead Qualification</h3>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Lead Qualification</h3>
               {leadData.leadScoring?.qualificationCriteria &&
               Object.keys(leadData.leadScoring.qualificationCriteria).length > 0 ? (
                 <div className="space-y-3">
@@ -513,10 +515,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <span className="font-medium text-gray-700 text-xs capitalize">{key.replace(/([A-Z])/g, " $1").trim()}</span>
                       <Badge className={
                         typeof value === 'string' && (value.toLowerCase() === "high" || value.toLowerCase() === "yes")
-                          ? "bg-green-100 text-green-800 text-[10px]"
+                          ? "bg-green-100 text-green-800 text-xs"
                           : typeof value === 'string' && value.toLowerCase() === "medium"
-                          ? "bg-yellow-100 text-yellow-800 text-[10px]"
-                          : "bg-gray-100 text-gray-800 text-[10px]"
+                          ? "bg-yellow-100 text-yellow-800 text-xs"
+                          : "bg-gray-100 text-gray-800 text-xs"
                       }>{value as string}</Badge>
                     </div>
                   ))}
@@ -535,7 +537,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
               ) : (
-                <div className="text-gray-500 italic text-[11px] py-4">
+                <div className="text-gray-500 italic text-sm py-4">
                   No qualification criteria available
                 </div>
               )}
@@ -553,14 +555,13 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 border: '1px solid rgba(0, 0, 0, 0.05)'
               }}>
                 <div className="bg-gradient-to-b from-[#0071E3] to-[#47aeff] w-20 flex flex-col items-center justify-center text-white p-2 text-center relative">
-                  <Calendar className="w-4 h-4 absolute top-2 left-2 opacity-30" />
-                  <span className="text-2xl font-bold">
+                  <span className="text-xl font-bold">
                     {new Date(report.meetingDate).getDate()}
                   </span>
-                  <span className="text-[10px] font-medium uppercase opacity-90">
+                  <span className="text-sm font-medium uppercase opacity-90">
                     {new Date(report.meetingDate).toLocaleDateString('en-US', { month: 'short' })}
                   </span>
-                  <span className="text-[8px] font-bold uppercase opacity-75 mt-0.5">
+                  <span className="text-xs font-bold uppercase opacity-75 mt-0.5">
                     {new Date(report.meetingDate).toLocaleDateString('en-US', { year: 'numeric' })}
                   </span>
                 </div>
@@ -568,7 +569,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                      <span className="text-sm font-bold text-gray-400 uppercase tracking-wide">
                         {report.meetingTime}
                         {report.meetingTimezone && ` ${report.meetingTimezone}`}
                         {' • '}
@@ -585,10 +586,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                         )}
                       </span>
                     </div>
-                    <h3 className="text-base font-bold text-gray-900">
-                      {report.meetingAgenda || report.meetingObjective || 'Meeting Scheduled'}
+                    <h3 className="text-sm font-bold text-gray-900">
+                      {report.meetingName || 'Meeting Scheduled'}
                     </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-sm text-gray-500 mt-0.5">
                       {report.meetingLocation ? (
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
@@ -598,19 +599,6 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                         report.meetingPlatform || 'Video Call'
                       )}
                     </p>
-                    {report.meetingLink && !report.meetingLocation && (
-                      <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Meeting Link:</p>
-                        <a 
-                          href={report.meetingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
-                        >
-                          {report.meetingLink}
-                        </a>
-                      </div>
-                    )}
                   </div>
                   {(report.meetingLocation || report.meetingLink) && (
                     <a
@@ -630,7 +618,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                         report.meetingLocation 
                           ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700' 
                           : 'bg-[#0071E3] hover:bg-blue-600'
-                      } text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-2`}
+                      } text-white px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm flex items-center gap-2`}
                     >
                       {report.meetingLocation ? (
                         <>
@@ -658,14 +646,14 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
             }}>
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
                     Pipeline Stage
                   </h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl font-black text-[#0071E3]">
+                    <span className="text-lg font-black text-[#0071E3]">
                       {leadData.status ? leadData.status.charAt(0).toUpperCase() + leadData.status.slice(1).replace('_', ' ') : 'Qualified'}
                     </span>
-                    <span className="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-[10px] font-bold rounded-md">
+                    <span className="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-sm font-bold rounded-md">
                       Active
                     </span>
                   </div>
@@ -699,7 +687,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <span className="text-sm font-black text-gray-900 leading-none">
                         {leadScore || 88}
                       </span>
-                      <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-0.5">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter mt-0.5">
                         Score
                       </span>
                     </div>
@@ -714,13 +702,13 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 <div className="flex-1 bg-gray-100 rounded-full"></div>
               </div>
               <div className="flex justify-between px-0.5">
-                <span className="text-[8px] font-bold text-emerald-600 uppercase">New</span>
-                <span className="text-[8px] font-bold text-blue-500 uppercase">Discovery</span>
-                <span className="text-[8px] font-black text-[#0071E3] uppercase underline underline-offset-2">
+                <span className="text-xs font-bold text-emerald-600 uppercase">New</span>
+                <span className="text-xs font-bold text-blue-500 uppercase">Discovery</span>
+                <span className="text-xs font-black text-[#0071E3] uppercase underline underline-offset-2">
                   Qualified
                 </span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Proposal</span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Closed</span>
+                <span className="text-xs font-bold text-gray-400 uppercase">Proposal</span>
+                <span className="text-xs font-bold text-gray-400 uppercase">Closed</span>
               </div>
             </div>
 
@@ -738,12 +726,12 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                       <User className="w-3.5 h-3.5" />
                     </div>
-                    <h3 className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">
+                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">
                       About {leadData.name.split(' ')[0]}
                     </h3>
                   </div>
                   <div className="space-y-3">
-                    <p className="text-[12px] text-gray-600 leading-relaxed">
+                    <p className="text-sm text-gray-600 leading-relaxed">
                       {leadData.customFields?.aboutLead || 
                         `${leadData.position} at ${leadData.companyName}, focused on driving business growth and operational efficiency.`}
                     </p>
@@ -751,12 +739,12 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     {(leadData.companyDetails?.industry || leadData.position) && (
                       <div className="flex flex-wrap gap-2 pt-2">
                         {leadData.companyDetails?.industry && (
-                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-100">
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-sm font-bold rounded-lg border border-blue-100">
                             {leadData.companyDetails.industry}
                           </span>
                         )}
                         {leadData.position && (
-                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-lg border border-purple-100">
+                          <span className="px-2.5 py-1 bg-purple-50 text-purple-700 text-sm font-bold rounded-lg border border-purple-100">
                             {leadData.position}
                           </span>
                         )}
@@ -764,7 +752,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     )}
                     
                     {aiContent?.overview?.keyInsights && (
-                      <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-blue-400">
+                      <ul className="space-y-1.5 text-sm text-gray-500 list-disc pl-4 marker:text-blue-400">
                         {aiContent.overview.keyInsights.slice(0, 3).map((insight: string, idx: number) => (
                           <li key={idx}>{insight}</li>
                         ))}
@@ -779,12 +767,12 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                       <Building2 className="w-4 h-4" />
                     </div>
-                    <h3 className="text-[11px] font-bold text-gray-900 uppercase tracking-widest">
+                    <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">
                       About {leadData.companyName}
                     </h3>
                   </div>
                   <div className="space-y-3">
-                    <p className="text-[12px] text-gray-600 leading-relaxed">
+                    <p className="text-sm text-gray-600 leading-relaxed">
                       {leadData.customFields?.aboutCompany ||
                         (apolloPerson?.organization?.description 
                           ? (apolloPerson.organization.description.substring(0, 120) + 
@@ -793,7 +781,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     </p>
                     
                     {aiContent?.company?.keyPoints && (
-                      <ul className="space-y-1.5 text-[11px] text-gray-500 list-disc pl-4 marker:text-indigo-400">
+                      <ul className="space-y-1.5 text-sm text-gray-500 list-disc pl-4 marker:text-indigo-400">
                         {aiContent.company.keyPoints.slice(0, 3).map((point: string, idx: number) => (
                           <li key={idx}>{point}</li>
                         ))}
@@ -805,7 +793,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       href={leadData.companyDetails.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-[9px] font-bold text-gray-900 transition shadow-sm"
+                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 transition shadow-sm"
                     >
                       <Globe className="w-3.5 h-3.5 text-gray-400" />
                       Official Website
@@ -814,7 +802,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-[9px] font-bold text-white transition shadow-sm"
+                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-sm font-bold text-white transition shadow-sm"
                     >
                       <Linkedin className="w-3.5 h-3.5" />
                       LinkedIn
@@ -837,9 +825,9 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#0071E3]">
                     <Target className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900">Strategic Meeting Brief</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Strategic Meeting Brief</h3>
                 </div>
-                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-widest">
+                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-sm font-black rounded-lg border border-amber-100 uppercase tracking-widest">
                   High Stakes
                 </span>
               </div>
@@ -848,10 +836,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 {/* Meeting Agenda/Objective */}
                 {(report.meetingAgenda || report.meetingObjective) && (
                   <section className="bg-purple-50/50 p-5 rounded-2xl border border-purple-100/50">
-                    <h4 className="text-[9px] font-black text-purple-600 uppercase tracking-widest mb-2">
+                    <h4 className="text-xs font-black text-purple-600 uppercase tracking-widest mb-2">
                       Meeting Agenda
                     </h4>
-                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
                       {report.meetingAgenda || report.meetingObjective}
                     </p>
                   </section>
@@ -860,26 +848,26 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 {/* Problem/Pitch */}
                 {report.problemPitch && (
                   <section className="bg-orange-50/50 p-5 rounded-2xl border border-orange-100/50">
-                    <h4 className="text-[9px] font-black text-orange-600 uppercase tracking-widest mb-2">
+                    <h4 className="text-xs font-black text-orange-600 uppercase tracking-widest mb-2">
                       Problem/Pitch
                     </h4>
-                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
                       {report.problemPitch}
                     </p>
                   </section>
                 )}
 
                 <section>
-                  <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">
                     AI-Generated Primary Objective
                   </h4>
                   {aiContent?.strategicBrief ? (
-                    <p className="text-[13px] text-gray-800 leading-relaxed font-medium">
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
                       {aiContent.strategicBrief.primaryObjective}
                     </p>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <p className="text-[11px] text-gray-500 italic">
+                      <p className="text-sm text-gray-500 italic">
                         Strategic brief not available for this shared report
                       </p>
                     </div>
@@ -891,11 +879,11 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <section className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/50">
                       <div className="flex items-center gap-2 mb-3">
                         <Lightbulb className="w-4 h-4 text-blue-600" />
-                        <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest">
+                        <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest">
                           Recommended Approach
                         </h4>
                       </div>
-                      <p className="text-[12px] text-gray-700 leading-relaxed mb-4 italic font-medium">
+                      <p className="text-sm text-gray-700 leading-relaxed mb-4 italic font-medium">
                         {aiContent.strategicBrief.recommendedApproach}
                       </p>
                       
@@ -903,10 +891,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                         <div className="grid grid-cols-3 gap-3">
                           {aiContent.strategicBrief.keyBenefits.slice(0, 3).map((point: string, idx: number) => (
                             <div key={idx} className="bg-white p-3 rounded-xl shadow-sm border border-blue-100/30">
-                              <p className="text-[8px] font-black text-blue-600 uppercase mb-1">
+                              <p className="text-xs font-black text-blue-600 uppercase mb-1">
                                 {String(idx + 1).padStart(2, '0')}
                               </p>
-                              <p className="text-[10px] font-bold text-gray-900 leading-tight">
+                              <p className="text-sm font-bold text-gray-900 leading-tight">
                                 {point}
                               </p>
                             </div>
@@ -919,9 +907,9 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
                         <div className="flex items-center gap-2 mb-1.5 text-rose-700">
                           <AlertOctagon className="w-3.5 h-3.5" />
-                          <h4 className="text-[9px] font-black uppercase tracking-widest">CRITICAL DISCIPLINE</h4>
+                          <h4 className="text-xs font-black uppercase tracking-widest">CRITICAL DISCIPLINE</h4>
                         </div>
-                        <p className="text-[11px] text-rose-800 font-medium">
+                        <p className="text-sm text-rose-800 font-medium">
                           {aiContent.strategicBrief.criticalDiscipline}
                         </p>
                       </div>
@@ -1008,7 +996,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
                     <History className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-gray-900">Engagement Timeline</h3>
+                  <h3 className="text-sm font-bold text-gray-900">Engagement Timeline</h3>
                 </div>
               </div>
 
@@ -1037,7 +1025,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                           <div className="flex justify-between items-start gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                <span className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
                                   activity.type === 'call' ? 'bg-green-100 text-green-700' :
                                   activity.type === 'email' ? 'bg-blue-100 text-blue-700' :
                                   activity.type === 'meeting' ? 'bg-purple-100 text-purple-700' :
@@ -1045,7 +1033,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                                 }`}>
                                   {typeConfig.label}
                                 </span>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                <span className="text-xs font-bold text-gray-400 uppercase">
                                   {new Date(activity.createdAt).toLocaleDateString('en-US', { 
                                     month: 'short', 
                                     day: 'numeric',
@@ -1053,7 +1041,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                                   })}
                                 </span>
                               </div>
-                              <p className="text-[11px] font-bold text-gray-900">
+                              <p className="text-sm font-bold text-gray-900">
                                 {activity.content}
                               </p>
                             </div>
@@ -1067,7 +1055,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
                     <History className="w-6 h-6 text-gray-400" />
                   </div>
-                  <p className="text-[11px] text-gray-500">No engagement activities yet</p>
+                  <p className="text-sm text-gray-500">No engagement activities yet</p>
                 </div>
               )}
             </div>
@@ -1081,7 +1069,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
-              <h3 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Report Owner</h3>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Report Owner</h3>
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
@@ -1090,10 +1078,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
                 <div>
-                  <p className="text-[13px] font-bold text-gray-900">
+                  <p className="text-sm font-bold text-gray-900">
                     {report.reportOwnerName || report.email.split('@')[0]}
                   </p>
-                  <p className="text-[10px] text-gray-500 font-medium">
+                  <p className="text-xs text-gray-500 font-medium">
                     {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
                 </div>
@@ -1107,17 +1095,17 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                 Strategic Timeline
               </h3>
 
               <div className="grid grid-cols-1 gap-3 mb-5">
                 <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100/50 flex items-center justify-between">
                   <div>
-                    <p className="text-[8px] text-emerald-600 font-black uppercase tracking-widest">
+                    <p className="text-xs text-emerald-600 font-black uppercase tracking-widest">
                       Last Updated
                     </p>
-                    <p className="text-[11px] font-bold text-gray-800 mt-0.5">
+                    <p className="text-sm font-bold text-gray-800 mt-0.5">
                       {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
@@ -1128,10 +1116,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 {leadData.nextFollowUp && (
                   <div className="bg-amber-50/50 p-3 rounded-2xl border border-amber-100/50 flex items-center justify-between">
                     <div>
-                      <p className="text-[8px] text-amber-600 font-black uppercase tracking-widest">
+                      <p className="text-xs text-amber-600 font-black uppercase tracking-widest">
                         Next Follow-up
                       </p>
-                      <p className="text-[11px] font-bold text-gray-800 mt-0.5">
+                      <p className="text-sm font-bold text-gray-800 mt-0.5">
                         {new Date(leadData.nextFollowUp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
@@ -1150,7 +1138,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
-              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                 Internal Notes
               </h3>
 
@@ -1161,15 +1149,15 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 {leadData.notes && leadData.notes.length > 0 ? (
                   leadData.notes.map((note) => (
                     <div key={note.id} className="bg-[#FFFDF2] p-4 rounded-xl border border-[#EEE1A8]/50 shadow-sm">
-                      <p className="text-[10px] font-bold text-gray-800 mb-1">
+                      <p className="text-xs font-bold text-gray-800 mb-1">
                         {new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • Note
                       </p>
-                      <p className="text-[11px] text-gray-700 leading-relaxed">{note.content}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{note.content}</p>
                     </div>
                   ))
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <p className="text-[11px] text-gray-500 text-center">No notes available in this shared report</p>
+                    <p className="text-sm text-gray-500 text-center">No notes available in this shared report</p>
                   </div>
                 )}
               </div>

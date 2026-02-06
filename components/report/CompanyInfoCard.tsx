@@ -69,7 +69,7 @@ export function CompanyInfoCard({
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <label className="text-sm font-bold text-gray-500 uppercase tracking-widest block mb-1">Industry</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Industry</label>
             <EditableField 
               value={industry} 
               onChange={(value) => handleUpdate('industry', value)} 
@@ -84,7 +84,7 @@ export function CompanyInfoCard({
             <Users2 className="w-4 h-4 text-purple-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <label className="text-sm font-bold text-gray-500 uppercase tracking-widest block mb-1">Employees</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Employees</label>
             <EditableField 
               value={employees} 
               onChange={(value) => handleUpdate('employees', value)} 
@@ -99,7 +99,7 @@ export function CompanyInfoCard({
             <MapPin className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <label className="text-sm font-bold text-gray-500 uppercase tracking-widest block mb-1">Location</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Location</label>
             <EditableField 
               value={headquarters} 
               onChange={(value) => handleUpdate('headquarters', value)} 
@@ -115,7 +115,7 @@ export function CompanyInfoCard({
               <Banknote className="w-4 h-4 text-orange-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <label className="text-sm font-bold text-gray-500 uppercase tracking-widest block mb-1">Funding</label>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Funding</label>
               <EditableField 
                 value={fundingStage} 
                 onChange={(value) => handleUpdate('fundingStage', value)} 
@@ -132,7 +132,7 @@ export function CompanyInfoCard({
               <Globe className="w-4 h-4 text-gray-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <label className="text-sm font-bold text-gray-500 uppercase tracking-widest block mb-1">Website</label>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-1">Website</label>
               <a 
                 href={website} 
                 target="_blank" 

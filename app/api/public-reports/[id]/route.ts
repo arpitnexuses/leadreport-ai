@@ -36,6 +36,7 @@ export async function GET(
       meetingDate: report.meetingDate,
       meetingTime: report.meetingTime,
       meetingPlatform: report.meetingPlatform,
+      meetingName: report.meetingName,
       problemPitch: report.problemPitch,
       meetingAgenda: report.meetingAgenda,
       participants: report.participants,

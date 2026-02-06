@@ -150,6 +150,7 @@ export async function PATCH(
     if (body.meetingPlatform !== undefined) updateData.$set.meetingPlatform = body.meetingPlatform;
     if (body.meetingLink !== undefined) updateData.$set.meetingLink = body.meetingLink;
     if (body.meetingLocation !== undefined) updateData.$set.meetingLocation = body.meetingLocation;
+    if (body.meetingName !== undefined) updateData.$set.meetingName = body.meetingName;
     if (body.meetingObjective !== undefined) updateData.$set.meetingObjective = body.meetingObjective;
     if (body.meetingAgenda !== undefined) updateData.$set.meetingAgenda = body.meetingAgenda;
     if (body.participants !== undefined) updateData.$set.participants = body.participants;

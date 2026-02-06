@@ -145,6 +145,22 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Meeting Details</h3>
 
+        {/* Meeting Name */}
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </div>
+          <Input 
+            type="text" 
+            name="meetingName" 
+            placeholder="Meeting Name/Title (e.g., 'Q1 Strategy Review', 'Product Demo')" 
+            className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
+          />
+        </div>
+
         {/* Meeting Date */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

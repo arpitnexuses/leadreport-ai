@@ -659,7 +659,7 @@ export function AISectionContent({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+                <h3 className="text-base font-semibold text-gray-900">Recommended Actions</h3>
               </div>
               <div className="space-y-4">
                 {content.recommendedActions
@@ -749,7 +749,7 @@ export function AISectionContent({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+                <h3 className="text-base font-semibold text-gray-900">Recommended Actions</h3>
               </div>
               <div className="space-y-3">
                 {content.recommendedActions
@@ -789,7 +789,7 @@ export function AISectionContent({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+                <h3 className="text-base font-semibold text-gray-900">Recommended Actions</h3>
               </div>
               <div className="space-y-4">
                 {Object.values(content.recommendedActions)
@@ -857,7 +857,7 @@ export function AISectionContent({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+                <h3 className="text-base font-semibold text-gray-900">Recommended Actions</h3>
               </div>
               <div className="space-y-4">
                 {Object.entries(content.recommendedActions).map(([key, value], index) => {
@@ -922,7 +922,7 @@ export function AISectionContent({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Recommended Actions</h3>
+                <h3 className="text-base font-semibold text-gray-900">Recommended Actions</h3>
               </div>
               <div className="space-y-4">
                 {content.recommendations

@@ -151,8 +151,13 @@ async function generateSimplePDF(report: any): Promise<Buffer> {
   doc.setFontSize(12);
   doc.setTextColor(75, 85, 99);
   
+  if (leadData.leadScoring?.score) {
+    doc.text(`Lead Score: ${leadData.leadScoring.score}/100`, 20, yPos);
+    yPos += 8;
+  }
+  
   if (leadData.leadScoring?.rating) {
-    doc.text(`Lead Score: ${leadData.leadScoring.rating}/5 stars`, 20, yPos);
+    doc.text(`Overall Rating: ${leadData.leadScoring.rating}/5 stars`, 20, yPos);
     yPos += 8;
   }
   

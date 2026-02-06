@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, StarIcon } from "lucide-react";
+import { Star } from "lucide-react";
 
 interface LeadQualificationEditProps {
   qualificationCriteria: Record<string, string>;
@@ -75,7 +75,7 @@ export function LeadQualificationEdit({
       })}
       
       <div className="flex items-center gap-2 mt-6 pt-2 border-t border-gray-200">
-        <div className="text-xl font-bold text-gray-900">
+        <div className="text-base font-bold text-gray-900">
           Overall Score:
         </div>
         <div className="flex items-center gap-2">

@@ -256,7 +256,7 @@ export function CompanyInfoCard({
           </div>
         )}
         <div>
-          <h3 className="font-semibold text-2xl text-gray-900">{companyName}</h3>
+          <h3 className="font-semibold text-xl text-gray-900">{companyName}</h3>
           {industry && (
             <p className="text-sm text-gray-600 mt-1">{industry}</p>
           )}
