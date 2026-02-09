@@ -196,7 +196,7 @@ export async function fetchApolloData(email: string) {
   // Check cache first
   const cachedData = apolloCache[email];
   const now = Date.now();
-  
+
   if (cachedData && (now - cachedData.timestamp < APOLLO_CACHE_TTL)) {
     console.log(`Using cached Apollo data for ${email}`);
     return cachedData.data;
@@ -229,7 +229,7 @@ export async function fetchApolloData(email: string) {
       error: errorText,
       email: email
     });
-    
+
     if (response.status === 429) {
       throw new Error("Apollo API rate limit exceeded. Please try again later.");
     } else if (response.status === 401) {
@@ -239,12 +239,12 @@ export async function fetchApolloData(email: string) {
     } else if (response.status === 404) {
       throw new Error("No data found for the provided email address.");
     }
-    
+
     throw new Error(`Failed to fetch Apollo data: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
-  
+
   if (!data.person) {
     throw new Error("No person data found in Apollo API response");
   }
@@ -277,13 +277,13 @@ export async function fetchApolloData(email: string) {
     ];
     const colorIndex = Math.floor(Math.random() * colors.length);
     const { bg, fg } = colors[colorIndex];
-    
+
     photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${fg}&bold=true&size=200&length=2&font-size=0.4`;
   }
-  
+
   // Add the photo URL to the response
   data.person.photo_url = photoUrl;
-  
+
   // Store in cache
   apolloCache[email] = {
     data,
@@ -300,7 +300,7 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
   console.log('Industry:', industry);
   console.log('NEWS_API_KEY exists:', !!NEWS_API_KEY);
   console.log('NEWS_API_KEY length:', NEWS_API_KEY?.length || 0);
-  
+
   // If no NEWS_API_KEY is set, return empty results
   if (!NEWS_API_KEY) {
     console.log('⚠️ NEWS_API_KEY not set, skipping news fetch');
@@ -314,7 +314,7 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
     // Clean company name for search query
     const searchQuery = companyName.replace(/\s+(Inc|LLC|Ltd|Corporation|Corp)\.?$/i, '').trim();
     console.log('Search query:', searchQuery);
-    
+
     // Calculate date from 30 days ago for recent news
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -328,7 +328,7 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
 
     const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&from=${fromDate}&sortBy=publishedAt&language=en&pageSize=5&apiKey=${NEWS_API_KEY}`;
     console.log('Fetching from NewsAPI...');
-    
+
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'LeadReport-AI/1.0'
@@ -340,7 +340,7 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('❌ NewsAPI Error Response:', errorData);
-      
+
       if (response.status === 429) {
         console.error('❌ NewsAPI rate limit exceeded');
         return { articles: [], totalResults: 0 };
@@ -357,7 +357,7 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
       totalResults: data.totalResults,
       articlesCount: data.articles?.length || 0
     });
-    
+
     // Format news articles
     const articles = (data.articles || []).slice(0, 5).map((article: any) => ({
       title: article.title,
@@ -388,7 +388,7 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
 async function generateAIReport(apolloData: ApolloResponse) {
   const personData = apolloData.person || {};
   const org = personData.organization || {};
-  
+
   const leadData = {
     companyName: org.name || 'N/A',
     position: personData.title || 'N/A',
@@ -498,7 +498,7 @@ Please provide specific recommendations for engaging with this lead based on the
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       console.error('OpenAI API error:', errorData);
-      
+
       // Check if it's a quota error
       if (errorData?.error?.code === 'insufficient_quota' || response.status === 429) {
         console.warn('⚠️ OpenAI quota exceeded. Creating report without AI enhancement.');
@@ -510,7 +510,7 @@ Please provide specific recommendations for engaging with this lead based on the
           skipReason: 'OpenAI quota exceeded'
         };
       }
-      
+
       throw new Error("Failed to generate AI report. Please try again later.");
     }
 
@@ -563,7 +563,7 @@ export async function initiateReport(formData: FormData) {
   // Check user permissions for the project
   const { getCurrentUser, canAccessProject } = await import('@/lib/auth');
   const user = await getCurrentUser();
-  
+
   if (!user) {
     throw new Error("You must be logged in to create reports")
   }
@@ -642,45 +642,45 @@ export async function initiateReport(formData: FormData) {
 
   // Return immediately after creating the report
   processReport(email, reportId).catch(console.error)
-  
+
   return { success: true, reportId, status: "processing" }
 }
 
 // Separate function to handle the processing
 async function processReport(email: string, reportId: string) {
   const { reports } = await getDb();
-  
+
   try {
     // Get the existing report to preserve meeting details and project
     const existingReport = await reports.findOne({ _id: new ObjectId(reportId) });
-    
+
     if (!existingReport) {
       throw new Error(`Report with ID ${reportId} not found`);
     }
-    
+
     // Step 1: Fetch Apollo Data and Company News in parallel
     console.log(`Fetching Apollo data and company news for ${email}`);
     let apolloData;
     let companyNews;
     try {
       apolloData = await fetchApolloData(email);
-      
+
       // Fetch company news in parallel (don't let it block the report if it fails)
       const companyName = apolloData?.person?.organization?.name;
       const industry = apolloData?.person?.organization?.industry;
-      
+
       if (companyName && companyName !== 'N/A') {
         console.log(`Fetching news for company: ${companyName}`);
         companyNews = await fetchCompanyNews(companyName, industry);
       } else {
         companyNews = { articles: [], totalResults: 0 };
       }
-      
+
       await reports.updateOne(
         { _id: new ObjectId(reportId) },
-        { 
-          $set: { 
-            apolloData, 
+        {
+          $set: {
+            apolloData,
             companyNews,
             status: "fetching_apollo",
             // Preserve all meeting details and form data
@@ -699,7 +699,7 @@ async function processReport(email: string, reportId: string) {
             'leadData.leadDesignation': existingReport?.leadData?.leadDesignation,
             'leadData.leadBackground': existingReport?.leadData?.leadBackground,
             'leadData.companyOverview': existingReport?.leadData?.companyOverview
-          } 
+          }
         }
       );
     } catch (apolloError) {
@@ -713,26 +713,26 @@ async function processReport(email: string, reportId: string) {
       // Start both processes in parallel - don't await yet
       const reportPromise = generateAIReport(apolloData);
       const aiContentPromise = generateAIContentForAllSections(reportId, apolloData.person || {}, apolloData);
-      
+
       // Wait for both to complete in parallel
       const [reportResult, aiContentResult] = await Promise.allSettled([
         reportPromise,
         aiContentPromise
       ]);
-      
+
       // Handle report generation result
       let aiReport, leadData, reportGenerationSkipped = false, reportSkipReason = '';
-      
+
       if (reportResult.status === 'rejected') {
         console.error(`⚠️ Report generation failed: ${reportResult.reason}`);
         // Don't throw - continue with basic report structure
         reportGenerationSkipped = true;
         reportSkipReason = reportResult.reason instanceof Error ? reportResult.reason.message : String(reportResult.reason);
-        
+
         // Use Apollo data to create a basic report structure
         const personData = apolloData.person || {};
         const org = personData.organization || {};
-        
+
         leadData = {
           companyName: org.name || 'N/A',
           position: personData.title || 'N/A',
@@ -772,35 +772,35 @@ async function processReport(email: string, reportId: string) {
           leadBackground: '',
           companyOverview: ''
         };
-        
+
         aiReport = `# ${leadData.name}\n## ${leadData.position} at ${leadData.companyName}\n\n### Profile\nLead information from Apollo.io\n\n*Note: AI-enhanced report could not be generated due to API limitations. Please edit the report manually.*`;
       } else {
         const reportValue = reportResult.value;
         aiReport = reportValue.report;
         leadData = reportValue.leadData;
-        
+
         if (reportValue.aiGenerationSkipped) {
           reportGenerationSkipped = true;
           reportSkipReason = reportValue.skipReason || 'AI generation skipped';
         }
       }
-      
+
       // Preserve the project field from the existing report
       const originalProject = existingReport?.leadData?.project;
       leadData.project = originalProject && originalProject.trim() !== '' ? originalProject : 'Unassigned';
-      
+
       // Preserve notes and engagement timeline from initial form submission
       leadData.notes = existingReport?.leadData?.notes || [];
       leadData.engagementTimeline = existingReport?.leadData?.engagementTimeline || [];
-      
+
       // Preserve custom form fields (industry, designation, background, company overview)
       leadData.leadIndustry = existingReport?.leadData?.leadIndustry || "";
       leadData.leadDesignation = existingReport?.leadData?.leadDesignation || "";
       leadData.leadBackground = existingReport?.leadData?.leadBackground || "";
       leadData.companyOverview = existingReport?.leadData?.companyOverview || "";
-      
+
       console.log('Preserving notes:', leadData.notes.length, 'timeline:', leadData.engagementTimeline.length);
-      
+
       // Prepare update object
       const updateDoc: any = {
         report: aiReport,
@@ -820,29 +820,29 @@ async function processReport(email: string, reportId: string) {
         meetingObjective: existingReport?.meetingObjective,
         problemPitch: existingReport?.problemPitch
       };
-      
+
       // Add AI content if it was generated successfully
       if (aiContentResult.status === 'fulfilled' && aiContentResult.value) {
         updateDoc.aiContent = aiContentResult.value;
       } else if (aiContentResult.status === 'rejected') {
-        const errorReason = aiContentResult.reason instanceof Error 
-          ? aiContentResult.reason.message 
+        const errorReason = aiContentResult.reason instanceof Error
+          ? aiContentResult.reason.message
           : String(aiContentResult.reason);
-        
+
         console.error(`AI content generation error for ${reportId}:`, errorReason);
         updateDoc.aiContentError = errorReason;
-        
+
         // Check if it's a quota error and add a user-friendly message
         if (errorReason.includes('insufficient_quota') || errorReason.includes('quota')) {
           updateDoc.aiContentError = '⚠️ OpenAI API quota exceeded. AI insights are not available. You can manually edit the report or regenerate when quota is restored.';
         }
       }
-      
+
       // Add warnings if AI generation was skipped
       if (reportGenerationSkipped) {
         updateDoc.reportGenerationWarning = `⚠️ AI report enhancement skipped: ${reportSkipReason}`;
       }
-      
+
       // Single database update with all data
       await reports.updateOne(
         { _id: new ObjectId(reportId) },
@@ -870,19 +870,19 @@ async function processReport(email: string, reportId: string) {
 // Function to generate AI content for all sections of a report
 async function generateAIContentForAllSections(reportId: string, leadData: any, apolloData: any) {
   console.log(`Automatically generating AI content for report: ${reportId}`);
-  
+
   // Define the sections to generate content for
   const sections = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'];
-  
+
   try {
     // Import the shared AI generation function
     const { generateBatchAIContent } = await import('@/lib/ai-content-generator');
-    
+
     // Call the shared function directly - no HTTP request needed!
     console.log(`Generating AI content for ${sections.length} sections`);
     const newContent = await generateBatchAIContent(sections, leadData, apolloData);
     console.log(`Successfully generated AI content for all sections`);
-    
+
     // Update the report with the generated AI content
     const { reports } = await getDb();
     await reports.updateOne(
@@ -893,7 +893,7 @@ async function generateAIContentForAllSections(reportId: string, leadData: any, 
         }
       }
     );
-    
+
     console.log(`Successfully saved AI content for report: ${reportId}`);
     return newContent;
   } catch (error) {
@@ -944,9 +944,9 @@ function serializeDocument(doc: any): any {
 export async function getReportStatus(reportId: string) {
   const { reports } = await getDb()
   const report = await reports.findOne({ _id: new ObjectId(reportId) })
-  
+
   if (!report) throw new Error("Report not found")
-  
+
   return {
     status: report.status,
     data: report.status === "completed" ? serializeDocument(report) : null,
@@ -972,19 +972,36 @@ export async function deleteReport(formData: FormData) {
 
 export async function getReports() {
   const { getCurrentUser } = await import('@/lib/auth');
-  const user = await getCurrentUser();
-  
+  const userToken = await getCurrentUser();
+
+  // Fetch fresh user data from database to ensure permissions are up to date
+  let user = null;
+  if (userToken?.userId) {
+    try {
+      const { db } = await getDb();
+      if (db) {
+        user = await db.collection('users').findOne({ _id: new ObjectId(userToken.userId) });
+      }
+    } catch (error) {
+      console.error('Error fetching fresh user data:', error);
+      // Fallback to token data if DB fetch fails
+      user = userToken;
+    }
+  }
+
   const { reports } = await getDb()
   const allReports = await reports.find({}).sort({ createdAt: -1 }).toArray()
-  
+
   // Transform the data to match the expected interface
   const transformedReports = allReports.map(report => {
     // Handle project field more robustly
     let project = report.leadData?.project;
     if (!project || project.trim() === '' || project === 'N/A' || project === 'NA') {
       project = 'Unassigned'; // Provide a default value instead of 'N/A'
+    } else {
+      project = project.trim();
     }
-    
+
     return {
       _id: report._id.toString(),
       email: report.email || '',
@@ -1002,16 +1019,22 @@ export async function getReports() {
       }
     };
   });
-  
+
   // Filter reports based on user role and assigned projects
-  if (user && user.role === 'project_user') {
-    const assignedProjects = user.assignedProjects || [];
+  // Check against the fresh user object from DB (or fallback to token)
+  const role = user?.role || userToken?.role;
+
+  if (role === 'project_user') {
+    const assignedProjects = user?.assignedProjects || userToken?.assignedProjects || [];
+    console.log(`Filtering reports for project_user ${userToken?.email}. Assigned projects:`, assignedProjects);
+
     return transformedReports.filter(report => {
       const reportProject = report.leadData?.project;
-      return reportProject && assignedProjects.includes(reportProject);
+      const hasAccess = reportProject && assignedProjects.includes(reportProject);
+      return hasAccess;
     });
   }
-  
+
   // Admins see all reports
   return transformedReports;
 }
@@ -1019,11 +1042,11 @@ export async function getReports() {
 export async function updateLeadStatus(reportId: string, status: string) {
   try {
     const { reports } = await getDb()
-    
+
     const result = await reports.updateOne(
       { _id: new ObjectId(reportId) },
-      { 
-        $set: { 
+      {
+        $set: {
           'leadData.status': status,
           updatedAt: new Date()
         }

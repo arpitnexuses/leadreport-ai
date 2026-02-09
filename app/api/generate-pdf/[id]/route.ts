@@ -566,74 +566,158 @@ async function generatePuppeteerPDF(reportId: string): Promise<Buffer | null> {
     // Additional wait for any dynamic content
     await new Promise(resolve => setTimeout(resolve, 3000));
     
-    // Prepare page for printing - compact grid layout
+    // Prepare page for printing - optimized multi-column compact layout
     await page.evaluate(() => {
       // Add compact print styles
       const style = document.createElement('style');
       style.textContent = `
-        /* Compact layout for PDF */
+        /* Optimize for single-page A4 PDF while preserving grid */
+        * {
+          box-sizing: border-box !important;
+        }
+        
         body {
           overflow: visible !important;
           height: auto !important;
-          zoom: 0.75; /* Scale down everything by 25% */
+          background: white !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
         
-        /* Keep grid layout intact */
+        /* Keep the 12-column grid layout intact - this is key! */
         .grid-cols-12 {
           display: grid !important;
           grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
-          gap: 12px !important;
+          gap: 15px !important; /* Good natural spacing */
         }
         
-        /* Reduce card padding and spacing */
+        /* Ensure columns stay side-by-side */
+        .col-span-3 {
+          grid-column: span 3 / span 3 !important;
+        }
+        .col-span-6 {
+          grid-column: span 6 / span 6 !important;
+        }
+        .col-span-12 {
+          grid-column: span 12 / span 12 !important;
+        }
+        
+        /* Force grid items to respect layout on large screens */
+        @media (min-width: 1024px) {
+          .lg\\:col-span-3 {
+            grid-column: span 3 / span 3 !important;
+          }
+          .lg\\:col-span-6 {
+            grid-column: span 6 / span 6 !important;
+          }
+        }
+        
+        /* Comfortable card styling with natural spacing */
         .apple-card {
+          padding: 15px !important;
+          margin-bottom: 15px !important;
+          border-radius: 10px !important;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+        }
+        
+        /* Natural, readable text sizing */
+        h1 { font-size: 18px !important; line-height: 1.5 !important; margin: 8px 0 !important; font-weight: 700 !important; }
+        h2 { font-size: 16px !important; line-height: 1.5 !important; margin: 7px 0 !important; font-weight: 700 !important; }
+        h3 { font-size: 13px !important; line-height: 1.5 !important; margin: 6px 0 !important; font-weight: 600 !important; }
+        h4 { font-size: 11px !important; line-height: 1.5 !important; margin: 5px 0 !important; font-weight: 600 !important; }
+        p, div, span, li { font-size: 10px !important; line-height: 1.6 !important; margin: 3px 0 !important; }
+        
+        /* Natural vertical spacing */
+        .space-y-5 > * + * { margin-top: 15px !important; }
+        .space-y-4 > * + * { margin-top: 12px !important; }
+        .space-y-3 > * + * { margin-top: 10px !important; }
+        .space-y-2 > * + * { margin-top: 8px !important; }
+        .gap-5 { gap: 15px !important; }
+        .gap-4 { gap: 12px !important; }
+        .gap-3 { gap: 10px !important; }
+        .gap-2 { gap: 8px !important; }
+        
+        /* Section padding with breathing room */
+        .section-tint {
           padding: 12px !important;
           margin-bottom: 10px !important;
-          border-radius: 12px !important;
+          border-radius: 8px !important;
         }
         
-        /* Compact text sizing */
-        h1 { font-size: 20px !important; line-height: 1.2 !important; }
-        h2 { font-size: 16px !important; line-height: 1.3 !important; }
-        h3 { font-size: 14px !important; line-height: 1.3 !important; }
-        h4 { font-size: 12px !important; line-height: 1.3 !important; }
-        p, div, span { font-size: 11px !important; line-height: 1.4 !important; }
-        
-        /* Reduce spacing */
-        .space-y-4 > * + * { margin-top: 8px !important; }
-        .space-y-3 > * + * { margin-top: 6px !important; }
-        .space-y-2 > * + * { margin-top: 4px !important; }
-        .gap-4 { gap: 8px !important; }
-        .gap-3 { gap: 6px !important; }
-        
-        /* Compact section padding */
-        .section-tint {
-          padding: 8px !important;
-          margin-bottom: 8px !important;
-        }
-        
-        /* Main container */
+        /* Main container with comfortable margins */
         main {
           margin-top: 0 !important;
           padding: 20px !important;
           max-width: 100% !important;
+          width: 100% !important;
           overflow: visible !important;
           height: auto !important;
         }
         
-        .h-screen {
+        /* Remove unnecessary heights */
+        .h-screen, .min-h-screen {
           height: auto !important;
+          min-height: auto !important;
           overflow: visible !important;
         }
         
-        /* Compact badges and small elements */
+        /* Natural text utility classes */
         .text-xs { font-size: 9px !important; }
         .text-sm { font-size: 10px !important; }
+        .text-base { font-size: 11px !important; }
+        .text-lg { font-size: 12px !important; }
+        .text-xl { font-size: 14px !important; }
         
-        /* Profile images smaller */
+        /* Well-sized icons */
+        svg {
+          width: 14px !important;
+          height: 14px !important;
+          flex-shrink: 0 !important;
+        }
+        
+        /* Images */
+        img {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        
         img[alt*="profile" i] {
-          max-width: 60px !important;
-          max-height: 60px !important;
+          max-width: 55px !important;
+          max-height: 55px !important;
+        }
+        
+        /* Comfortable buttons and badges */
+        button, a {
+          padding: 6px 10px !important;
+          font-size: 10px !important;
+        }
+        
+        /* Natural padding utilities */
+        .p-6, .p-5 { padding: 12px !important; }
+        .p-4 { padding: 10px !important; }
+        .p-3 { padding: 8px !important; }
+        .p-2 { padding: 6px !important; }
+        .px-6, .px-5 { padding-left: 12px !important; padding-right: 12px !important; }
+        .px-4 { padding-left: 10px !important; padding-right: 10px !important; }
+        .py-6, .py-5 { padding-top: 10px !important; padding-bottom: 10px !important; }
+        .py-4 { padding-top: 8px !important; padding-bottom: 8px !important; }
+        
+        /* Natural margin utilities */
+        .mb-6, .mb-5, .mb-4 { margin-bottom: 10px !important; }
+        .mb-3 { margin-bottom: 8px !important; }
+        .mb-2 { margin-bottom: 6px !important; }
+        .mt-14 { margin-top: 0 !important; }
+        
+        /* Flex columns with comfortable gap */
+        .flex-col {
+          gap: 15px !important;
+        }
+        
+        /* Ensure grid columns don't wrap */
+        .flex {
+          flex-wrap: nowrap !important;
         }
       `;
       document.head.appendChild(style);
@@ -678,24 +762,48 @@ async function generatePuppeteerPDF(reportId: string): Promise<Buffer | null> {
     
     console.log(`Content height: ${contentHeight}px`);
     
-    // Use wider custom page size to accommodate grid layout
-    // 297mm = A4 landscape width (or A4 height)
+    // Capture entire page as single image for single-page A4 PDF
+    console.log('Capturing full page as single image for A4 PDF');
+    
+    // Use A4 landscape width but allow more height for content
+    const VIEWPORT_WIDTH = 1122; // A4 landscape width at 96 DPI (297mm)
+    
+    // Set viewport for proper grid rendering
+    await page.setViewport({
+      width: VIEWPORT_WIDTH,
+      height: 1500, // Taller to capture more content
+      deviceScaleFactor: 2 // Higher quality images
+    });
+    
+    // Get total page height
+    const totalHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+    console.log(`Total content height: ${totalHeight}px`);
+    
+    // Scroll to top to ensure we capture from the beginning
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+    });
+    
+    // Wait a bit for rendering
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Use Puppeteer's built-in PDF generation with proper pagination
+    console.log('Generating multi-page PDF with proper spacing...');
     const pdfBuffer = await page.pdf({
-      width: '297mm', // A4 landscape width - wider for grid
-      height: `${Math.max(contentHeight + 100, 1000)}px`, // Dynamic height based on content
+      format: 'A4',
+      landscape: true,
       printBackground: true,
       margin: {
-        top: '30px',
-        right: '30px',
-        bottom: '30px',
-        left: '30px'
+        top: '15mm',
+        right: '15mm',
+        bottom: '15mm',
+        left: '15mm'
       },
-      preferCSSPageSize: false,
-      displayHeaderFooter: false // No page numbers for single-page PDF
+      preferCSSPageSize: false
     });
     
     await browser.close();
-    console.log('Puppeteer PDF generated successfully');
+    console.log('Multi-page landscape A4 PDF created successfully');
     
     return Buffer.from(pdfBuffer);
   } catch (error) {
