@@ -18,28 +18,14 @@ export function LoadingOverlay({
   errorMessage,
   onRetry
 }: LoadingOverlayProps) {
-  const [progress, setProgress] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const typicalGenerationTimeSeconds = 25;
   
   useEffect(() => {
     if (!isVisible) {
-      setProgress(0);
       setTimeElapsed(0);
       return;
     }
-    
-    // Simulate progress since we don't have real progress information
-    // This helps users feel like something is happening
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        // Start fast, slow down as we approach 100%
-        if (prev < 30) return prev + 2;
-        if (prev < 60) return prev + 1;
-        if (prev < 85) return prev + 0.5;
-        if (prev < 95) return prev + 0.2;
-        return prev;
-      });
-    }, 150);
     
     // Track elapsed time
     const timeInterval = setInterval(() => {
@@ -47,7 +33,6 @@ export function LoadingOverlay({
     }, 1000);
     
     return () => {
-      clearInterval(progressInterval);
       clearInterval(timeInterval);
     };
   }, [isVisible]);
@@ -86,6 +71,8 @@ export function LoadingOverlay({
       </div>
     );
   }
+
+  const progress = Math.min((timeElapsed / typicalGenerationTimeSeconds) * 100, 99);
 
   // Get appropriate status message
   const getMessage = () => {
@@ -136,7 +123,7 @@ export function LoadingOverlay({
               <span>Time: {timeElapsed}s</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-              {timeElapsed > 10 ? "This may take a few more moments" : "Setting up your report"}
+              Typical generation time: {typicalGenerationTimeSeconds} sec
             </p>
           </div>
         </div>

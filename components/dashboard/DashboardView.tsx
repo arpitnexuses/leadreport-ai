@@ -8,6 +8,7 @@ import { RecentLeadsTable } from "./RecentLeadsTable";
 import { LeadActivityTrends } from "./LeadActivityTrends";
 import { ProjectLeadTable } from "./ProjectLeadTable";
 import ProjectDistributionPieChart from "./ProjectDistributionPieChart";
+import { LEAD_STATUS_ORDER, LEAD_STATUS_UI, getLeadStatusLabel, normalizeLeadStatus, type LeadStatus } from "@/lib/lead-status";
 
 interface Report {
   _id: string;
@@ -20,6 +21,7 @@ interface Report {
     name?: string;
     companyName?: string;
     project?: string;
+    status?: LeadStatus;
   };
 }
 
@@ -56,6 +58,26 @@ export function DashboardView({ reports }: DashboardViewProps) {
       .sort((a, b) => b.count - a.count);
   }, [reports]);
 
+  const pipelineLeads = useMemo(() => {
+    const counts = reports.reduce((acc, report) => {
+      const status = normalizeLeadStatus(report.leadData?.status);
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return LEAD_STATUS_ORDER
+      .map((status) => ({
+        project: getLeadStatusLabel(status),
+        count: counts[status] || 0,
+      }))
+      .filter((item) => item.count > 0);
+  }, [reports]);
+
+  const pipelineColors = useMemo(
+    () => LEAD_STATUS_ORDER.map((status) => LEAD_STATUS_UI[status].chartColor),
+    []
+  );
+
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -73,7 +95,12 @@ export function DashboardView({ reports }: DashboardViewProps) {
       {/* Project Distribution and Lead Activity Trends - 2 cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="h-full">
-          <ProjectDistributionPieChart projectLeads={projectLeads} />
+          <ProjectDistributionPieChart
+            projectLeads={pipelineLeads}
+            title="Pipeline Distribution"
+            subtitle="Visual breakdown of leads by pipeline stage"
+            colors={pipelineColors}
+          />
         </div>
         <div className="h-full">
           <LeadActivityTrends reports={reports} />

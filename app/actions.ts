@@ -150,6 +150,7 @@ interface LeadData {
   leadDesignation?: string;
   leadBackground?: string;
   companyOverview?: string;
+  companyWebsite?: string;
 }
 
 // interface LeadReport {
@@ -293,17 +294,114 @@ export async function fetchApolloData(email: string) {
   return data;
 }
 
+function normalizeCompanyDomain(input?: string | null): string | null {
+  if (!input) return null;
+
+  const trimmedInput = input.trim().toLowerCase();
+  if (!trimmedInput) return null;
+
+  // Allow passing either a full URL, bare domain, or an email.
+  let candidate = trimmedInput;
+  if (candidate.includes('@') && !candidate.includes('://')) {
+    const emailDomain = candidate.split('@').pop();
+    if (!emailDomain) return null;
+    candidate = emailDomain;
+  }
+
+  if (!candidate.startsWith('http://') && !candidate.startsWith('https://')) {
+    candidate = `https://${candidate}`;
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    let hostname = parsed.hostname.toLowerCase();
+    if (hostname.startsWith('www.')) {
+      hostname = hostname.slice(4);
+    }
+    return hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+function extractApolloOrganization(payload: any): Record<string, any> | null {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const candidates = [
+    payload.organization,
+    payload.account,
+    payload.org,
+    payload.data?.organization,
+    payload.data?.account,
+    payload.data?.org
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object') {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function mergeOrganizationData(baseOrg: Record<string, any>, websiteOrg: Record<string, any>) {
+  const merged = { ...baseOrg };
+
+  for (const [key, value] of Object.entries(websiteOrg)) {
+    if (value !== null && value !== undefined && value !== '') {
+      merged[key] = value;
+    }
+  }
+
+  return merged;
+}
+
+async function fetchApolloOrganizationByDomain(domain: string): Promise<Record<string, any> | null> {
+  if (!APOLLO_API_KEY) {
+    return null;
+  }
+
+  try {
+    const response = await fetch("https://api.apollo.io/api/v1/organizations/enrich", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        "X-API-KEY": APOLLO_API_KEY as string
+      },
+      body: JSON.stringify({ domain })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      console.warn(`Apollo organization enrichment failed for ${domain}:`, {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      return null;
+    }
+
+    const data = await response.json();
+    const org = extractApolloOrganization(data);
+    if (!org) return null;
+
+    if (!org.website_url) {
+      org.website_url = `https://${domain}`;
+    }
+
+    return org;
+  } catch (error) {
+    console.warn(`Apollo organization enrichment error for ${domain}:`, error);
+    return null;
+  }
+}
+
 // Function to fetch company news from NewsAPI.org
 export async function fetchCompanyNews(companyName: string, industry?: string) {
-  console.log('=== FETCHING COMPANY NEWS ===');
-  console.log('Company Name:', companyName);
-  console.log('Industry:', industry);
-  console.log('NEWS_API_KEY exists:', !!NEWS_API_KEY);
-  console.log('NEWS_API_KEY length:', NEWS_API_KEY?.length || 0);
-
   // If no NEWS_API_KEY is set, return empty results
   if (!NEWS_API_KEY) {
-    console.log('⚠️ NEWS_API_KEY not set, skipping news fetch');
     return {
       articles: [],
       totalResults: 0
@@ -313,29 +411,23 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
   try {
     // Clean company name for search query
     const searchQuery = companyName.replace(/\s+(Inc|LLC|Ltd|Corporation|Corp)\.?$/i, '').trim();
-    console.log('Search query:', searchQuery);
 
     // Calculate date from 30 days ago for recent news
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const fromDate = thirtyDaysAgo.toISOString().split('T')[0];
-    console.log('Date range from:', fromDate);
 
     // Build search query - ONLY search for the specific company name
     // Using quotes for exact phrase matching to get company-specific news
     const query = `"${searchQuery}"`;
-    console.log('Full query:', query);
 
     const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&from=${fromDate}&sortBy=publishedAt&language=en&pageSize=5&apiKey=${NEWS_API_KEY}`;
-    console.log('Fetching from NewsAPI...');
 
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'LeadReport-AI/1.0'
       }
     });
-
-    console.log('NewsAPI Response Status:', response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -353,11 +445,6 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
     }
 
     const data = await response.json();
-    console.log('✅ NewsAPI Response:', {
-      totalResults: data.totalResults,
-      articlesCount: data.articles?.length || 0
-    });
-
     // Format news articles
     const articles = (data.articles || []).slice(0, 5).map((article: any) => ({
       title: article.title,
@@ -367,9 +454,6 @@ export async function fetchCompanyNews(companyName: string, industry?: string) {
       publishedAt: article.publishedAt,
       urlToImage: article.urlToImage
     }));
-
-    console.log('✅ Formatted articles:', articles.length);
-    console.log('=== NEWS FETCH COMPLETE ===');
 
     return {
       articles,
@@ -427,7 +511,8 @@ async function generateAIReport(apolloData: ApolloResponse) {
     leadIndustry: '',
     leadDesignation: '',
     leadBackground: '',
-    companyOverview: ''
+    companyOverview: '',
+    companyWebsite: org.website_url || ''
   };
 
   const reportPrompt = `
@@ -549,6 +634,7 @@ export async function initiateReport(formData: FormData) {
   const leadDesignation = formData.get("leadDesignation") as string
   const leadBackground = formData.get("leadBackground") as string
   const companyOverview = formData.get("companyOverview") as string
+  const companyWebsite = formData.get("companyWebsite") as string
   const initialNote = formData.get("initialNote") as string
   const initialActivity = formData.get("initialActivity") as string
 
@@ -566,6 +652,10 @@ export async function initiateReport(formData: FormData) {
 
   if (!user) {
     throw new Error("You must be logged in to create reports")
+  }
+
+  if (user.role === 'client') {
+    throw new Error("Client users do not have permission to generate lead reports")
   }
 
   // Handle empty project name
@@ -621,6 +711,7 @@ export async function initiateReport(formData: FormData) {
       leadDesignation: leadDesignation || "",
       leadBackground: leadBackground || "",
       companyOverview: companyOverview || "",
+      companyWebsite: companyWebsite || "",
       notes: initialNotes,
       engagementTimeline: initialTimeline
     },
@@ -659,11 +750,35 @@ async function processReport(email: string, reportId: string) {
     }
 
     // Step 1: Fetch Apollo Data and Company News in parallel
-    console.log(`Fetching Apollo data and company news for ${email}`);
     let apolloData;
     let companyNews;
     try {
       apolloData = await fetchApolloData(email);
+      console.log('[ENRICHMENT] Apollo people/match output:', apolloData);
+
+      const websiteInput = existingReport?.leadData?.companyWebsite || '';
+      const domainFromInput = normalizeCompanyDomain(websiteInput);
+      const domainFromApolloOrg = normalizeCompanyDomain(apolloData?.person?.organization?.website_url);
+      const domainFromEmail = normalizeCompanyDomain(email);
+      const companyDomain = domainFromInput || domainFromApolloOrg || domainFromEmail;
+
+      if (companyDomain) {
+        const enrichedOrganization = await fetchApolloOrganizationByDomain(companyDomain);
+        console.log('[ENRICHMENT] Apollo organizations/enrich output:', {
+          domain: companyDomain,
+          organization: enrichedOrganization
+        });
+        if (enrichedOrganization && apolloData?.person) {
+          const existingOrganization = apolloData.person.organization || {};
+          apolloData = {
+            ...apolloData,
+            person: {
+              ...apolloData.person,
+              organization: mergeOrganizationData(existingOrganization, enrichedOrganization)
+            }
+          };
+        }
+      }
 
       // Fetch company news in parallel (don't let it block the report if it fails)
       const companyName = apolloData?.person?.organization?.name;
@@ -698,7 +813,8 @@ async function processReport(email: string, reportId: string) {
             'leadData.leadIndustry': existingReport?.leadData?.leadIndustry,
             'leadData.leadDesignation': existingReport?.leadData?.leadDesignation,
             'leadData.leadBackground': existingReport?.leadData?.leadBackground,
-            'leadData.companyOverview': existingReport?.leadData?.companyOverview
+            'leadData.companyOverview': existingReport?.leadData?.companyOverview,
+            'leadData.companyWebsite': existingReport?.leadData?.companyWebsite || ""
           }
         }
       );
@@ -770,7 +886,8 @@ async function processReport(email: string, reportId: string) {
           leadIndustry: '',
           leadDesignation: '',
           leadBackground: '',
-          companyOverview: ''
+          companyOverview: '',
+          companyWebsite: org.website_url || existingReport?.leadData?.companyWebsite || ''
         };
 
         aiReport = `# ${leadData.name}\n## ${leadData.position} at ${leadData.companyName}\n\n### Profile\nLead information from Apollo.io\n\n*Note: AI-enhanced report could not be generated due to API limitations. Please edit the report manually.*`;
@@ -798,6 +915,7 @@ async function processReport(email: string, reportId: string) {
       leadData.leadDesignation = existingReport?.leadData?.leadDesignation || "";
       leadData.leadBackground = existingReport?.leadData?.leadBackground || "";
       leadData.companyOverview = existingReport?.leadData?.companyOverview || "";
+      leadData.companyWebsite = existingReport?.leadData?.companyWebsite || leadData.companyDetails?.website || "";
 
       console.log('Preserving notes:', leadData.notes.length, 'timeline:', leadData.engagementTimeline.length);
 
@@ -871,8 +989,8 @@ async function processReport(email: string, reportId: string) {
 async function generateAIContentForAllSections(reportId: string, leadData: any, apolloData: any) {
   console.log(`Automatically generating AI content for report: ${reportId}`);
 
-  // Define the sections to generate content for
-  const sections = ['overview', 'company', 'meeting', 'interactions', 'competitors', 'techStack', 'news', 'nextSteps'];
+  // Generate only currently-used sections to avoid wasting tokens/time on retired sections.
+  const sections = ['overview', 'company', 'techStack', 'news'];
 
   try {
     // Import the shared AI generation function
@@ -1024,9 +1142,9 @@ export async function getReports() {
   // Check against the fresh user object from DB (or fallback to token)
   const role = user?.role || userToken?.role;
 
-  if (role === 'project_user') {
+  if (role === 'project_user' || role === 'client') {
     const assignedProjects = user?.assignedProjects || userToken?.assignedProjects || [];
-    console.log(`Filtering reports for project_user ${userToken?.email}. Assigned projects:`, assignedProjects);
+    console.log(`Filtering reports for ${role} ${userToken?.email}. Assigned projects:`, assignedProjects);
 
     return transformedReports.filter(report => {
       const reportProject = report.leadData?.project;
@@ -1064,3 +1182,46 @@ export async function updateLeadStatus(reportId: string, status: string) {
   }
 }
 
+export async function updateReportOwner(reportId: string, reportOwnerName: string) {
+  try {
+    const { reports } = await getDb()
+
+    const result = await reports.updateOne(
+      { _id: new ObjectId(reportId) },
+      {
+        $set: {
+          reportOwnerName: reportOwnerName.trim(),
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      throw new Error('Report not found')
+    }
+
+    revalidatePath('/')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to update report owner:', error)
+    throw new Error('Failed to update report owner')
+  }
+}
+
+export async function deleteReportById(reportId: string) {
+  try {
+    const { reports } = await getDb()
+    const result = await reports.deleteOne({ _id: new ObjectId(reportId) })
+
+    if (result.deletedCount === 0) {
+      throw new Error('Report not found')
+    }
+
+    revalidatePath('/')
+    revalidatePath('/history')
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to delete report:', error)
+    throw new Error('Failed to delete report')
+  }
+}

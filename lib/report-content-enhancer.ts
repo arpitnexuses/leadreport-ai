@@ -290,13 +290,6 @@ export const enhanceAIContent = (section: string, content: any): any => {
  * Processes raw AI response to ensure consistent data structure
  */
 export const processAIResponse = (section: string, response: any): any => {
-  console.log(`Processing AI response for section: ${section}`, { 
-    responseType: typeof response,
-    hasData: !!response,
-    isInsufficient: response?.insufficient_data,
-    responseKeys: response ? Object.keys(response) : []
-  });
-  
   // Handle missing or invalid responses
   if (!response) {
     console.error(`No response received for section: ${section}`);
@@ -308,7 +301,6 @@ export const processAIResponse = (section: string, response: any): any => {
   
   // If the response is already marked as insufficient data, return it
   if (response.insufficient_data === true) {
-    console.log(`Section ${section} has insufficient data flag set`);
     return response;
   }
   

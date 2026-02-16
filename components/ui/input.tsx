@@ -24,33 +24,36 @@ export { Input }
 
 // New component for meeting details
 interface MeetingDetailsFormProps {
-  reportOwners?: string[];
   disabled?: boolean;
+  visibleSections?: MeetingDetailsSection[];
 }
 
-export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: MeetingDetailsFormProps) => {
-  const userIcon = (
-    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-      <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-  );
-  
+export type MeetingDetailsSection =
+  | "lead-information"
+  | "lead-company-context"
+  | "meeting-details"
+  | "internal-notes";
+
+export const MeetingDetailsForm = ({
+  disabled = false,
+  visibleSections,
+}: MeetingDetailsFormProps) => {
+  const sectionsToShow = visibleSections ?? [
+    "lead-information",
+    "lead-company-context",
+    "meeting-details",
+    "internal-notes",
+  ];
+
+  const shouldRenderSection = (section: MeetingDetailsSection) =>
+    sectionsToShow.includes(section);
+
   return (
     <div className="space-y-8">
       {/* SECTION 1: BASIC INFO */}
+      {shouldRenderSection("lead-information") && (
       <div className="space-y-4">
-        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Basic Information</h3>
-        
-        {/* Report Owner Name */}
-        <AutocompleteInput
-          name="reportOwnerName"
-          placeholder="Select or enter your name (Report Owner)"
-          options={reportOwners}
-          required
-          disabled={disabled}
-          icon={userIcon}
-        />
+        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Lead Information</h3>
 
         {/* Industry Field */}
         <div className="relative">
@@ -64,6 +67,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             type="text" 
             name="leadIndustry" 
             placeholder="Lead's Industry (e.g., SaaS, E-commerce, Healthcare)"
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
           />
         </div>
@@ -81,12 +85,15 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             type="text" 
             name="leadDesignation" 
             placeholder="Lead's Designation/Role (e.g., VP of Sales)"
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
           />
         </div>
       </div>
+      )}
 
       {/* SECTION 2: LEAD & COMPANY CONTEXT */}
+      {shouldRenderSection("lead-company-context") && (
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Lead & Company Context</h3>
         
@@ -102,6 +109,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             name="companyOverview" 
             placeholder="Company Overview (Brief notes about the company)"
             rows={3}
+            disabled={disabled}
             className="pl-12 pt-3 pb-3 w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 resize-none shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-colors"
           />
         </div>
@@ -121,6 +129,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             name="leadBackground" 
             placeholder="Lead Background (Notes about lead's role, responsibilities, pain points)"
             rows={3}
+            disabled={disabled}
             className="pl-12 pt-3 pb-3 w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 resize-none shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-colors"
           />
         </div>
@@ -136,12 +145,15 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             name="problemPitch" 
             placeholder="Problem/Solution Pitch (Brief description of what you're offering)"
             rows={3}
+            disabled={disabled}
             className="pl-12 pt-3 pb-3 w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 resize-none shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-colors"
           />
         </div>
       </div>
+      )}
 
       {/* SECTION 3: MEETING DETAILS */}
+      {shouldRenderSection("meeting-details") && (
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Meeting Details</h3>
 
@@ -157,6 +169,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             type="text" 
             name="meetingName" 
             placeholder="Meeting Name/Title (e.g., 'Q1 Strategy Review', 'Product Demo')" 
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
           />
         </div>
@@ -174,6 +187,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
           <Input 
             type="date" 
             name="meetingDate" 
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900"
           />
         </div>
@@ -190,6 +204,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             <Input 
               type="time" 
               name="meetingTime" 
+              disabled={disabled}
               className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900"
             />
           </div>
@@ -203,6 +218,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             </div>
             <select
               name="meetingTimezone"
+              disabled={disabled}
               className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 w-full"
             >
               <option value="">Select Timezone</option>
@@ -234,6 +250,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             type="text" 
             name="meetingPlatform" 
             placeholder="Meeting Platform (e.g., Zoom, Google Meet, Teams)" 
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
           />
         </div>
@@ -250,6 +267,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             type="url" 
             name="meetingLink" 
             placeholder="Meeting Link (URL for Join button)" 
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
           />
         </div>
@@ -266,6 +284,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             type="text" 
             name="meetingLocation" 
             placeholder="Physical Location (Address/Venue - if applicable)" 
+            disabled={disabled}
             className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 placeholder:text-gray-500 dark:placeholder:text-gray-400"
           />
         </div>
@@ -282,12 +301,15 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             name="meetingObjective" 
             placeholder="Meeting Objective & Agenda (What do you want to achieve?)"
             rows={3}
+            disabled={disabled}
             className="pl-12 pt-3 pb-3 w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 resize-none shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-colors"
           />
         </div>
       </div>
+      )}
 
       {/* SECTION 4: INTERNAL NOTES & ACTIVITY */}
+      {shouldRenderSection("internal-notes") && (
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Internal Notes & Activity</h3>
         
@@ -305,6 +327,7 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             name="initialNote" 
             placeholder="Internal Note (Private notes for your team - won't be shared with client)"
             rows={3}
+            disabled={disabled}
             className="pl-12 pt-3 pb-3 w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 resize-none shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-colors"
           />
         </div>
@@ -321,10 +344,12 @@ export const MeetingDetailsForm = ({ reportOwners = [], disabled = false }: Meet
             name="initialActivity" 
             placeholder="Initial Activity (Timeline entry - e.g., 'First contact via LinkedIn', 'Referred by John Doe')"
             rows={3}
+            disabled={disabled}
             className="pl-12 pt-3 pb-3 w-full text-sm rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 resize-none shadow-sm placeholder:text-gray-500 dark:placeholder:text-gray-400 transition-colors"
           />
         </div>
       </div>
+      )}
     </div>
   );
 };

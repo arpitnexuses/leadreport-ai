@@ -13,7 +13,12 @@ import {
   Landmark, Fingerprint, Zap, Send, Clock, Target, Lightbulb, 
   AlertOctagon, History, Video, X, Download, Loader2, Newspaper, RefreshCw
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  LEAD_STATUS_ORDER,
+  LEAD_STATUS_UI,
+  getLeadStatusLabel,
+  normalizeLeadStatus
+} from "@/lib/lead-status";
 
 interface LeadData {
   name: string;
@@ -142,6 +147,9 @@ interface LeadReport {
   };
 }
 
+// Toggle to temporarily disable PDF downloads on shared report page.
+const SHOW_SHARED_PDF_DOWNLOAD = false;
+
 export default function SharedReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [report, setReport] = useState<LeadReport | null>(null);
@@ -173,7 +181,6 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
     fetchReport();
   }, [id]);
 
-  // Function to handle PDF download
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
     try {
@@ -182,7 +189,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.details || 'Failed to generate PDF');
       }
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -252,6 +259,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const apolloPerson = report?.apolloData?.person;
   const aiContent = report.aiContent || {};
   const leadScore = leadData.leadScoring?.score ?? (parseInt(leadData.leadScoring?.rating || "0") > 10 ? parseInt(leadData.leadScoring?.rating || "0") : 88);
+  const currentLeadStatus = normalizeLeadStatus(leadData.status || "warm");
+  const pipelineStages = LEAD_STATUS_ORDER;
+  const currentStageIndex = Math.max(pipelineStages.indexOf(currentLeadStatus), 0);
+  const currentStageAppearance = LEAD_STATUS_UI[currentLeadStatus];
 
   return (
     <div className="h-screen flex flex-col overflow-hidden print:h-auto print:overflow-visible" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", backgroundColor: '#F5F5F7', color: '#1D1D1F' }}>
@@ -270,23 +281,25 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
           />
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={handleDownloadPDF}
-            disabled={isDownloading}
-            className="px-4 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition disabled:opacity-50"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 className="inline w-3 h-3 mr-1 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Download className="inline w-3 h-3 mr-1" />
-                Download PDF
-              </>
-            )}
-          </button>
+          {SHOW_SHARED_PDF_DOWNLOAD && (
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="px-4 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition disabled:opacity-50"
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="inline w-3 h-3 mr-1 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="inline w-3 h-3 mr-1" />
+                  Download PDF
+                </>
+              )}
+            </button>
+          )}
         </div>
       </header>
       
@@ -370,7 +383,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <div>
                       <p className="text-xs text-gray-500 font-bold uppercase">Lead Stage</p>
                       <p className="text-sm font-bold text-gray-900">
-                        {leadData.status?.toUpperCase() || 'WARM'}
+                        {getLeadStatusLabel(currentLeadStatus)}
                       </p>
                     </div>
                   </div>
@@ -601,10 +614,10 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     Pipeline Stage
                   </h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-black text-[#0071E3]">
-                      {leadData.status ? leadData.status.charAt(0).toUpperCase() + leadData.status.slice(1).replace('_', ' ') : 'Qualified'}
+                    <span className={`text-lg font-black ${currentStageAppearance.textClass}`}>
+                      {getLeadStatusLabel(currentLeadStatus)}
                     </span>
-                    <span className="px-2 py-0.5 bg-blue-50 text-[#0071E3] text-sm font-bold rounded-md">
+                    <span className={`px-2 py-0.5 text-sm font-bold rounded-md ${currentStageAppearance.badgeClass}`}>
                       Active
                     </span>
                   </div>
@@ -645,21 +658,32 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2 h-2 mb-3">
-                <div className="flex-1 bg-emerald-100 rounded-full"></div>
-                <div className="flex-1 bg-blue-100 rounded-full"></div>
-                <div className="flex-1 bg-[#0071E3] rounded-full shadow-[0_0_10px_rgba(0,113,227,0.2)]"></div>
-                <div className="flex-1 bg-gray-100 rounded-full"></div>
-                <div className="flex-1 bg-gray-100 rounded-full"></div>
+              <div className="grid grid-cols-5 gap-2 h-2 mb-3">
+                {pipelineStages.map((stage, index) => {
+                  const stageStyle = LEAD_STATUS_UI[stage];
+                  const isReached = index <= currentStageIndex;
+                  return (
+                    <div
+                      key={stage}
+                      className={`rounded-full transition-all ${isReached ? stageStyle.activeSegmentClass : stageStyle.inactiveSegmentClass}`}
+                    />
+                  );
+                })}
               </div>
-              <div className="flex justify-between px-0.5">
-                <span className="text-xs font-bold text-emerald-600 uppercase">New</span>
-                <span className="text-xs font-bold text-blue-500 uppercase">Discovery</span>
-                <span className="text-xs font-black text-[#0071E3] uppercase underline underline-offset-2">
-                  Qualified
-                </span>
-                <span className="text-xs font-bold text-gray-400 uppercase">Proposal</span>
-                <span className="text-xs font-bold text-gray-400 uppercase">Closed</span>
+              <div className="grid grid-cols-5 gap-2 px-0.5">
+                {pipelineStages.map((stage, index) => {
+                  const stageStyle = LEAD_STATUS_UI[stage];
+                  const isCurrent = index === currentStageIndex;
+                  const isPast = index < currentStageIndex;
+                  return (
+                    <span
+                      key={stage}
+                      className={`text-xs uppercase text-center ${isCurrent ? `font-black underline underline-offset-2 ${stageStyle.textClass}` : isPast ? `font-bold ${stageStyle.textClass}` : "font-bold text-gray-400"}`}
+                    >
+                      {getLeadStatusLabel(stage)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
 

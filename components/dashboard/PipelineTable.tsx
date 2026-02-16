@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, ChevronDown, Filter } from "lucide-react";
-import { updateLeadStatus } from "@/app/actions";
+import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X } from "lucide-react";
+import { updateLeadStatus, updateReportOwner, deleteReportById } from "@/app/actions";
+import { LEAD_STATUS_ORDER, getLeadStatusLabel, normalizeLeadStatus } from "@/lib/lead-status";
 
 interface Report {
   _id: string;
@@ -25,9 +26,18 @@ interface PipelineTableProps {
 }
 
 export function PipelineTable({ reports }: PipelineTableProps) {
+  const [tableReports, setTableReports] = useState<Report[]>(reports);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
+  const [editingOwnerId, setEditingOwnerId] = useState<string | null>(null);
+  const [ownerDraft, setOwnerDraft] = useState('');
+  const [isOwnerSaving, setIsOwnerSaving] = useState(false);
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTableReports(reports);
+  }, [reports]);
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -38,7 +48,8 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const normalizedStatus = normalizeLeadStatus(status);
+    switch (normalizedStatus) {
       case 'hot':
         return 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-red-200 dark:from-red-900/20 dark:to-red-800/20 dark:text-red-300 dark:border-red-700';
       case 'warm':
@@ -55,7 +66,8 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const normalizedStatus = normalizeLeadStatus(status);
+    switch (normalizedStatus) {
       case 'hot':
         return <Flame className="w-4 h-4" />;
       case 'warm':
@@ -74,31 +86,109 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   const handleStatusUpdate = async (reportId: string, newStatus: string) => {
     try {
       await updateLeadStatus(reportId, newStatus);
-      // Optionally add a toast notification here
-      window.location.reload(); // Simple way to refresh the data
+      setTableReports((prev) =>
+        prev.map((report) =>
+          report._id === reportId
+            ? {
+                ...report,
+                leadData: {
+                  ...report.leadData,
+                  status: normalizeLeadStatus(newStatus),
+                },
+              }
+            : report
+        )
+      );
     } catch (error) {
       console.error('Failed to update status:', error);
-      // Optionally add error toast here
     }
   };
 
-  const formatStatusLabel = (status: string) => {
-    switch (status) {
-      case 'meeting_scheduled':
-        return 'Meeting Scheduled';
-      case 'meeting_rescheduled':
-        return 'Meeting Rescheduled';
-      case 'meeting_done':
-        return 'Meeting Done';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
+  const handleOwnerEditStart = (report: Report) => {
+    setEditingOwnerId(report._id);
+    setOwnerDraft(report.reportOwnerName || '');
+  };
+
+  const handleOwnerSave = async (reportId: string) => {
+    const trimmedOwner = ownerDraft.trim();
+    if (!trimmedOwner) return;
+
+    try {
+      setIsOwnerSaving(true);
+      await updateReportOwner(reportId, trimmedOwner);
+      setTableReports((prev) =>
+        prev.map((report) =>
+          report._id === reportId
+            ? { ...report, reportOwnerName: trimmedOwner }
+            : report
+        )
+      );
+      setEditingOwnerId(null);
+      setOwnerDraft('');
+    } catch (error) {
+      console.error('Failed to update report owner:', error);
+    } finally {
+      setIsOwnerSaving(false);
     }
   };
+
+  const handleDeleteReport = async (reportId: string) => {
+    const shouldDelete = window.confirm('Delete this report from pipeline? This cannot be undone.');
+    if (!shouldDelete) return;
+
+    try {
+      setDeletingReportId(reportId);
+      await deleteReportById(reportId);
+      setTableReports((prev) => prev.filter((report) => report._id !== reportId));
+    } catch (error) {
+      console.error('Failed to delete report:', error);
+    } finally {
+      setDeletingReportId(null);
+    }
+  };
+
+  const statusMeta = {
+    hot: {
+      icon: Flame,
+      accentClass: 'hover:bg-red-50 dark:hover:bg-red-950/50 focus:bg-red-50 dark:focus:bg-red-950/50 data-[state=checked]:bg-red-100 dark:data-[state=checked]:bg-red-950/70',
+      iconWrapClass: 'bg-red-500/10 dark:bg-red-500/20',
+      iconClass: 'text-red-600 dark:text-red-400',
+      subtitle: 'High priority',
+    },
+    warm: {
+      icon: Thermometer,
+      accentClass: 'hover:bg-orange-50 dark:hover:bg-orange-950/50 focus:bg-orange-50 dark:focus:bg-orange-950/50 data-[state=checked]:bg-orange-100 dark:data-[state=checked]:bg-orange-950/70',
+      iconWrapClass: 'bg-orange-500/10 dark:bg-orange-500/20',
+      iconClass: 'text-orange-600 dark:text-orange-400',
+      subtitle: 'Interested',
+    },
+    meeting_scheduled: {
+      icon: Calendar,
+      accentClass: 'hover:bg-blue-50 dark:hover:bg-blue-950/50 focus:bg-blue-50 dark:focus:bg-blue-950/50 data-[state=checked]:bg-blue-100 dark:data-[state=checked]:bg-blue-950/70',
+      iconWrapClass: 'bg-blue-500/10 dark:bg-blue-500/20',
+      iconClass: 'text-blue-600 dark:text-blue-400',
+      subtitle: 'Confirmed',
+    },
+    meeting_rescheduled: {
+      icon: RotateCcw,
+      accentClass: 'hover:bg-yellow-50 dark:hover:bg-yellow-950/50 focus:bg-yellow-50 dark:focus:bg-yellow-950/50 data-[state=checked]:bg-yellow-100 dark:data-[state=checked]:bg-yellow-950/70',
+      iconWrapClass: 'bg-yellow-500/10 dark:bg-yellow-500/20',
+      iconClass: 'text-yellow-600 dark:text-yellow-400',
+      subtitle: 'New time',
+    },
+    meeting_done: {
+      icon: CheckCircle,
+      accentClass: 'hover:bg-green-50 dark:hover:bg-green-950/50 focus:bg-green-50 dark:focus:bg-green-950/50 data-[state=checked]:bg-green-100 dark:data-[state=checked]:bg-green-950/70',
+      iconWrapClass: 'bg-green-500/10 dark:bg-green-500/20',
+      iconClass: 'text-green-600 dark:text-green-400',
+      subtitle: 'Finished',
+    },
+  } as const;
 
   // Get unique projects for filter dropdown
   const uniqueProjects = Array.from(
     new Set(
-      reports
+      tableReports
         .map(report => report.leadData?.project?.trim())
         .filter((project): project is string => 
           project !== undefined &&
@@ -114,7 +204,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   // Get unique owners (report owner names) for filter dropdown
   const uniqueOwners = Array.from(
     new Set(
-      reports
+      tableReports
         .map(report => report.reportOwnerName?.trim())
         .filter((ownerName): ownerName is string => 
           ownerName !== undefined && ownerName !== ''
@@ -122,7 +212,14 @@ export function PipelineTable({ reports }: PipelineTableProps) {
     )
   ).sort();
 
-  const filteredReports = reports.filter(report => {
+  const ownerSuggestions = uniqueOwners
+    .filter((owner) =>
+      owner.toLowerCase().includes(ownerDraft.toLowerCase()) &&
+      owner.toLowerCase() !== ownerDraft.toLowerCase()
+    )
+    .slice(0, 6);
+
+  const filteredReports = tableReports.filter(report => {
     const matchesSearch = report.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProject = selectedProject === 'all' || report.leadData?.project?.trim() === selectedProject;
     const matchesOwner = selectedOwner === 'all' || report.reportOwnerName?.trim() === selectedOwner;
@@ -137,74 +234,64 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   }, {} as Record<string, number>);
 
   const totalLeads = filteredReports.length;
-
-  const statusCards = [
-    {
-      status: 'hot',
+  const statusCardMeta = {
+    hot: {
       label: 'Hot Leads',
-      count: statusCounts.hot || 0,
       icon: Flame,
-      color: 'red',
-      bgColor: 'bg-white dark:bg-gray-800',
       iconBgColor: 'bg-red-50 dark:bg-red-950/30',
       iconColor: 'text-red-600 dark:text-red-400',
       textColor: 'text-red-700 dark:text-red-300',
       borderColor: 'border-red-200 dark:border-red-700',
-      countColor: 'text-gray-900 dark:text-white'
     },
-    {
-      status: 'warm',
+    warm: {
       label: 'Warm Leads',
-      count: statusCounts.warm || 0,
       icon: Thermometer,
-      color: 'orange',
-      bgColor: 'bg-white dark:bg-gray-800',
       iconBgColor: 'bg-orange-50 dark:bg-orange-950/30',
       iconColor: 'text-orange-600 dark:text-orange-400',
       textColor: 'text-orange-700 dark:text-orange-300',
       borderColor: 'border-orange-200 dark:border-orange-700',
-      countColor: 'text-gray-900 dark:text-white'
     },
-    {
-      status: 'meeting_scheduled',
+    meeting_scheduled: {
       label: 'Meetings Scheduled',
-      count: statusCounts.meeting_scheduled || 0,
       icon: Calendar,
-      color: 'blue',
-      bgColor: 'bg-white dark:bg-gray-800',
       iconBgColor: 'bg-blue-50 dark:bg-blue-950/30',
       iconColor: 'text-blue-600 dark:text-blue-400',
       textColor: 'text-blue-700 dark:text-blue-300',
       borderColor: 'border-blue-200 dark:border-blue-700',
-      countColor: 'text-gray-900 dark:text-white'
     },
-    {
-      status: 'meeting_rescheduled',
+    meeting_rescheduled: {
       label: 'Rescheduled',
-      count: statusCounts.meeting_rescheduled || 0,
       icon: RotateCcw,
-      color: 'yellow',
-      bgColor: 'bg-white dark:bg-gray-800',
       iconBgColor: 'bg-yellow-50 dark:bg-yellow-950/30',
       iconColor: 'text-yellow-600 dark:text-yellow-400',
       textColor: 'text-yellow-700 dark:text-yellow-300',
       borderColor: 'border-yellow-200 dark:border-yellow-700',
-      countColor: 'text-gray-900 dark:text-white'
     },
-    {
-      status: 'meeting_done',
+    meeting_done: {
       label: 'Completed',
-      count: statusCounts.meeting_done || 0,
       icon: CheckCircle,
-      color: 'green',
-      bgColor: 'bg-white dark:bg-gray-800',
       iconBgColor: 'bg-green-50 dark:bg-green-950/30',
       iconColor: 'text-green-600 dark:text-green-400',
       textColor: 'text-green-700 dark:text-green-300',
       borderColor: 'border-green-200 dark:border-green-700',
-      countColor: 'text-gray-900 dark:text-white'
     }
-  ];
+  } as const;
+
+  const statusCards = LEAD_STATUS_ORDER.map((status) => {
+    const meta = statusCardMeta[status];
+    return {
+      status,
+      label: meta.label,
+      count: statusCounts[status] || 0,
+      icon: meta.icon,
+      bgColor: 'bg-white dark:bg-gray-800',
+      iconBgColor: meta.iconBgColor,
+      iconColor: meta.iconColor,
+      textColor: meta.textColor,
+      borderColor: meta.borderColor,
+      countColor: 'text-gray-900 dark:text-white'
+    };
+  });
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -306,7 +393,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-gray-900 dark:text-white truncate">{project}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {reports.filter(r => r.leadData?.project?.trim() === project).length} leads
+                          {tableReports.filter(r => r.leadData?.project?.trim() === project).length} leads
                         </div>
                       </div>
                     </div>
@@ -357,7 +444,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-gray-900 dark:text-white truncate">{owner}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {reports.filter(r => r.reportOwnerName?.trim() === owner).length} leads
+                          {tableReports.filter(r => r.reportOwnerName?.trim() === owner).length} leads
                         </div>
                       </div>
                     </div>
@@ -446,7 +533,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredReports.map((report) => {
-                const leadStatus = report.leadData?.status || 'warm';
+                const leadStatus = normalizeLeadStatus(report.leadData?.status);
                 return (
                   <tr key={report._id.toString()} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
@@ -456,7 +543,87 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                       {report.email}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.reportOwnerName || '-'}
+                      {editingOwnerId === report._id ? (
+                        <div className="w-[340px] rounded-xl border border-blue-100 bg-blue-50/40 p-2.5 shadow-sm">
+                          <div className="relative">
+                            <User className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                            <Input
+                              value={ownerDraft}
+                              onChange={(e) => setOwnerDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleOwnerSave(report._id);
+                                }
+                                if (e.key === 'Escape') {
+                                  setEditingOwnerId(null);
+                                  setOwnerDraft('');
+                                }
+                              }}
+                              list="pipeline-owner-suggestions"
+                              className="h-8 border-blue-200 bg-white pl-8"
+                              placeholder="Type owner name..."
+                              autoFocus
+                            />
+                            <datalist id="pipeline-owner-suggestions">
+                              {uniqueOwners.map((owner) => (
+                                <option key={owner} value={owner} />
+                              ))}
+                            </datalist>
+                          </div>
+
+                          {ownerSuggestions.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {ownerSuggestions.map((owner) => (
+                                <button
+                                  key={owner}
+                                  type="button"
+                                  onClick={() => setOwnerDraft(owner)}
+                                  className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                >
+                                  {owner}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-2 flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setEditingOwnerId(null);
+                                setOwnerDraft('');
+                              }}
+                              disabled={isOwnerSaving}
+                            >
+                              <X className="w-3.5 h-3.5 mr-1" />
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleOwnerSave(report._id)}
+                              disabled={isOwnerSaving || !ownerDraft.trim()}
+                            >
+                              <Check className="w-3.5 h-3.5 mr-1" />
+                              {isOwnerSaving ? 'Saving...' : 'Save'}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{report.reportOwnerName || '-'}</span>
+                          <button
+                            onClick={() => handleOwnerEditStart(report)}
+                            className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                            aria-label="Edit report owner"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       {report.leadData?.project || '-'}
@@ -481,98 +648,61 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                           <div className="flex items-center gap-2.5">
                             {getStatusIcon(leadStatus)}
                             <span className="font-medium text-sm whitespace-nowrap">
-                              {formatStatusLabel(leadStatus)}
+                              {getLeadStatusLabel(leadStatus)}
                             </span>
                           </div>
                         </SelectTrigger>
                         <SelectContent className="w-64 rounded-lg border shadow-xl bg-white dark:bg-gray-900 p-2">
-                          <SelectItem 
-                            value="hot" 
-                            className="select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 hover:bg-red-50 dark:hover:bg-red-950/50 focus:bg-red-50 dark:focus:bg-red-950/50 border-0 data-[state=checked]:bg-red-100 dark:data-[state=checked]:bg-red-950/70"
-                            style={{ position: 'relative' }}
-                          >
-                            <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-red-500/10 dark:bg-red-500/20 flex-shrink-0">
-                                <Flame className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">Hot Lead</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">High priority</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem 
-                            value="warm" 
-                            className="select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 hover:bg-orange-50 dark:hover:bg-orange-950/50 focus:bg-orange-50 dark:focus:bg-orange-950/50 border-0 data-[state=checked]:bg-orange-100 dark:data-[state=checked]:bg-orange-950/70"
-                            style={{ position: 'relative' }}
-                          >
-                            <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-orange-500/10 dark:bg-orange-500/20 flex-shrink-0">
-                                <Thermometer className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">Warm Lead</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Interested</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem 
-                            value="meeting_scheduled" 
-                            className="select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 hover:bg-blue-50 dark:hover:bg-blue-950/50 focus:bg-blue-50 dark:focus:bg-blue-950/50 border-0 data-[state=checked]:bg-blue-100 dark:data-[state=checked]:bg-blue-950/70"
-                            style={{ position: 'relative' }}
-                          >
-                            <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-500/10 dark:bg-blue-500/20 flex-shrink-0">
-                                <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">Meeting Scheduled</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Confirmed</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem 
-                            value="meeting_rescheduled" 
-                            className="select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 hover:bg-yellow-50 dark:hover:bg-yellow-950/50 focus:bg-yellow-50 dark:focus:bg-yellow-950/50 border-0 data-[state=checked]:bg-yellow-100 dark:data-[state=checked]:bg-yellow-950/70"
-                            style={{ position: 'relative' }}
-                          >
-                            <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500/10 dark:bg-yellow-500/20 flex-shrink-0">
-                                <RotateCcw className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">Rescheduled</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">New time</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem 
-                            value="meeting_done" 
-                            className="select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 hover:bg-green-50 dark:hover:bg-green-950/50 focus:bg-green-50 dark:focus:bg-green-950/50 border-0 data-[state=checked]:bg-green-100 dark:data-[state=checked]:bg-green-950/70"
-                            style={{ position: 'relative' }}
-                          >
-                            <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-green-500/10 dark:bg-green-500/20 flex-shrink-0">
-                                <CheckCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">Completed</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Finished</div>
-                              </div>
-                            </div>
-                          </SelectItem>
+                          {LEAD_STATUS_ORDER.map((status) => {
+                            const statusConfig = statusMeta[status];
+                            const StatusIcon = statusConfig.icon;
+                            return (
+                              <SelectItem
+                                key={status}
+                                value={status}
+                                className={`select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 border-0 ${statusConfig.accentClass}`}
+                                style={{ position: 'relative' }}
+                              >
+                                <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
+                                  <div className={`flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 ${statusConfig.iconWrapClass}`}>
+                                    <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.iconClass}`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                                      {getLeadStatusLabel(status)}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                      {statusConfig.subtitle}
+                                    </div>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                        onClick={() => window.open(`/report/${report._id}`, '_blank')}
-                      >
-                        View Report
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          onClick={() => window.open(`/report/${report._id}`, '_blank')}
+                        >
+                          View Report
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          onClick={() => handleDeleteReport(report._id)}
+                          disabled={deletingReportId === report._id}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          {deletingReportId === report._id ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );

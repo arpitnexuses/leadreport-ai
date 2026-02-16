@@ -23,7 +23,7 @@ export default function Home() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [pollStartTime, setPollStartTime] = useState<number>(0);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<'admin' | 'project_user' | 'client'>('project_user');
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const [availableReportOwners, setAvailableReportOwners] = useState<string[]>([]);
 
@@ -64,7 +64,8 @@ export default function Home() {
         const response = await fetch('/api/auth/me');
         if (response.ok) {
           const data = await response.json();
-          setIsAdmin(data.role === 'admin');
+          const role = data.role as 'admin' | 'project_user' | 'client';
+          setUserRole(role);
         }
       } catch (error) {
         console.error('Failed to check user role:', error);
@@ -180,6 +181,9 @@ export default function Home() {
       case 'dashboard':
         return <DashboardView reports={reports} />;
       case 'generate':
+        if (userRole === 'client') {
+          return <DashboardView reports={reports} />;
+        }
         return (
           <LeadGenerationForm
             onSubmit={handleSubmit}
@@ -192,9 +196,12 @@ export default function Home() {
       case 'pipeline':
         return <PipelineTable reports={reports} />;
       case 'settings':
+        if (userRole === 'client') {
+          return <DashboardView reports={reports} />;
+        }
         return <SettingsView />;
       case 'users':
-        return isAdmin ? <UserManagement availableProjects={availableProjects} /> : <DashboardView reports={reports} />;
+        return userRole === 'admin' ? <UserManagement availableProjects={availableProjects} /> : <DashboardView reports={reports} />;
       default:
         return <DashboardView reports={reports} />;
     }
@@ -205,7 +212,7 @@ export default function Home() {
       <LoadingOverlay isVisible={isLoading || isPending} statusMessage={generationStatus} hasError={hasError} errorMessage={errorMessage} onRetry={handleRetry} />
 
       <div className="flex h-screen">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} />
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userRole={userRole} />
         
         <div className="flex-1 overflow-auto">
           <div className="p-8">

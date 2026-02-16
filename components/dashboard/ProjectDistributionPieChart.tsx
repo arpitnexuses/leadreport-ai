@@ -18,9 +18,17 @@ interface ProjectLeadCount {
 
 interface ProjectDistributionPieChartProps {
   projectLeads: ProjectLeadCount[];
+  title?: string;
+  subtitle?: string;
+  colors?: string[];
 }
 
-const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = ({ projectLeads }) => {
+const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = ({
+  projectLeads,
+  title = "Project Distribution",
+  subtitle = "Visual breakdown of leads by project",
+  colors
+}) => {
   const totalLeads = projectLeads.reduce((sum, p) => sum + p.count, 0);
 
   const data = {
@@ -28,7 +36,7 @@ const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = 
     datasets: [
       {
         data: projectLeads.map(p => p.count),
-        backgroundColor: [
+        backgroundColor: colors && colors.length > 0 ? colors : [
           '#3B82F6', // blue-500
           '#10B981', // emerald-500
           '#F59E0B', // amber-500
@@ -90,9 +98,9 @@ const ProjectDistributionPieChart: React.FC<ProjectDistributionPieChartProps> = 
             </svg>
           </div>
           <div>
-            <CardTitle className="text-xl text-white">Project Distribution</CardTitle>
+            <CardTitle className="text-xl text-white">{title}</CardTitle>
             <p className="text-sm text-blue-100 mt-1">
-              Visual breakdown of leads by project
+              {subtitle}
             </p>
           </div>
         </div>

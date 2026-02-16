@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server';
 export interface UserPayload {
   userId: string;
   email: string;
-  role: 'admin' | 'project_user';
+  role: 'admin' | 'project_user' | 'client';
   assignedProjects?: string[];
 }
 
@@ -56,8 +56,8 @@ export function canAccessProject(user: UserPayload, project: string): boolean {
     return true;
   }
 
-  // Project users can only access their assigned projects
-  if (user.role === 'project_user') {
+  // Project users and clients can only access their assigned projects
+  if (user.role === 'project_user' || user.role === 'client') {
     return user.assignedProjects?.includes(project) || false;
   }
 
@@ -70,8 +70,8 @@ export function getAccessibleProjects(user: UserPayload, allProjects: string[]):
     return allProjects;
   }
 
-  // Project users can only access their assigned projects
-  if (user.role === 'project_user') {
+  // Project users and clients can only access their assigned projects
+  if (user.role === 'project_user' || user.role === 'client') {
     return allProjects.filter(project => user.assignedProjects?.includes(project));
   }
 

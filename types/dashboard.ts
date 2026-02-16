@@ -21,6 +21,7 @@ export interface Report {
     leadDesignation?: string;
     leadBackground?: string;
     companyOverview?: string;
+    companyWebsite?: string;
     engagementTimeline?: {
       id: string;
       type: 'call' | 'email' | 'meeting' | 'note';

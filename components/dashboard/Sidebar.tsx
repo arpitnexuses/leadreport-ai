@@ -9,11 +9,13 @@ import { TabType } from "@/types/dashboard";
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
-  isAdmin?: boolean;
+  userRole?: 'admin' | 'project_user' | 'client';
 }
 
-export function Sidebar({ activeTab, setActiveTab, isAdmin = false }: SidebarProps) {
+export function Sidebar({ activeTab, setActiveTab, userRole = 'project_user' }: SidebarProps) {
   const router = useRouter();
+  const isAdmin = userRole === 'admin';
+  const isClient = userRole === 'client';
 
   const handleLogout = async () => {
     try {
@@ -39,11 +41,11 @@ export function Sidebar({ activeTab, setActiveTab, isAdmin = false }: SidebarPro
       label: 'Dashboard',
       icon: LayoutDashboard,
     },
-    {
-      id: 'generate',
+    ...(!isClient ? [{
+      id: 'generate' as TabType,
       label: 'Generate Lead',
       icon: Sparkles,
-    },
+    }] : []),
     {
       id: 'pipeline',
       label: 'Pipeline',
@@ -57,11 +59,11 @@ export function Sidebar({ activeTab, setActiveTab, isAdmin = false }: SidebarPro
     icon: typeof Settings;
     adminOnly?: boolean;
   }> = [
-    {
-      id: 'settings',
+    ...(!isClient ? [{
+      id: 'settings' as TabType,
       label: 'Preferences',
       icon: Settings,
-    },
+    }] : []),
     ...(isAdmin ? [{
       id: 'users' as TabType,
       label: 'Users',

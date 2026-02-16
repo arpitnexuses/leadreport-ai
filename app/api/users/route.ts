@@ -57,16 +57,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (role !== 'admin' && role !== 'project_user') {
+    if (role !== 'admin' && role !== 'project_user' && role !== 'client') {
       return NextResponse.json(
-        { message: 'Role must be either "admin" or "project_user"' },
+        { message: 'Role must be one of "admin", "project_user", or "client"' },
         { status: 400 }
       );
     }
 
-    if (role === 'project_user' && (!assignedProjects || assignedProjects.length === 0)) {
+    if ((role === 'project_user' || role === 'client') && (!assignedProjects || assignedProjects.length === 0)) {
       return NextResponse.json(
-        { message: 'Project users must have at least one assigned project' },
+        { message: 'Project users and clients must have at least one assigned project' },
         { status: 400 }
       );
     }
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       email,
       password: hashedPassword,
       role,
-      assignedProjects: role === 'project_user' ? assignedProjects : [],
+      assignedProjects: role === 'admin' ? [] : assignedProjects,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -133,16 +133,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (role && role !== 'admin' && role !== 'project_user') {
+    if (role && role !== 'admin' && role !== 'project_user' && role !== 'client') {
       return NextResponse.json(
-        { message: 'Role must be either "admin" or "project_user"' },
+        { message: 'Role must be one of "admin", "project_user", or "client"' },
         { status: 400 }
       );
     }
 
-    if (role === 'project_user' && (!assignedProjects || assignedProjects.length === 0)) {
+    if ((role === 'project_user' || role === 'client') && (!assignedProjects || assignedProjects.length === 0)) {
       return NextResponse.json(
-        { message: 'Project users must have at least one assigned project' },
+        { message: 'Project users and clients must have at least one assigned project' },
         { status: 400 }
       );
     }
@@ -158,7 +158,7 @@ export async function PUT(request: NextRequest) {
     if (email) updateDoc.email = email;
     if (role) {
       updateDoc.role = role;
-      updateDoc.assignedProjects = role === 'project_user' ? (assignedProjects || []) : [];
+      updateDoc.assignedProjects = role === 'admin' ? [] : (assignedProjects || []);
     } else if (assignedProjects) {
       updateDoc.assignedProjects = assignedProjects;
     }

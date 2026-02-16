@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 interface User {
   _id: string;
   email: string;
-  role: 'admin' | 'project_user';
+  role: 'admin' | 'project_user' | 'client';
   assignedProjects: string[];
   createdAt: string;
 }
@@ -30,7 +30,7 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'project_user' as 'admin' | 'project_user',
+    role: 'project_user' as 'admin' | 'project_user' | 'client',
     assignedProjects: [] as string[],
   });
 
@@ -258,16 +258,17 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
                 <select
                   id="role"
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'project_user' })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'project_user' | 'client' })}
                   className="w-full px-3 py-2 border rounded-md"
                   required
                 >
                   <option value="admin">Admin (Full Access)</option>
                   <option value="project_user">Project User (Limited Access)</option>
+                  <option value="client">Client (Dashboard + Pipeline only)</option>
                 </select>
               </div>
 
-              {formData.role === 'project_user' && (
+              {(formData.role === 'project_user' || formData.role === 'client') && (
                 <div>
                   <Label>Assigned Projects</Label>
                   <div className="mt-2 max-h-48 overflow-y-auto border rounded-md p-3 space-y-2">
@@ -287,7 +288,7 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
                       ))
                     )}
                   </div>
-                  {formData.role === 'project_user' && formData.assignedProjects.length === 0 && (
+                  {(formData.role === 'project_user' || formData.role === 'client') && formData.assignedProjects.length === 0 && (
                     <p className="text-sm text-red-500 mt-1">Please select at least one project</p>
                   )}
                 </div>
@@ -305,7 +306,7 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={formData.role === 'project_user' && formData.assignedProjects.length === 0}>
+                <Button type="submit" disabled={(formData.role === 'project_user' || formData.role === 'client') && formData.assignedProjects.length === 0}>
                   <Save className="h-4 w-4 mr-2" />
                   {editingUser ? 'Update' : 'Create'}
                 </Button>
@@ -340,7 +341,7 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
                     <td className="py-3 px-4">{user.email}</td>
                     <td className="py-3 px-4">
                       <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                        {user.role === 'admin' ? 'Admin' : 'Project User'}
+                        {user.role === 'admin' ? 'Admin' : user.role === 'client' ? 'Client' : 'Project User'}
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
