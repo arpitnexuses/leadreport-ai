@@ -32,6 +32,7 @@ interface AIGenerateAllProps {
   sections: Record<string, boolean>;
   leadData: any;
   apolloData?: any;
+  reportContext?: any;
   onContentGenerated: (sectionContents: Record<string, any>) => void;
   onSave?: () => void;
   isEditing: boolean;
@@ -42,6 +43,7 @@ export function AIGenerateAll({
   sections, 
   leadData, 
   apolloData, 
+  reportContext,
   onContentGenerated, 
   onSave,
   isEditing,
@@ -97,7 +99,8 @@ export function AIGenerateAll({
         body: JSON.stringify({
           batchSections: sectionKeys,
           leadData,
-          apolloData
+          apolloData,
+          reportContext
         })
       });
       

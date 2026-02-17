@@ -14,7 +14,8 @@
 export async function enhanceReportContent(
   section: string, 
   leadData: any, 
-  apolloData?: any
+  apolloData?: any,
+  reportContext?: any
 ): Promise<any> {
   try {
     // Call our AI generation API endpoint
@@ -26,7 +27,8 @@ export async function enhanceReportContent(
       body: JSON.stringify({
         section,
         leadData,
-        apolloData
+        apolloData,
+        reportContext
       })
     });
     

@@ -828,7 +828,18 @@ async function processReport(email: string, reportId: string) {
     try {
       // Start both processes in parallel - don't await yet
       const reportPromise = generateAIReport(apolloData);
-      const aiContentPromise = generateAIContentForAllSections(reportId, apolloData.person || {}, apolloData);
+      const aiContentPromise = generateAIContentForAllSections(
+        reportId,
+        apolloData.person || {},
+        apolloData,
+        {
+          meetingObjective: existingReport?.meetingObjective,
+          meetingAgenda: existingReport?.meetingAgenda,
+          problemPitch: existingReport?.problemPitch,
+          notes: existingReport?.leadData?.notes || [],
+          engagementTimeline: existingReport?.leadData?.engagementTimeline || []
+        }
+      );
 
       // Wait for both to complete in parallel
       const [reportResult, aiContentResult] = await Promise.allSettled([
@@ -986,7 +997,7 @@ async function processReport(email: string, reportId: string) {
 }
 
 // Function to generate AI content for all sections of a report
-async function generateAIContentForAllSections(reportId: string, leadData: any, apolloData: any) {
+async function generateAIContentForAllSections(reportId: string, leadData: any, apolloData: any, reportContext?: any) {
   console.log(`Automatically generating AI content for report: ${reportId}`);
 
   // Generate only currently-used sections to avoid wasting tokens/time on retired sections.
@@ -998,7 +1009,7 @@ async function generateAIContentForAllSections(reportId: string, leadData: any, 
 
     // Call the shared function directly - no HTTP request needed!
     console.log(`Generating AI content for ${sections.length} sections`);
-    const newContent = await generateBatchAIContent(sections, leadData, apolloData);
+    const newContent = await generateBatchAIContent(sections, leadData, apolloData, reportContext);
     console.log(`Successfully generated AI content for all sections`);
 
     // Update the report with the generated AI content

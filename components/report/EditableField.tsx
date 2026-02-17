@@ -71,7 +71,7 @@ export function EditableField({
   };
 
   if (!isEditing) {
-    return <p className={className}>{stringValue}</p>;
+    return <p className={`${className} whitespace-pre-wrap break-words`}>{stringValue}</p>;
   }
   
   if (multiline) {

@@ -14,6 +14,7 @@ interface AISectionContentProps {
   section: 'overview' | 'company' | 'meeting' | 'interactions' | 'competitors' | 'techStack' | 'news' | 'nextSteps';
   leadData: any;
   apolloData?: any;
+  reportContext?: any;
   existingContent?: any;
   isEditing?: boolean;
   showSectionHeader?: boolean;
@@ -24,6 +25,7 @@ export function AISectionContent({
   section, 
   leadData, 
   apolloData, 
+  reportContext,
   existingContent, 
   isEditing = false,
   showSectionHeader = true,
@@ -158,6 +160,7 @@ export function AISectionContent({
                 section={section}
                 leadData={leadData}
                 apolloData={apolloData}
+                reportContext={reportContext}
                 onContentGenerated={handleContentGenerated}
               />
             </div>
@@ -193,6 +196,7 @@ export function AISectionContent({
               section={section}
               leadData={leadData}
               apolloData={apolloData}
+              reportContext={reportContext}
               onContentGenerated={handleContentGenerated}
             />
           </div>
@@ -1229,6 +1233,7 @@ export function AISectionContent({
               section={section}
               leadData={leadData}
               apolloData={apolloData}
+              reportContext={reportContext}
               onContentGenerated={handleContentGenerated}
             />
           </div>

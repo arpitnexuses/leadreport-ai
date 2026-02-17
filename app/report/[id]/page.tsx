@@ -276,6 +276,14 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const [activityContent, setActivityContent] = useState('');
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
 
+  const buildAIReportContext = (sourceReport?: LeadReport | null, sourceLeadData?: LeadData | null) => ({
+    meetingObjective: sourceReport?.meetingObjective || sourceReport?.meetingAgenda || "",
+    meetingAgenda: sourceReport?.meetingAgenda || "",
+    problemPitch: sourceReport?.problemPitch || "",
+    notes: sourceLeadData?.notes || sourceReport?.leadData?.notes || [],
+    engagementTimeline: sourceLeadData?.engagementTimeline || sourceReport?.leadData?.engagementTimeline || []
+  });
+
   useEffect(() => {
     if (report) {
       const skillsFromData = ((report.apolloData?.person as any)?.skills || []).map(
@@ -330,7 +338,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         body: JSON.stringify({
           section: 'strategicBrief',
           leadData: report.leadData,
-          apolloData: report.apolloData?.person
+          apolloData: report.apolloData?.person,
+          reportContext: buildAIReportContext(report, report.leadData)
         })
       })
       .then(res => res.json())
@@ -383,7 +392,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           body: JSON.stringify({
             section,
             leadData: reportData.leadData,
-            apolloData: reportData.apolloData
+            apolloData: reportData.apolloData,
+            reportContext: buildAIReportContext(reportData, reportData.leadData)
           })
         });
         
@@ -1007,7 +1017,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             </div>
           </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                 <a
                   href={`https://wa.me/${leadData.contactDetails.phone?.replace(/\D/g, '')}`}
                   target="_blank"
@@ -1514,12 +1524,12 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                           placeholder="Meeting name/title"
                           className="text-sm font-bold border border-gray-300 rounded px-2 py-1 w-full"
                         />
-                        <input
-                          type="text"
+                        <Textarea
                           value={report.meetingAgenda || report.meetingObjective || ''}
                           onChange={(e) => setReport({ ...report, meetingAgenda: e.target.value })}
                           placeholder="Meeting agenda/objective"
-                          className="text-sm font-bold border border-gray-300 rounded px-2 py-1 w-full"
+                          rows={3}
+                          className="text-sm font-bold border border-gray-300 rounded px-2 py-1 w-full whitespace-pre-wrap"
                         />
                       </div>
                     ) : report.meetingDate && report.meetingTime ? (
@@ -1727,9 +1737,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
             {/* About Section Grid */}
             <div className="apple-card p-0 overflow-hidden">
-              <div className="grid grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2">
                 {/* About Lead */}
-                <div className="p-6">
+                <div className="p-5 sm:p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                       <User className="w-3.5 h-3.5" />
@@ -1793,7 +1803,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* About Company */}
-                <div className="p-8 bg-[#FBFBFC] border-l border-gray-100">
+                <div className="p-5 sm:p-6 md:p-8 bg-[#FBFBFC] border-t md:border-t-0 md:border-l border-gray-100">
                   <div className="flex items-center gap-2 mb-6">
                     <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                       <Building2 className="w-4 h-4" />
@@ -1844,7 +1854,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       </ul>
                     )}
                   </div>
-                  <div className="mt-6 pt-6 border-t border-gray-200/60 flex gap-4">
+                  <div className="mt-6 pt-6 border-t border-gray-200/60 flex flex-col sm:flex-row gap-3 sm:gap-4">
                     {companyWebsiteHref ? (
                       <a
                         href={companyWebsiteHref}
@@ -1956,7 +1966,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                             body: JSON.stringify({
                               section: 'strategicBrief',
                               leadData,
-                              apolloData: apolloPerson
+                              apolloData: apolloPerson,
+                              reportContext: buildAIReportContext(report, leadData)
                             })
                           })
                           .then(res => res.json())
@@ -2292,7 +2303,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                           className="w-full bg-white rounded-xl border border-gray-200 p-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all"
                         />
                       ) : (
-                        <p className="text-sm text-gray-700 leading-relaxed">{note.content}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{note.content}</p>
                       )}
                     </div>
                   ))

@@ -14,7 +14,8 @@ if (!OPENAI_API_KEY) {
 export async function generateBatchAIContent(
   sections: string[],
   leadData: any,
-  apolloData?: any
+  apolloData?: any,
+  reportContext?: any
 ): Promise<Record<string, any>> {
   try {
     // Validate input data
@@ -27,7 +28,7 @@ export async function generateBatchAIContent(
     }
     
     // Create combined prompt for all sections
-    const combinedPrompt = createCombinedPrompt(sections, leadData, apolloData);
+    const combinedPrompt = createCombinedPrompt(sections, leadData, apolloData, reportContext);
     
     // Call OpenAI once with the combined prompt
     const batchResponse = await generateBatchWithAI(combinedPrompt, sections);
@@ -84,14 +85,15 @@ export async function generateBatchAIContent(
 export async function generateSingleAIContent(
   section: string,
   leadData: any,
-  apolloData?: any
+  apolloData?: any,
+  reportContext?: any
 ): Promise<any> {
   if (!section || !leadData) {
     throw new Error("Missing required parameters");
   }
 
   // Call OpenAI to generate content
-  const aiResponse = await generateWithAI(section, leadData, apolloData);
+  const aiResponse = await generateWithAI(section, leadData, apolloData, reportContext);
   
   // Process and enhance the response
   const processedResponse = processAIResponse(section, aiResponse);
@@ -121,7 +123,7 @@ async function generateBatchWithAI(combinedPrompt: string, sections: string[]) {
           {
             role: "system",
             content:
-              "You are a sales intelligence assistant providing highly focused, concise insights. You must return a valid JSON object with sections as requested in the prompt. Each section should be extremely brief and actionable. Return only the JSON object with no additional text."
+              "You are a sales intelligence assistant. Ground every output in the provided lead/company/report context, especially meeting objective, problem/pitch, and notes when present. Avoid generic advice. Use concise, professional language and return only valid JSON with the requested section keys."
           },
           {
             role: "user",
@@ -195,28 +197,140 @@ async function generateBatchWithAI(combinedPrompt: string, sections: string[]) {
   }
 }
 
+function toDisplayValue(value: any, fallback = "Unknown"): string {
+  if (value === null || value === undefined) return fallback;
+  const stringValue = String(value).trim();
+  return stringValue.length > 0 ? stringValue : fallback;
+}
+
+function preserveMultiline(value: any, fallback = "Not provided"): string {
+  if (value === null || value === undefined) return fallback;
+  const raw = String(value).replace(/\r\n/g, "\n");
+  // Keep user formatting (bullets/spacing/newlines) while normalizing trailing whitespace.
+  const normalized = raw
+    .split("\n")
+    .map((line) => line.replace(/\s+$/g, ""))
+    .join("\n")
+    .trim();
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function getApolloPerson(apolloData?: any): any {
+  if (!apolloData) return {};
+  return apolloData.person ? apolloData.person : apolloData;
+}
+
+function getRecentNotes(notes: any, maxItems = 6): string[] {
+  if (!Array.isArray(notes)) return [];
+  const normalized = notes
+    .map((note: any) => (typeof note === "string" ? note : note?.content))
+    .map((note: any) => (typeof note === "string" ? preserveMultiline(note, "") : ""))
+    .filter((note: string) => note.trim().length > 0);
+
+  return normalized.slice(-maxItems);
+}
+
+function getRecentTimelineItems(timeline: any, maxItems = 5): string[] {
+  if (!Array.isArray(timeline)) return [];
+  const normalized = timeline
+    .map((item: any) => {
+      if (typeof item === "string") return preserveMultiline(item, "");
+      const type = toDisplayValue(item?.type, "activity");
+      const content = preserveMultiline(item?.content, "");
+      return content ? `${type}: ${content}` : "";
+    })
+    .filter(Boolean);
+  return normalized.slice(-maxItems);
+}
+
+function buildContextSnapshot(leadData: any, apolloData?: any, reportContext?: any): string {
+  const apolloPerson = getApolloPerson(apolloData);
+  const apolloOrg = apolloPerson?.organization || {};
+
+  const leadName = toDisplayValue(leadData?.name || apolloPerson?.name);
+  const leadRole = toDisplayValue(leadData?.position || leadData?.leadDesignation || apolloPerson?.title);
+  const companyName = toDisplayValue(leadData?.companyName || apolloOrg?.name);
+  const industry = toDisplayValue(
+    leadData?.companyDetails?.industry || leadData?.leadIndustry || apolloOrg?.industry
+  );
+  const companySize = toDisplayValue(
+    leadData?.companyDetails?.employees || apolloOrg?.estimated_num_employees || apolloOrg?.employee_count
+  );
+  const location = toDisplayValue(leadData?.companyDetails?.headquarters || apolloOrg?.raw_address);
+  const companyOverview = preserveMultiline(
+    leadData?.companyOverview || apolloOrg?.short_description || apolloOrg?.description,
+    "Not provided"
+  );
+  const leadBackground = preserveMultiline(leadData?.leadBackground, "Not provided");
+  const companyWebsite = toDisplayValue(
+    leadData?.companyWebsite || leadData?.companyDetails?.website || apolloOrg?.website_url,
+    "Not provided"
+  );
+
+  const objective = preserveMultiline(
+    reportContext?.meetingObjective || reportContext?.meetingAgenda,
+    "Not provided"
+  );
+  const pitch = preserveMultiline(reportContext?.problemPitch, "Not provided");
+
+  const notes = getRecentNotes(reportContext?.notes || leadData?.notes);
+  const timeline = getRecentTimelineItems(reportContext?.engagementTimeline || leadData?.engagementTimeline);
+
+  return `
+LEAD & COMPANY CONTEXT:
+- Lead name: ${leadName}
+- Lead role: ${leadRole}
+- Company: ${companyName}
+- Industry: ${industry}
+- Company size: ${companySize}
+- HQ/location: ${location}
+- Company website: ${companyWebsite}
+- Lead background:
+<<<
+${leadBackground}
+>>>
+- Company overview:
+<<<
+${companyOverview}
+>>>
+
+MEETING CONTEXT:
+- Meeting objective:
+<<<
+${objective}
+>>>
+- Problem/pitch:
+<<<
+${pitch}
+>>>
+
+RECENT NOTES (internal):
+${notes.length > 0 ? notes.map((note) => `- <<<\n${note}\n>>>`).join("\n") : "- None provided"}
+
+RECENT ENGAGEMENT TIMELINE:
+${timeline.length > 0 ? timeline.map((item) => `- ${item}`).join("\n") : "- None provided"}
+`;
+}
+
 // Create a combined prompt for multiple sections
-function createCombinedPrompt(sections: string[], leadData: any, apolloData?: any): string {
-  const baseInfo = `
-    Lead name: ${leadData.name || "Unknown"}
-    Position: ${leadData.position || "Unknown"}
-    Company: ${leadData.companyName || "Unknown"}
-    Industry: ${leadData.companyDetails?.industry || "Unknown"}
-    Company size: ${leadData.companyDetails?.employees || "Unknown"}
-    Location: ${leadData.companyDetails?.headquarters || "Unknown"}
-  `;
+function createCombinedPrompt(sections: string[], leadData: any, apolloData?: any, reportContext?: any): string {
+  const contextSnapshot = buildContextSnapshot(leadData, apolloData, reportContext);
 
   const sectionPrompts = sections.map(section => {
     const sectionPrompt = getSectionPromptContent(section);
     return `SECTION: ${section}\n${sectionPrompt}`;
   }).join('\n\n');
 
-  return `${baseInfo}
+  return `${contextSnapshot}
   
   INSTRUCTIONS:
-  I need you to generate content for multiple sections of a lead report.
-  For each section, provide the appropriate content according to the instructions.
-  All content should be extremely brief, specific and actionable.
+  Generate content for multiple sections of a lead report.
+  Requirements:
+  - Use the provided context directly; do not write generic filler.
+  - If notes, pitch, or meeting objective are present, reflect them explicitly where relevant.
+  - When context is detailed, increase specificity (not fluff).
+  - Keep language crisp and executive-ready (short, specific, natural business tone).
+  - No invented facts. If context is missing, return insufficient_data for that section.
   
   Your response must be a valid JSON object with each section as a top-level key.
   Example structure:
@@ -259,13 +373,14 @@ function getSectionPromptContent(section: string): string {
 async function generateWithAI(
   section: string,
   leadData: any,
-  apolloData?: any
+  apolloData?: any,
+  reportContext?: any
 ) {
   if (!OPENAI_API_KEY) {
     throw new Error("API configuration error");
   }
 
-  const prompt = createPromptForSection(section, leadData, apolloData);
+  const prompt = createPromptForSection(section, leadData, apolloData, reportContext);
 
   // Use faster model for simpler sections, GPT-4 for more complex analysis
   const complexSections = ['competitors', 'techStack', 'nextSteps'];
@@ -284,7 +399,7 @@ async function generateWithAI(
           {
             role: "system",
             content:
-              "You are a sales intelligence assistant providing highly focused, concise insights. Keep all content exceptionally brief - summaries under 2 sentences, lists limited to 3 items max. Avoid vague generalizations and provide only specific, actionable information. Your responses must be formatted as valid JSON. Only include information directly supported by the provided data. For industry insights, focus on the most relevant points without broad generalizations. Prioritize specificity and brevity above all. IMPORTANT: Only provide recommendations, suggestions, or tips for the 'nextSteps' and 'interactions' sections. For all other sections, focus solely on factual information without suggestions or recommendations."
+              "You are a sales intelligence assistant writing concise, high-signal sales content. Prioritize provided context over generic industry commentary. Use professional, direct language. Do not invent details. Return valid JSON only. IMPORTANT: Only provide recommendations, suggestions, or tips for the 'nextSteps' and 'interactions' sections. For all other sections, focus solely on factual analysis."
           },
           {
             role: "user",
@@ -342,16 +457,10 @@ async function generateWithAI(
 function createPromptForSection(
   section: string,
   leadData: any,
-  apolloData?: any
+  apolloData?: any,
+  reportContext?: any
 ): string {
-  const baseInfo = `
-    Lead name: ${leadData.name || "Unknown"}
-    Position: ${leadData.position || "Unknown"}
-    Company: ${leadData.companyName || "Unknown"}
-    Industry: ${leadData.companyDetails?.industry || "Unknown"}
-    Company size: ${leadData.companyDetails?.employees || "Unknown"}
-    Location: ${leadData.companyDetails?.headquarters || "Unknown"}
-  `;
+  const baseInfo = buildContextSnapshot(leadData, apolloData, reportContext);
 
   const dataQualityPrompt = `
     INSTRUCTION: Keep all content extremely brief, specific, and actionable.
@@ -365,10 +474,12 @@ function createPromptForSection(
     - Vague, generic statements
     - Extended explanations
     - Obvious information
+    - Repeating generic industry cliches
     
     For specific company details:
     - Only include information directly from the data provided
     - Do not fabricate statistics, names, or events
+    - Reuse the provided notes/objective/pitch only where relevant
     
     For general industry insights:
     - Focus only on the most relevant points
@@ -391,6 +502,7 @@ function createPromptForSection(
         ${dataQualityPrompt}
         Based ONLY on the above information, provide a brief overview of this lead.
         Include a 1-2 sentence summary and MAXIMUM 3 key points most relevant for sales.
+        If problem/pitch or internal notes are present, use them to sharpen the key points.
         Keep all content extremely concise and focused on actionable insights.
         Format the response as JSON with 'summary' and 'keyPoints' fields.
         If you don't have enough information, include 'insufficient_data: true' in your JSON response.
@@ -404,6 +516,7 @@ function createPromptForSection(
         - A 1-2 sentence description combining company data with essential industry knowledge
         - A 1 sentence market positioning statement
         - MAXIMUM 2-3 specific challenges likely faced based on industry
+        - If company overview or notes mention priorities, reflect those priorities in challenges
         
         Format as JSON with 'description', 'marketPosition', and 'challenges' fields.
         All content must be extremely concise and specific with no vague generalizations.
@@ -454,6 +567,7 @@ function createPromptForSection(
       return `${baseInfo}
         ${dataQualityPrompt}
         Provide MAXIMUM 2 highly specific next action recommendations for interacting with the lead.
+        Use the problem/pitch, meeting objective, and notes as your primary signal.
         
         Focus strictly on business action recommendations:
         - DO NOT include any personal information about who's viewing the report
@@ -475,7 +589,7 @@ function createPromptForSection(
       return `${baseInfo}
         ${dataQualityPrompt}
         Based ONLY on the above information, provide general guidance for an upcoming meeting.
-        Include suggested talking points based on the lead's industry and position.
+        Include suggested talking points based on the lead's industry, position, objective, pitch, and notes.
         DO NOT reference specific projects, initiatives, or needs unless they are mentioned in the provided data.
         Focus on standard discovery questions appropriate for a lead in this industry.
         Format the response as JSON with 'suggestedAgenda', 'keyQuestions' (array), and 'preparationTips' fields.
@@ -485,7 +599,7 @@ function createPromptForSection(
       return `${baseInfo}
         ${dataQualityPrompt}
         Based ONLY on the above information, provide general recommendations for effective interactions.
-        Focus on standard communication best practices for a lead in this industry and position.
+        Focus on communication tactics aligned to the lead's role plus any notes and timeline signals.
         DO NOT make claims about the lead's specific preferences, personality, or communication style unless mentioned in the provided data.
         Format the response as JSON with 'communicationPreferences', 'personalizationTips' (array), and 'dosDonts' fields.
         If you don't have enough information, include 'insufficient_data: true' in your JSON response.
@@ -493,12 +607,13 @@ function createPromptForSection(
     case "strategicBrief":
       return `${baseInfo}
         ${dataQualityPrompt}
-        Based on the lead's position, company, and industry, create a focused strategic meeting brief for this sales opportunity.
+        Based on the lead's position, company, industry, objective, problem/pitch, and notes, create a focused strategic meeting brief for this sales opportunity.
+        If objective/pitch/notes are detailed, produce a richer and more tailored approach (without being verbose).
         
         Provide:
         1. PRIMARY OBJECTIVE: A clear 1-2 sentence goal for the meeting (what you want to achieve or secure)
-        2. RECOMMENDED APPROACH: A compelling 2-sentence pitch explaining your solution's unique value
-        3. KEY BENEFITS: Exactly 3 specific benefit points (short phrases, 3-6 words each)
+        2. RECOMMENDED APPROACH: A compelling 2-4 sentence approach tied to the most important context details
+        3. KEY BENEFITS: Exactly 3 specific benefit points (short phrases, 6-12 words each)
         4. CRITICAL DISCIPLINE: One specific warning or thing to avoid during the meeting
         
         Format as JSON with these exact fields:
@@ -510,6 +625,7 @@ function createPromptForSection(
         }
         
         Make all content specific to the lead's industry and role. Keep language professional and actionable.
+        If context includes explicit priorities, pain points, or bullet lists, map them directly into approach and benefits.
         If insufficient data, include 'insufficient_data: true'.
       `;
     default:

@@ -369,7 +369,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                 {whatsappHref ? (
                   <a
                     href={whatsappHref}
@@ -796,9 +796,9 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
 
             {/* About Section Grid */}
             <div className="apple-card p-0 overflow-hidden">
-              <div className="grid grid-cols-2">
+              <div className="grid grid-cols-1 md:grid-cols-2">
                 {/* About Lead */}
-                <div className="p-6">
+                <div className="p-5 sm:p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                       <User className="w-3.5 h-3.5" />
@@ -839,7 +839,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                 </div>
 
                 {/* About Company */}
-                <div className="p-8 bg-[#FBFBFC] border-l border-gray-100">
+                <div className="p-5 sm:p-6 md:p-8 bg-[#FBFBFC] border-t md:border-t-0 md:border-l border-gray-100">
                   <div className="flex items-center gap-2 mb-6">
                     <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
                       <Building2 className="w-4 h-4" />
@@ -865,7 +865,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                       </ul>
                     )}
                   </div>
-                  <div className="mt-6 pt-6 border-t border-gray-200/60 flex gap-4">
+                  <div className="mt-6 pt-6 border-t border-gray-200/60 flex flex-col sm:flex-row gap-3 sm:gap-4">
                     {companyWebsiteHref ? (
                       <a
                         href={companyWebsiteHref}

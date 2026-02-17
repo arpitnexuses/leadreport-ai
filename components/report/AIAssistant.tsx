@@ -8,10 +8,11 @@ interface AIAssistantProps {
   section: 'overview' | 'company' | 'meeting' | 'interactions' | 'competitors' | 'techStack' | 'news' | 'nextSteps';
   leadData: any;
   apolloData?: any;
+  reportContext?: any;
   onContentGenerated: (content: any) => void;
 }
 
-export function AIAssistant({ section, leadData, apolloData, onContentGenerated }: AIAssistantProps) {
+export function AIAssistant({ section, leadData, apolloData, reportContext, onContentGenerated }: AIAssistantProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +31,8 @@ export function AIAssistant({ section, leadData, apolloData, onContentGenerated 
         body: JSON.stringify({
           section,
           leadData,
-          apolloData
+          apolloData,
+          reportContext
         })
       });
       
