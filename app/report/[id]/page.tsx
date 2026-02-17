@@ -126,6 +126,7 @@ interface LeadData {
   status?: string;
   nextFollowUp?: string;
   customFields?: { [key: string]: string };
+  companyWebsite?: string;
 }
 
 interface ApolloResponse {
@@ -650,6 +651,16 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   const leadData = report.leadData;
   const apolloPerson = report?.apolloData?.person;
+  const isMeaningfulValue = (value?: string | null) =>
+    Boolean(value && value.trim() && value.trim().toLowerCase() !== "n/a");
+  const normalizeExternalUrl = (url: string) =>
+    /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const rawCompanyWebsite =
+    (isMeaningfulValue(leadData.companyDetails?.website) && leadData.companyDetails.website) ||
+    (isMeaningfulValue(leadData.companyWebsite) && leadData.companyWebsite) ||
+    (isMeaningfulValue(apolloPerson?.organization?.website_url) && apolloPerson?.organization?.website_url) ||
+    "";
+  const companyWebsiteHref = rawCompanyWebsite ? normalizeExternalUrl(rawCompanyWebsite) : "";
   const leadScore = leadData.leadScoring?.score ?? (parseInt(leadData.leadScoring?.rating || "0") > 10 ? parseInt(leadData.leadScoring?.rating || "0") : 88);
   const currentLinkedinUrl =
     (isEditing && editedLeadData
@@ -1834,15 +1845,22 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     )}
                   </div>
                   <div className="mt-6 pt-6 border-t border-gray-200/60 flex gap-4">
-                    <a
-                      href={leadData.companyDetails.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 transition shadow-sm"
-                    >
-                      <Globe className="w-3.5 h-3.5 text-gray-400" />
-                      Official Website
-                    </a>
+                    {companyWebsiteHref ? (
+                      <a
+                        href={companyWebsiteHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 transition shadow-sm"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-gray-400" />
+                        Official Website
+                      </a>
+                    ) : (
+                      <div className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-gray-100 rounded-xl border border-gray-200 text-sm font-bold text-gray-400 shadow-sm cursor-not-allowed">
+                        <Globe className="w-3.5 h-3.5 text-gray-300" />
+                        Website Unavailable
+                      </div>
+                    )}
                     <a
                       href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
                       target="_blank"

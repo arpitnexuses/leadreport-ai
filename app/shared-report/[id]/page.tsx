@@ -51,6 +51,7 @@ interface LeadData {
   leadDesignation?: string;
   leadBackground?: string;
   companyOverview?: string;
+  companyWebsite?: string;
 }
 
 interface ApolloResponse {
@@ -258,6 +259,33 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const leadData = report.leadData;
   const apolloPerson = report?.apolloData?.person;
   const aiContent = report.aiContent || {};
+  const isMeaningfulValue = (value?: string | null) =>
+    Boolean(value && value.trim() && value.trim().toLowerCase() !== "n/a");
+  const normalizeExternalUrl = (url: string) =>
+    /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const rawCompanyWebsite =
+    (isMeaningfulValue(leadData.companyDetails?.website) && leadData.companyDetails.website) ||
+    (isMeaningfulValue(leadData.companyWebsite) && leadData.companyWebsite) ||
+    (isMeaningfulValue(apolloPerson?.organization?.website_url) && apolloPerson?.organization?.website_url) ||
+    "";
+  const companyWebsiteHref = rawCompanyWebsite
+    ? normalizeExternalUrl(rawCompanyWebsite)
+    : "";
+  const currentEmail =
+    (isMeaningfulValue(leadData.contactDetails?.email) && leadData.contactDetails.email) ||
+    (isMeaningfulValue(apolloPerson?.email) && apolloPerson.email) ||
+    "";
+  const currentPhone =
+    (isMeaningfulValue(leadData.contactDetails?.phone) && leadData.contactDetails.phone) ||
+    (isMeaningfulValue(apolloPerson?.phone_number) && apolloPerson.phone_number) ||
+    "";
+  const rawLinkedinUrl =
+    (isMeaningfulValue(leadData.contactDetails?.linkedin) && leadData.contactDetails.linkedin) ||
+    (isMeaningfulValue(apolloPerson?.linkedin_url) && apolloPerson.linkedin_url) ||
+    "";
+  const linkedinHref = rawLinkedinUrl ? normalizeExternalUrl(rawLinkedinUrl) : "";
+  const whatsappHref = currentPhone ? `https://wa.me/${currentPhone.replace(/\D/g, "")}` : "";
+  const emailHref = currentEmail ? `mailto:${currentEmail}` : "";
   const leadScore = leadData.leadScoring?.score ?? (parseInt(leadData.leadScoring?.rating || "0") > 10 ? parseInt(leadData.leadScoring?.rating || "0") : 88);
   const currentLeadStatus = normalizeLeadStatus(leadData.status || "warm");
   const pipelineStages = LEAD_STATUS_ORDER;
@@ -342,33 +370,92 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <a
-                  href={`https://wa.me/${leadData.contactDetails.phone?.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2 flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-[#128C7E] transition shadow-sm border border-[#25D366]/20"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span className="text-xs font-black uppercase tracking-widest">WhatsApp</span>
-                </a>
-                <a
-                  href={`mailto:${leadData.contactDetails.email}`}
-                  className="w-full py-2 flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-[#0071E3] transition shadow-sm border border-blue-100"
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  <span className="text-xs font-black uppercase tracking-widest">Email</span>
-                </a>
+                {whatsappHref ? (
+                  <a
+                    href={whatsappHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2 flex items-center justify-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 rounded-xl text-[#128C7E] transition shadow-sm border border-[#25D366]/20"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span className="text-xs font-black uppercase tracking-widest">WhatsApp</span>
+                  </a>
+                ) : (
+                  <div className="w-full py-2 flex items-center justify-center gap-2 bg-gray-100 rounded-xl text-gray-400 shadow-sm border border-gray-200 cursor-not-allowed">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span className="text-xs font-black uppercase tracking-widest">WhatsApp</span>
+                  </div>
+                )}
+                {emailHref ? (
+                  <a
+                    href={emailHref}
+                    className="w-full py-2 flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-xl text-[#0071E3] transition shadow-sm border border-blue-100"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span className="text-xs font-black uppercase tracking-widest">Email</span>
+                  </a>
+                ) : (
+                  <div className="w-full py-2 flex items-center justify-center gap-2 bg-gray-100 rounded-xl text-gray-400 shadow-sm border border-gray-200 cursor-not-allowed">
+                    <Mail className="w-3.5 h-3.5" />
+                    <span className="text-xs font-black uppercase tracking-widest">Email</span>
+                  </div>
+                )}
               </div>
 
-              <a
-                href={leadData.contactDetails.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full py-2.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-white transition-all shadow-sm"
+              {linkedinHref ? (
+                <a
+                  href={linkedinHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-white transition-all shadow-sm"
                 >
-                <Linkedin className="w-3.5 h-3.5" />
-                <span className="text-xs font-black uppercase tracking-widest">LinkedIn Profile</span>
+                  <Linkedin className="w-3.5 h-3.5" />
+                  <span className="text-xs font-black uppercase tracking-widest">LinkedIn Profile</span>
                 </a>
+              ) : (
+                <div className="w-full py-2.5 flex items-center justify-center gap-2 bg-gray-100 rounded-xl text-gray-400 transition-all shadow-sm border border-gray-200 cursor-not-allowed">
+                  <Linkedin className="w-3.5 h-3.5" />
+                  <span className="text-xs font-black uppercase tracking-widest">LinkedIn Profile</span>
+                </div>
+              )}
+            </div>
+
+            {/* Contact Details */}
+            <div className="apple-card p-5">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Contact Details</h3>
+              <div className="space-y-4">
+                <div className="section-tint">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-bold uppercase">Email</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{currentEmail || "N/A"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-bold uppercase">Phone</p>
+                      <p className="text-sm font-bold text-gray-900">{currentPhone || "N/A"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600">
+                      <Linkedin className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 font-bold uppercase">LinkedIn</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">
+                        {rawLinkedinUrl ? rawLinkedinUrl.replace(/^https?:\/\//i, "") : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* CRM Intelligence */}
@@ -441,6 +528,26 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     <div>
                       <p className="text-xs text-gray-500 font-bold uppercase">Location</p>
                       <p className="text-sm font-bold text-gray-900">{leadData.companyDetails.headquarters}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Globe className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-bold uppercase">Website</p>
+                      {companyWebsiteHref ? (
+                        <a
+                          href={companyWebsiteHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-bold text-blue-600 hover:underline"
+                        >
+                          {rawCompanyWebsite.replace(/^https?:\/\//i, "")}
+                        </a>
+                      ) : (
+                        <p className="text-sm font-bold text-gray-500">N/A</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -759,15 +866,22 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     )}
                   </div>
                   <div className="mt-6 pt-6 border-t border-gray-200/60 flex gap-4">
-                    <a
-                      href={leadData.companyDetails.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 transition shadow-sm"
-                    >
-                      <Globe className="w-3.5 h-3.5 text-gray-400" />
-                      Official Website
-                    </a>
+                    {companyWebsiteHref ? (
+                      <a
+                        href={companyWebsiteHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-white hover:bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-gray-900 transition shadow-sm"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-gray-400" />
+                        Official Website
+                      </a>
+                    ) : (
+                      <div className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-gray-100 rounded-xl border border-gray-200 text-sm font-bold text-gray-400 shadow-sm cursor-not-allowed">
+                        <Globe className="w-3.5 h-3.5 text-gray-300" />
+                        Website Unavailable
+                      </div>
+                    )}
                     <a
                       href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
                       target="_blank"
