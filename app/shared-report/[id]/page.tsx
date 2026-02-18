@@ -10,7 +10,7 @@ import { LeadQualification } from "@/components/report/LeadQualification";
 import { 
   Mail, Phone, Linkedin, MapPin, Globe, Star, Briefcase, Calendar, 
   FileText, Check, MessageCircle, User, Building2, Banknote, Users2, 
-  Landmark, Fingerprint, Zap, Send, Clock, Target, Lightbulb, 
+  Landmark, Zap, Send, Clock, Target, Lightbulb, 
   AlertOctagon, History, Video, X, Download, Loader2, Newspaper, RefreshCw
 } from "lucide-react";
 import {
@@ -65,6 +65,7 @@ interface ApolloResponse {
     organization?: {
       name?: string;
       website_url?: string;
+      linkedin_url?: string;
       industry?: string;
       employee_count?: string;
       location?: {
@@ -271,6 +272,13 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const companyWebsiteHref = rawCompanyWebsite
     ? normalizeExternalUrl(rawCompanyWebsite)
     : "";
+  const companySlug = leadData.companyName?.toLowerCase().replace(/\s+/g, "-") || "";
+  const defaultCompanyLinkedin = companySlug ? `https://linkedin.com/company/${companySlug}` : "";
+  const rawCompanyLinkedin =
+    (isMeaningfulValue(leadData.customFields?.companyLinkedin) && leadData.customFields?.companyLinkedin) ||
+    (isMeaningfulValue(apolloPerson?.organization?.linkedin_url) && apolloPerson?.organization?.linkedin_url) ||
+    defaultCompanyLinkedin;
+  const companyLinkedinHref = rawCompanyLinkedin ? normalizeExternalUrl(rawCompanyLinkedin) : "";
   const currentEmail =
     (isMeaningfulValue(leadData.contactDetails?.email) && leadData.contactDetails.email) ||
     (isMeaningfulValue(apolloPerson?.email) && apolloPerson.email) ||
@@ -551,13 +559,13 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600">
-                      <Fingerprint className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-lg bg-[#E8F4FD] flex items-center justify-center text-[#0A66C2]">
+                      <Linkedin className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 font-bold uppercase">Ownership</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">LinkedIn</p>
                       <p className="text-sm font-bold text-gray-900">
-                        {leadData.customFields?.fundingStage || apolloPerson?.organization?.funding_stage || 'N/A'}
+                        {rawCompanyLinkedin || "N/A"}
                       </p>
                     </div>
                   </div>
@@ -882,15 +890,22 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                         Website Unavailable
                       </div>
                     )}
-                    <a
-                      href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-sm font-bold text-white transition shadow-sm"
-                    >
-                      <Linkedin className="w-3.5 h-3.5" />
-                      LinkedIn
-                    </a>
+                    {companyLinkedinHref ? (
+                      <a
+                        href={companyLinkedinHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-sm font-bold text-white transition shadow-sm"
+                      >
+                        <Linkedin className="w-3.5 h-3.5" />
+                        LinkedIn
+                      </a>
+                    ) : (
+                      <div className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-gray-100 rounded-xl border border-gray-200 text-sm font-bold text-gray-400 shadow-sm cursor-not-allowed">
+                        <Linkedin className="w-3.5 h-3.5 text-gray-300" />
+                        LinkedIn Unavailable
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

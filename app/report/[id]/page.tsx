@@ -67,7 +67,6 @@ import {
   Banknote,
   Users2,
   Landmark,
-  Fingerprint,
   MessageCircle,
   Lightbulb,
   AlertOctagon,
@@ -140,6 +139,7 @@ interface ApolloResponse {
     organization?: {
       name?: string;
       website_url?: string;
+      linkedin_url?: string;
       industry?: string;
       employee_count?: string;
       location?: {
@@ -671,11 +671,44 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     (isMeaningfulValue(apolloPerson?.organization?.website_url) && apolloPerson?.organization?.website_url) ||
     "";
   const companyWebsiteHref = rawCompanyWebsite ? normalizeExternalUrl(rawCompanyWebsite) : "";
+  const companySlug = leadData.companyName?.toLowerCase().replace(/\s+/g, "-") || "";
+  const defaultCompanyLinkedin = companySlug ? `https://linkedin.com/company/${companySlug}` : "";
+  const customCompanyLinkedin =
+    (isEditing && editedLeadData
+      ? editedLeadData.customFields?.companyLinkedin
+      : leadData.customFields?.companyLinkedin) || "";
+  const rawCompanyLinkedin =
+    (isMeaningfulValue(customCompanyLinkedin) && customCompanyLinkedin) ||
+    (isMeaningfulValue(apolloPerson?.organization?.linkedin_url) && apolloPerson?.organization?.linkedin_url) ||
+    defaultCompanyLinkedin;
+  const companyLinkedinHref = rawCompanyLinkedin ? normalizeExternalUrl(rawCompanyLinkedin) : "";
   const leadScore = leadData.leadScoring?.score ?? (parseInt(leadData.leadScoring?.rating || "0") > 10 ? parseInt(leadData.leadScoring?.rating || "0") : 88);
   const currentLinkedinUrl =
     (isEditing && editedLeadData
       ? editedLeadData.contactDetails.linkedin
       : leadData.contactDetails.linkedin) || "";
+  const defaultCreatedDateIso = new Date(report.createdAt).toISOString().split("T")[0];
+  const crmSource =
+    (isEditing && editedLeadData
+      ? editedLeadData.customFields?.crmSource
+      : leadData.customFields?.crmSource) || "Inbound";
+  const rawCrmCreatedDate =
+    (isEditing && editedLeadData
+      ? editedLeadData.customFields?.crmCreatedDate
+      : leadData.customFields?.crmCreatedDate) || defaultCreatedDateIso;
+  const crmCreatedDateInput = (() => {
+    if (!rawCrmCreatedDate) return defaultCreatedDateIso;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawCrmCreatedDate)) return rawCrmCreatedDate;
+    const parsed = new Date(rawCrmCreatedDate);
+    return Number.isNaN(parsed.getTime()) ? defaultCreatedDateIso : parsed.toISOString().split("T")[0];
+  })();
+  const crmCreatedDateDisplay = crmCreatedDateInput
+    ? new Date(`${crmCreatedDateInput}T00:00:00`).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "N/A";
   const currentLeadStatus = normalizeLeadStatus(
     isEditing ? (editedData.status || leadData.status || "warm") : (leadData.status || "warm")
   );
@@ -1150,9 +1183,32 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               </div>
                     <div>
                       <p className="text-xs text-gray-500 font-bold uppercase">Lead Stage</p>
-                      <p className="text-sm font-bold text-gray-900">
-                        {getLeadStatusLabel(currentLeadStatus)}
-                      </p>
+                      {isEditing ? (
+                        <select
+                          value={currentLeadStatus}
+                          onChange={(e) => {
+                            const newStatus = normalizeLeadStatus(e.target.value);
+                            setEditedData((prev) => ({ ...prev, status: newStatus }));
+                            if (editedLeadData) {
+                              setEditedLeadData({
+                                ...editedLeadData,
+                                status: newStatus
+                              });
+                            }
+                          }}
+                          className="h-7 px-2 py-1 text-sm font-bold text-gray-900 border border-gray-300 rounded bg-white"
+                        >
+                          {pipelineStages.map((stage) => (
+                            <option key={stage} value={stage}>
+                              {getLeadStatusLabel(stage)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-sm font-bold text-gray-900">
+                          {getLeadStatusLabel(currentLeadStatus)}
+                        </p>
+                      )}
               </div>
             </div>
                   <div className="flex items-center gap-3 mb-4">
@@ -1161,7 +1217,23 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             </div>
                     <div>
                       <p className="text-xs text-gray-500 font-bold uppercase">Source</p>
-                      <p className="text-sm font-bold text-gray-900">Inbound</p>
+                      <EditableField
+                        value={crmSource}
+                        onChange={(value) => {
+                          if (isEditing && editedLeadData) {
+                            setEditedLeadData({
+                              ...editedLeadData,
+                              customFields: {
+                                ...editedLeadData.customFields,
+                                crmSource: value
+                              }
+                            });
+                          }
+                        }}
+                        isEditing={isEditing}
+                        placeholder="Enter source"
+                        className="text-sm font-bold text-gray-900"
+                      />
           </div>
                   </div>
                     <div className="flex items-center gap-3">
@@ -1170,9 +1242,26 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       </div>
                       <div>
                       <p className="text-xs text-gray-500 font-bold uppercase">Created</p>
-                      <p className="text-sm font-bold text-gray-900">
-                        {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </p>
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          value={crmCreatedDateInput}
+                          onChange={(e) => {
+                            if (editedLeadData) {
+                              setEditedLeadData({
+                                ...editedLeadData,
+                                customFields: {
+                                  ...editedLeadData.customFields,
+                                  crmCreatedDate: e.target.value
+                                }
+                              });
+                            }
+                          }}
+                          className="h-7 px-2 py-1 text-sm font-bold text-gray-900"
+                        />
+                      ) : (
+                        <p className="text-sm font-bold text-gray-900">{crmCreatedDateDisplay}</p>
+                      )}
                       </div>
                     </div>
                       </div>
@@ -1268,38 +1357,27 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                       />
                     </div>
                   </div>
-                    <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-600">
-                      <Fingerprint className="w-4 h-4" />
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-[#E8F4FD] flex items-center justify-center text-[#0A66C2]">
+                      <Linkedin className="w-4 h-4" />
                       </div>
                       <div className="flex-1">
-                      <p className="text-xs text-gray-500 font-bold uppercase">Ownership</p>
+                      <p className="text-xs text-gray-500 font-bold uppercase">LinkedIn</p>
                       <EditableField
-                        value={(() => {
-                          // Check custom field first
-                          if (editedLeadData?.customFields?.fundingStage) {
-                            return editedLeadData.customFields.fundingStage;
-                          }
-                          // Check Apollo data
-                          if (apolloPerson?.organization?.funding_stage) {
-                            return apolloPerson.organization.funding_stage;
-                          }
-                          // Default
-                          return 'N/A';
-                        })()}
+                        value={rawCompanyLinkedin || "N/A"}
                         onChange={(value) => {
                           if (isEditing && editedLeadData) {
                             setEditedLeadData({
                               ...editedLeadData,
                               customFields: {
                                 ...editedLeadData.customFields,
-                                fundingStage: value
+                                companyLinkedin: value
                               }
                             });
                           }
                         }}
                         isEditing={isEditing}
-                        placeholder="Enter funding stage"
+                        placeholder="Enter company LinkedIn URL"
                         className="text-sm font-bold text-gray-900"
                       />
                       </div>
@@ -1871,15 +1949,22 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                         Website Unavailable
                       </div>
                     )}
-                    <a
-                      href={`https://linkedin.com/company/${leadData.companyName.toLowerCase().replace(/\s+/g, '-')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-sm font-bold text-white transition shadow-sm"
-                    >
-                      <Linkedin className="w-3.5 h-3.5" />
-                      LinkedIn
-                    </a>
+                    {companyLinkedinHref ? (
+                      <a
+                        href={companyLinkedinHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-[#0A66C2] hover:bg-[#084e96] rounded-xl text-sm font-bold text-white transition shadow-sm"
+                      >
+                        <Linkedin className="w-3.5 h-3.5" />
+                        LinkedIn
+                      </a>
+                    ) : (
+                      <div className="flex-1 py-1.5 flex items-center justify-center gap-2 bg-gray-100 rounded-xl border border-gray-200 text-sm font-bold text-gray-400 shadow-sm cursor-not-allowed">
+                        <Linkedin className="w-3.5 h-3.5 text-gray-300" />
+                        LinkedIn Unavailable
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
