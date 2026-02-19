@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { canAccessProject, getUserFromRequest } from '@/lib/auth';
 
 // Type for serialized data
 interface ReportData {
   _id?: string | ObjectId;
   [key: string]: any;
+}
+
+interface AuthorizedUser {
+  userId: string;
+  email: string;
+  role: 'admin' | 'project_user' | 'client';
+  assignedProjects?: string[];
 }
 
 // Helper function to serialize MongoDB document
@@ -36,6 +44,43 @@ const serializeDocument = (data: ReportData): ReportData => {
   return serialized;
 };
 
+const getAuthorizedUser = async (request: NextRequest, db: any): Promise<AuthorizedUser | null> => {
+  const tokenUser = getUserFromRequest(request);
+  if (!tokenUser?.userId) {
+    return null;
+  }
+
+  try {
+    if (ObjectId.isValid(tokenUser.userId)) {
+      const dbUser = await db.collection('users').findOne({ _id: new ObjectId(tokenUser.userId) });
+      if (dbUser) {
+        return {
+          userId: tokenUser.userId,
+          email: tokenUser.email,
+          role: dbUser.role || tokenUser.role,
+          assignedProjects: dbUser.assignedProjects || tokenUser.assignedProjects || []
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Failed to refresh user permissions for report route:', error);
+  }
+
+  return {
+    userId: tokenUser.userId,
+    email: tokenUser.email,
+    role: tokenUser.role,
+    assignedProjects: tokenUser.assignedProjects || []
+  };
+};
+
+const hasReportAccess = (user: AuthorizedUser, report: any): boolean => {
+  if (user.role === 'admin') return true;
+  const reportProject = report?.leadData?.project?.trim();
+  if (!reportProject) return false;
+  return canAccessProject(user, reportProject);
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -56,12 +101,21 @@ export async function GET(
     const client = await clientPromise;
     const db = client.db("lead-reports");
     const collection = db.collection('reports');
+    const user = await getAuthorizedUser(request, db);
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     
     // Find the report by ID
     const report = await collection.findOne({ _id: new ObjectId(reportId) });
     
     if (!report) {
       return NextResponse.json({ error: "Report not found" }, { status: 404 });
+    }
+
+    if (!hasReportAccess(user, report)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     
     // Use the serializeDocument function to serialize the report
@@ -97,16 +151,38 @@ export async function GET(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
     const body = await request.json();
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Invalid report ID format" }, { status: 400 });
+    }
     
     const client = await clientPromise;
     const db = client.db("lead-reports");
     const reports = db.collection('reports');
+    const user = await getAuthorizedUser(request, db);
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const existingReport = await reports.findOne({ _id: new ObjectId(id) });
+    if (!existingReport) {
+      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    }
+
+    if (!hasReportAccess(user, existingReport)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (user.role === 'client') {
+      return NextResponse.json({ error: "Clients cannot edit reports" }, { status: 403 });
+    }
 
     // Create update data object
     const updateData: any = {

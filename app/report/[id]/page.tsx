@@ -261,6 +261,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const [aiContent, setAiContent] = useState<Record<string, any>>({});
   const [showShareTooltip, setShowShareTooltip] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [userRole, setUserRole] = useState<'admin' | 'project_user' | 'client' | null>(null);
   const [sections, setSections] = useState({
     overview: true,
     company: true,
@@ -275,6 +276,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   const [activityType, setActivityType] = useState<'call' | 'email' | 'meeting' | 'note'>('call');
   const [activityContent, setActivityContent] = useState('');
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+  const canEditReport = userRole === 'admin' || userRole === 'project_user';
 
   const buildAIReportContext = (sourceReport?: LeadReport | null, sourceLeadData?: LeadData | null) => ({
     meetingObjective: sourceReport?.meetingObjective || sourceReport?.meetingAgenda || "",
@@ -283,6 +285,27 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     notes: sourceLeadData?.notes || sourceReport?.leadData?.notes || [],
     engagementTimeline: sourceLeadData?.engagementTimeline || sourceReport?.leadData?.engagementTimeline || []
   });
+
+  useEffect(() => {
+    const loadUserRole = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (!response.ok) return;
+        const data = await response.json();
+        setUserRole(data.role as 'admin' | 'project_user' | 'client');
+      } catch (error) {
+        console.error('Failed to load user role for report permissions:', error);
+      }
+    };
+
+    loadUserRole();
+  }, []);
+
+  useEffect(() => {
+    if (!canEditReport && isEditing) {
+      setIsEditing(false);
+    }
+  }, [canEditReport, isEditing]);
 
   useEffect(() => {
     if (report) {
@@ -331,7 +354,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   // Auto-generate strategic brief if not present
   useEffect(() => {
-    if (report?.leadData && !aiContent?.strategicBrief && !isGeneratingAI) {
+    if (canEditReport && report?.leadData && !aiContent?.strategicBrief && !isGeneratingAI) {
       fetch('/api/ai-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -350,18 +373,19 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       })
       .catch(err => console.error('Failed to generate strategic brief:', err));
     }
-  }, [report, aiContent, isGeneratingAI]);
+  }, [canEditReport, report, aiContent, isGeneratingAI]);
 
   const handleReportReady = (loadedReport: LeadReport) => {
     setReport(loadedReport);
     
-    if (loadedReport && (!loadedReport.aiContent || Object.keys(loadedReport.aiContent).length === 0)) {
+    if (canEditReport && loadedReport && (!loadedReport.aiContent || Object.keys(loadedReport.aiContent).length === 0)) {
       setIsGeneratingAI(true);
       generateAllAIContent(loadedReport);
     }
   };
 
   const generateAllAIContent = async (reportData: LeadReport) => {
+    if (!canEditReport) return;
     if (!reportData || !reportData.leadData) return;
     
     setIsGeneratingAI(true);
@@ -430,6 +454,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleSave = async () => {
+    if (!canEditReport) return;
     try {
       setIsSaving(true);
       
@@ -547,6 +572,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleSectionToggle = async (section: string, value: boolean) => {
+    if (!canEditReport) return;
     const newSections = {
       ...sections,
       [section]: value
@@ -590,6 +616,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleRefreshNews = async () => {
+    if (!canEditReport) return;
     if (!report) return;
     
     setIsRefreshingNews(true);
@@ -872,7 +899,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          {isEditing && (
+          {canEditReport && isEditing && (
             <button
               onClick={() => {
                 // Restore original data
@@ -889,24 +916,26 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
               Cancel
             </button>
           )}
-          <button
-              onClick={() => {
-                if (isEditing) {
-                  handleSave();
-                } else {
-                  // Store original data before entering edit mode
-                  if (editedLeadData) {
-                    setOriginalLeadData(JSON.parse(JSON.stringify(editedLeadData)));
+          {canEditReport && (
+            <button
+                onClick={() => {
+                  if (isEditing) {
+                    handleSave();
+                  } else {
+                    // Store original data before entering edit mode
+                    if (editedLeadData) {
+                      setOriginalLeadData(JSON.parse(JSON.stringify(editedLeadData)));
+                    }
+                    setOriginalEditedData(JSON.parse(JSON.stringify(editedData)));
+                    setIsEditing(true);
                   }
-                  setOriginalEditedData(JSON.parse(JSON.stringify(editedData)));
-                  setIsEditing(true);
-                }
-              }}
-            disabled={isSaving}
-            className="px-4 py-1.5 rounded-full bg-[#0071E3] text-sm font-semibold text-white shadow-sm hover:bg-[#0077ED] transition disabled:opacity-50"
-          >
-            {isEditing ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit Profile'}
-          </button>
+                }}
+              disabled={isSaving}
+              className="px-4 py-1.5 rounded-full bg-[#0071E3] text-sm font-semibold text-white shadow-sm hover:bg-[#0077ED] transition disabled:opacity-50"
+            >
+              {isEditing ? (isSaving ? 'Saving...' : 'Save Changes') : 'Edit Profile'}
+            </button>
+          )}
           </div>
       </header>
 
@@ -2043,26 +2072,30 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   ) : (
                   <div className="flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                      <button
-                        onClick={() => {
-                          fetch('/api/ai-generate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              section: 'strategicBrief',
-                              leadData,
-                              apolloData: apolloPerson,
-                              reportContext: buildAIReportContext(report, leadData)
+                      {canEditReport ? (
+                        <button
+                          onClick={() => {
+                            fetch('/api/ai-generate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                section: 'strategicBrief',
+                                leadData,
+                                apolloData: apolloPerson,
+                                reportContext: buildAIReportContext(report, leadData)
+                              })
                             })
-                          })
-                          .then(res => res.json())
-                          .then(data => handleAiContentUpdate('strategicBrief', data))
-                          .catch(err => console.error('Failed to generate strategic brief:', err));
-                        }}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        Generate Strategic Brief
-                      </button>
+                            .then(res => res.json())
+                            .then(data => handleAiContentUpdate('strategicBrief', data))
+                            .catch(err => console.error('Failed to generate strategic brief:', err));
+                          }}
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Generate Strategic Brief
+                        </button>
+                      ) : (
+                        <span className="text-sm text-gray-500 font-medium">Strategic brief unavailable</span>
+                      )}
                     </div>
                   )}
                 </section>
@@ -2125,24 +2158,26 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                     <h3 className="text-sm font-bold text-gray-900">Company News & Updates</h3>
                   </div>
                   {/* Refresh News Button */}
-                  <button
-                    onClick={handleRefreshNews}
-                    disabled={isRefreshingNews}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Fetch latest news"
-                  >
-                    {isRefreshingNews ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Refreshing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-4 h-4" />
-                        <span>Refresh News</span>
-                      </>
-                    )}
-                  </button>
+                  {canEditReport && (
+                    <button
+                      onClick={handleRefreshNews}
+                      disabled={isRefreshingNews}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Fetch latest news"
+                    >
+                      {isRefreshingNews ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Refreshing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Refresh News</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
                 {(report.companyNews || aiContent?.news) ? (
                   <NewsContent
@@ -2154,23 +2189,25 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   <div className="text-center py-8">
                     <Newspaper className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p className="text-gray-500 mb-4">No news available for this report yet.</p>
-                    <button
-                      onClick={handleRefreshNews}
-                      disabled={isRefreshingNews}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
-                    >
-                      {isRefreshingNews ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Fetching News...</span>
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-4 h-4" />
-                          <span>Fetch Company News</span>
-                        </>
-                      )}
-                    </button>
+                    {canEditReport && (
+                      <button
+                        onClick={handleRefreshNews}
+                        disabled={isRefreshingNews}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+                      >
+                        {isRefreshingNews ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Fetching News...</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4" />
+                            <span>Fetch Company News</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

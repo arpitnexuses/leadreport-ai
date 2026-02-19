@@ -23,9 +23,11 @@ interface Report {
 
 interface PipelineTableProps {
   reports: Report[];
+  userRole: 'admin' | 'project_user' | 'client';
 }
 
-export function PipelineTable({ reports }: PipelineTableProps) {
+export function PipelineTable({ reports, userRole }: PipelineTableProps) {
+  const canManageOwnerAndDelete = userRole !== 'client';
   const [tableReports, setTableReports] = useState<Report[]>(reports);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
@@ -105,11 +107,13 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   };
 
   const handleOwnerEditStart = (report: Report) => {
+    if (!canManageOwnerAndDelete) return;
     setEditingOwnerId(report._id);
     setOwnerDraft(report.reportOwnerName || '');
   };
 
   const handleOwnerSave = async (reportId: string) => {
+    if (!canManageOwnerAndDelete) return;
     const trimmedOwner = ownerDraft.trim();
     if (!trimmedOwner) return;
 
@@ -133,6 +137,7 @@ export function PipelineTable({ reports }: PipelineTableProps) {
   };
 
   const handleDeleteReport = async (reportId: string) => {
+    if (!canManageOwnerAndDelete) return;
     const shouldDelete = window.confirm('Delete this report from pipeline? This cannot be undone.');
     if (!shouldDelete) return;
 
@@ -615,13 +620,15 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                       ) : (
                         <div className="flex items-center gap-2">
                           <span>{report.reportOwnerName || '-'}</span>
-                          <button
-                            onClick={() => handleOwnerEditStart(report)}
-                            className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                            aria-label="Edit report owner"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                          {canManageOwnerAndDelete && (
+                            <button
+                              onClick={() => handleOwnerEditStart(report)}
+                              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                              aria-label="Edit report owner"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -692,16 +699,18 @@ export function PipelineTable({ reports }: PipelineTableProps) {
                         >
                           View Report
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                          onClick={() => handleDeleteReport(report._id)}
-                          disabled={deletingReportId === report._id}
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          {deletingReportId === report._id ? 'Deleting...' : 'Delete'}
-                        </Button>
+                        {canManageOwnerAndDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            onClick={() => handleDeleteReport(report._id)}
+                            disabled={deletingReportId === report._id}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            {deletingReportId === report._id ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

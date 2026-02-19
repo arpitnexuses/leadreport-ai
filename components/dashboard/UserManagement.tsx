@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Users, Plus, Edit2, Trash2, X, Save, Eye, EyeOff } from "lucide-react";
+import { Users, Plus, Edit2, Trash2, Save, Eye, EyeOff, Copy, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface User {
@@ -27,6 +27,8 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -178,6 +180,30 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
     }));
   };
 
+  const handleCopyCredentials = async (user: User) => {
+    try {
+      await navigator.clipboard.writeText(user.email);
+      setCopiedUserId(user._id);
+      setTimeout(() => setCopiedUserId(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy email:', error);
+      alert('Failed to copy email. Please try again.');
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
+
+    const roleLabel = user.role === 'admin' ? 'admin' : user.role === 'client' ? 'client' : 'project user';
+    const projectsText = (user.assignedProjects || []).join(' ').toLowerCase();
+    return (
+      user.email.toLowerCase().includes(query) ||
+      roleLabel.includes(query) ||
+      projectsText.includes(query)
+    );
+  });
+
   if (loading) {
     return (
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -317,6 +343,21 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
       </div>
 
       <Card>
+        <div className="mb-4 rounded-lg border bg-blue-50 dark:bg-blue-950/30 p-4">
+          <Label htmlFor="user-search" className="text-sm font-semibold">
+            Search Users
+          </Label>
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Input
+              id="user-search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by email, role, or project..."
+              className="h-11 pl-10 text-base bg-white dark:bg-gray-900"
+            />
+          </div>
+        </div>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -336,7 +377,7 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr key={user._id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="py-3 px-4">{user.email}</td>
                     <td className="py-3 px-4">
@@ -368,14 +409,24 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
                           size="sm"
                           variant="outline"
                           onClick={() => openEditDialog(user)}
+                          title="Edit user"
                         >
                           <Edit2 className="h-3 w-3" />
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => handleCopyCredentials(user)}
+                          title={copiedUserId === user._id ? "Copied email" : "Copy email"}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleDeleteUser(user._id)}
                           className="text-red-600 hover:text-red-700"
+                          title="Delete user"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -388,6 +439,11 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
             {users.length === 0 && (
               <div className="text-center py-12 text-gray-500">
                 No users found. Create your first user to get started.
+              </div>
+            )}
+            {users.length > 0 && filteredUsers.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                No users match your search.
               </div>
             )}
           </div>

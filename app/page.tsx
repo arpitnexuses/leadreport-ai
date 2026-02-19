@@ -23,7 +23,7 @@ export default function Home() {
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [pollStartTime, setPollStartTime] = useState<number>(0);
-  const [userRole, setUserRole] = useState<'admin' | 'project_user' | 'client'>('project_user');
+  const [userRole, setUserRole] = useState<'admin' | 'project_user' | 'client'>('client');
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const [availableReportOwners, setAvailableReportOwners] = useState<string[]>([]);
 
@@ -75,6 +75,12 @@ export default function Home() {
     loadReports();
     checkUserRole();
   }, []);
+
+  useEffect(() => {
+    if (userRole === 'client' && activeTab !== 'pipeline') {
+      setActiveTab('pipeline');
+    }
+  }, [userRole, activeTab]);
 
   const handleError = (message: string) => {
     setHasError(true);
@@ -179,10 +185,13 @@ export default function Home() {
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'dashboard':
+        if (userRole === 'client') {
+          return <PipelineTable reports={reports} userRole={userRole} />;
+        }
         return <DashboardView reports={reports} />;
       case 'generate':
         if (userRole === 'client') {
-          return <DashboardView reports={reports} />;
+          return <PipelineTable reports={reports} userRole={userRole} />;
         }
         return (
           <LeadGenerationForm
@@ -194,16 +203,22 @@ export default function Home() {
           />
         );
       case 'pipeline':
-        return <PipelineTable reports={reports} />;
+        return <PipelineTable reports={reports} userRole={userRole} />;
       case 'settings':
         if (userRole === 'client') {
-          return <DashboardView reports={reports} />;
+          return <PipelineTable reports={reports} userRole={userRole} />;
         }
         return <SettingsView />;
       case 'users':
-        return userRole === 'admin' ? <UserManagement availableProjects={availableProjects} /> : <DashboardView reports={reports} />;
+        return userRole === 'admin'
+          ? <UserManagement availableProjects={availableProjects} />
+          : userRole === 'client'
+            ? <PipelineTable reports={reports} userRole={userRole} />
+            : <DashboardView reports={reports} />;
       default:
-        return <DashboardView reports={reports} />;
+        return userRole === 'client'
+          ? <PipelineTable reports={reports} userRole={userRole} />
+          : <DashboardView reports={reports} />;
     }
   };
 

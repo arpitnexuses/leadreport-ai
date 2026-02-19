@@ -1,19 +1,52 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
 import { fetchCompanyNews } from '@/app/actions';
+import { canAccessProject, getUserFromRequest } from '@/lib/auth';
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid report ID format' },
+        { status: 400 }
+      );
+    }
     
     // Connect to database
     const client = await clientPromise;
     const db = client.db('lead-reports');
     const reports = db.collection('reports');
+    const tokenUser = getUserFromRequest(request);
+
+    if (!tokenUser?.userId) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    let role = tokenUser.role;
+    let assignedProjects = tokenUser.assignedProjects || [];
+    if (ObjectId.isValid(tokenUser.userId)) {
+      const dbUser = await db.collection('users').findOne({ _id: new ObjectId(tokenUser.userId) });
+      if (dbUser) {
+        role = dbUser.role || role;
+        assignedProjects = dbUser.assignedProjects || assignedProjects;
+      }
+    }
+
+    if (role === 'client') {
+      return NextResponse.json(
+        { success: false, error: 'Clients cannot edit reports' },
+        { status: 403 }
+      );
+    }
 
     // Find the report
     const report = await reports.findOne({ _id: new ObjectId(id) });
@@ -23,6 +56,16 @@ export async function POST(
         { success: false, error: 'Report not found' },
         { status: 404 }
       );
+    }
+
+    if (role !== 'admin') {
+      const reportProject = report?.leadData?.project?.trim();
+      if (!reportProject || !canAccessProject({ userId: tokenUser.userId, email: tokenUser.email, role, assignedProjects }, reportProject)) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden' },
+          { status: 403 }
+        );
+      }
     }
 
     // Get company name from Apollo data

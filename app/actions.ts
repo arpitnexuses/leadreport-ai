@@ -1070,6 +1070,73 @@ function serializeDocument(doc: any): any {
   return serialized;
 }
 
+type AuthenticatedUser = {
+  userId: string;
+  role: 'admin' | 'project_user' | 'client';
+  assignedProjects: string[];
+};
+
+async function getAuthenticatedUserWithFreshPermissions(): Promise<AuthenticatedUser> {
+  const { getCurrentUser } = await import('@/lib/auth');
+  const userToken = await getCurrentUser();
+
+  if (!userToken?.userId) {
+    throw new Error('You must be logged in to perform this action');
+  }
+
+  let role = userToken.role;
+  let assignedProjects = userToken.assignedProjects || [];
+
+  try {
+    const { db } = await getDb();
+    if (db && ObjectId.isValid(userToken.userId)) {
+      const freshUser = await db.collection('users').findOne({ _id: new ObjectId(userToken.userId) });
+      if (freshUser) {
+        role = freshUser.role || role;
+        assignedProjects = freshUser.assignedProjects || assignedProjects;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load fresh user permissions, using token permissions:', error);
+  }
+
+  return {
+    userId: userToken.userId,
+    role,
+    assignedProjects,
+  };
+}
+
+async function getAuthorizedReportForMutation(reportId: string, allowClient: boolean) {
+  if (!ObjectId.isValid(reportId)) {
+    throw new Error('Invalid report ID');
+  }
+
+  const user = await getAuthenticatedUserWithFreshPermissions();
+  const { reports } = await getDb();
+  const objectId = new ObjectId(reportId);
+  const report = await reports.findOne({ _id: objectId });
+
+  if (!report) {
+    throw new Error('Report not found');
+  }
+
+  if (user.role === 'admin') {
+    return { user, objectId };
+  }
+
+  if (user.role === 'client' && !allowClient) {
+    throw new Error('You do not have permission to perform this action');
+  }
+
+  const reportProject = report?.leadData?.project?.trim();
+  if (!reportProject || !user.assignedProjects.includes(reportProject)) {
+    throw new Error('You do not have permission to access this report');
+  }
+
+  return { user, objectId };
+}
+
 export async function getReportStatus(reportId: string) {
   const { reports } = await getDb()
   const report = await reports.findOne({ _id: new ObjectId(reportId) })
@@ -1090,8 +1157,9 @@ export async function deleteReport(formData: FormData) {
   }
 
   try {
+    const { objectId } = await getAuthorizedReportForMutation(reportId, false)
     const { reports } = await getDb()
-    await reports.deleteOne({ _id: new ObjectId(reportId) })
+    await reports.deleteOne({ _id: objectId })
     revalidatePath('/history')
   } catch (error) {
     console.error('Error deleting report:', error)
@@ -1170,10 +1238,11 @@ export async function getReports() {
 
 export async function updateLeadStatus(reportId: string, status: string) {
   try {
+    const { objectId } = await getAuthorizedReportForMutation(reportId, true)
     const { reports } = await getDb()
 
     const result = await reports.updateOne(
-      { _id: new ObjectId(reportId) },
+      { _id: objectId },
       {
         $set: {
           'leadData.status': status,
@@ -1195,10 +1264,11 @@ export async function updateLeadStatus(reportId: string, status: string) {
 
 export async function updateReportOwner(reportId: string, reportOwnerName: string) {
   try {
+    const { objectId } = await getAuthorizedReportForMutation(reportId, false)
     const { reports } = await getDb()
 
     const result = await reports.updateOne(
-      { _id: new ObjectId(reportId) },
+      { _id: objectId },
       {
         $set: {
           reportOwnerName: reportOwnerName.trim(),
@@ -1221,8 +1291,9 @@ export async function updateReportOwner(reportId: string, reportOwnerName: strin
 
 export async function deleteReportById(reportId: string) {
   try {
+    const { objectId } = await getAuthorizedReportForMutation(reportId, false)
     const { reports } = await getDb()
-    const result = await reports.deleteOne({ _id: new ObjectId(reportId) })
+    const result = await reports.deleteOne({ _id: objectId })
 
     if (result.deletedCount === 0) {
       throw new Error('Report not found')

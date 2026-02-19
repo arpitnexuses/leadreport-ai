@@ -36,11 +36,11 @@ export function Sidebar({ activeTab, setActiveTab, userRole = 'project_user' }: 
     label: string;
     icon: typeof LayoutDashboard;
   }> = [
-    {
-      id: 'dashboard',
+    ...(!isClient ? [{
+      id: 'dashboard' as TabType,
       label: 'Dashboard',
       icon: LayoutDashboard,
-    },
+    }] : []),
     ...(!isClient ? [{
       id: 'generate' as TabType,
       label: 'Generate Lead',
