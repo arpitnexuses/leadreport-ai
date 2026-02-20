@@ -165,11 +165,37 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/reports/${id}`);
-        const data = await res.json();
+        let res = await fetch(`/api/reports/${id}`);
+
+        // Shared report links should also work for unauthenticated viewers.
+        // If protected report access fails, fall back to the public endpoint.
+        if (res.status === 401 || res.status === 403) {
+          res = await fetch(`/api/public-reports/${id}`);
+        }
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            setError("Report not found.");
+            return;
+          }
+          setError(data.error || "Failed to load report.");
+          return;
+        }
+
         if (data.status === "completed" && data.data) {
           setReport(data.data);
-        } else if (data.status === "failed") {
+          return;
+        }
+
+        // Public endpoint returns the report payload directly.
+        if (data && data._id) {
+          setReport(data as LeadReport);
+          return;
+        }
+
+        if (data.status === "failed") {
           setError(data.error || "Failed to load report.");
         } else {
           setError("Report is still processing or unavailable.");
@@ -1152,13 +1178,13 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                    {report.reportOwnerName ? report.reportOwnerName.charAt(0).toUpperCase() : report.email.charAt(0).toUpperCase()}
+                    {(report.reportOwnerName?.charAt(0) || report.email?.charAt(0) || "?").toUpperCase()}
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-900">
-                    {report.reportOwnerName || report.email.split('@')[0]}
+                    {report.reportOwnerName || report.email?.split('@')[0] || "Report Owner"}
                   </p>
                   <p className="text-xs text-gray-500 font-medium">
                     {new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

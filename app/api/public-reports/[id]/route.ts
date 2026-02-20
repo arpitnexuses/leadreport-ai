@@ -31,12 +31,19 @@ export async function GET(
     // We'll keep all sections but omit any sensitive information
     return NextResponse.json({
       _id: report._id,
+      email: report.email,
+      reportOwnerName: report.reportOwnerName,
+      status: report.status,
       leadData: report.leadData,
       apolloData: report.apolloData,
       meetingDate: report.meetingDate,
       meetingTime: report.meetingTime,
+      meetingTimezone: report.meetingTimezone,
       meetingPlatform: report.meetingPlatform,
+      meetingLink: report.meetingLink,
+      meetingLocation: report.meetingLocation,
       meetingName: report.meetingName,
+      meetingObjective: report.meetingObjective,
       problemPitch: report.problemPitch,
       meetingAgenda: report.meetingAgenda,
       participants: report.participants,
@@ -45,6 +52,7 @@ export async function GET(
       followUpTimeline: report.followUpTimeline,
       talkingPoints: report.talkingPoints,
       aiContent: report.aiContent,
+      companyNews: report.companyNews,
       sections: report.sections,
       createdAt: report.createdAt,
     });
