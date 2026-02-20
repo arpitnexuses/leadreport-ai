@@ -34,9 +34,13 @@ if (process.env.NODE_ENV === 'development') {
 export async function getDb() {
   if (!client) {
     client = await clientPromise
+  }
+
+  if (!db || !reports) {
     db = client.db("lead-reports")
     reports = db.collection("reports")
   }
+
   if (!reports) {
     throw new Error("Failed to initialize database connection")
   }

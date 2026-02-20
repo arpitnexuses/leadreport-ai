@@ -13,11 +13,20 @@ interface LeadGenerationFormProps {
   isPending: boolean;
   projects?: string[];
   reportOwners?: string[];
+  projectSolutions?: Record<string, string[]>;
 }
 
-export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = [], reportOwners = [] }: LeadGenerationFormProps) {
+export function LeadGenerationForm({
+  onSubmit,
+  isLoading,
+  isPending,
+  projects = [],
+  reportOwners = [],
+  projectSolutions = {},
+}: LeadGenerationFormProps) {
   const [localProjects, setLocalProjects] = useState<string[]>(projects);
   const [localReportOwners, setLocalReportOwners] = useState<string[]>(reportOwners);
+  const [localProjectSolutions, setLocalProjectSolutions] = useState<Record<string, string[]>>(projectSolutions);
   const [currentStep, setCurrentStep] = useState(1);
   const [reportOwnerMode, setReportOwnerMode] = useState<"existing" | "new">("existing");
   const [existingReportOwner, setExistingReportOwner] = useState("");
@@ -25,6 +34,8 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = 
   const [projectMode, setProjectMode] = useState<"existing" | "new">("existing");
   const [existingProject, setExistingProject] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
+  const [selectedSolutions, setSelectedSolutions] = useState<string[]>([]);
+  const [customSolutions, setCustomSolutions] = useState("");
   const stepRefs = useRef<Array<HTMLDivElement | null>>([]);
   const submitIntentRef = useRef(false);
   const totalSteps = 3;
@@ -50,6 +61,16 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = 
     }
   }, [reportOwners]);
 
+  useEffect(() => {
+    setLocalProjectSolutions(projectSolutions);
+  }, [projectSolutions]);
+
+  useEffect(() => {
+    const currentProject = projectMode === "existing" ? existingProject : newProjectName.trim();
+    const allowedSolutions = new Set((currentProject && localProjectSolutions[currentProject]) || []);
+    setSelectedSolutions((prev) => prev.filter((solution) => allowedSolutions.has(solution)));
+  }, [projectMode, existingProject, newProjectName, localProjectSolutions]);
+
   // Fallback: Fetch from API if props are empty (for backwards compatibility)
   useEffect(() => {
     if (projects.length === 0 && reportOwners.length === 0) {
@@ -74,6 +95,7 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = 
           console.log('LeadGenerationForm: Report owners count:', data.reportOwners?.length || 0);
           setLocalProjects(data.projects || []);
           setLocalReportOwners(data.reportOwners || []);
+          setLocalProjectSolutions(data.projectSolutions || {});
         })
         .catch(error => {
           console.error('LeadGenerationForm: Error fetching form options:', error);
@@ -145,6 +167,14 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = 
   const projectValue = projectMode === "existing"
     ? existingProject
     : newProjectName.trim();
+  const availableSolutionsForProject = projectValue ? (localProjectSolutions[projectValue] || []) : [];
+  const customSolutionsList = customSolutions
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value, index, array) => value !== "" && array.indexOf(value) === index);
+  const solutionsValue = projectMode === "new"
+    ? customSolutionsList.join(",")
+    : selectedSolutions.join(",");
   const reportOwnerValue = reportOwnerMode === "existing"
     ? existingReportOwner
     : newReportOwnerName.trim();
@@ -365,6 +395,78 @@ export function LeadGenerationForm({ onSubmit, isLoading, isPending, projects = 
                         </div>
                       </div>
                       <input type="hidden" name="project" value={projectValue} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Solutions / Department Tags
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Add one or more categories for this lead inside the selected project.
+                      </p>
+                      <div className="space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                            Existing for this project
+                          </p>
+                          {availableSolutionsForProject.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {availableSolutionsForProject.map((solution) => {
+                                const isSelected = selectedSolutions.includes(solution);
+                                return (
+                                  <button
+                                    key={solution}
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedSolutions((prev) =>
+                                        prev.includes(solution)
+                                          ? prev.filter((item) => item !== solution)
+                                          : [...prev, solution]
+                                      )
+                                    }
+                                    disabled={!projectValue || isLoading || isPending}
+                                    className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-all ${
+                                      isSelected
+                                        ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700"
+                                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-800"
+                                    }`}
+                                  >
+                                    {solution}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              No saved solutions for this project yet.
+                            </p>
+                          )}
+                        </div>
+
+                        {projectMode === "new" ? (
+                          <div className="space-y-2">
+                            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                              Add solutions (comma separated)
+                            </label>
+                            <Input
+                              type="text"
+                              value={customSolutions}
+                              onChange={(event) => setCustomSolutions(event.target.value)}
+                              placeholder="e.g. HR, Finance, RevOps"
+                              disabled={isLoading || isPending}
+                              className="h-12 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              These solutions will be saved for this new lead and project.
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            For existing projects, select from configured solutions only.
+                          </p>
+                        )}
+                      </div>
+                      <input type="hidden" name="solutions" value={solutionsValue} />
                     </div>
                   </div>
 

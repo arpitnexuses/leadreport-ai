@@ -199,6 +199,7 @@ export async function PATCH(
       if (body.notes) updateData.$set['leadData.notes'] = body.notes;
       if (body.engagementTimeline) updateData.$set['leadData.engagementTimeline'] = body.engagementTimeline;
       if (body.tags) updateData.$set['leadData.tags'] = body.tags;
+      if (body.solutions) updateData.$set['leadData.solutions'] = body.solutions;
       if (body.status) updateData.$set['leadData.status'] = body.status;
       if (body.nextFollowUp) updateData.$set['leadData.nextFollowUp'] = body.nextFollowUp;
       if (body.customFields) updateData.$set['leadData.customFields'] = body.customFields;

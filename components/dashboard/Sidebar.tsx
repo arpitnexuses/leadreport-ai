@@ -61,7 +61,7 @@ export function Sidebar({ activeTab, setActiveTab, userRole = 'project_user' }: 
   }> = [
     ...(!isClient ? [{
       id: 'settings' as TabType,
-      label: 'Preferences',
+      label: 'Project Settings',
       icon: Settings,
     }] : []),
     ...(isAdmin ? [{

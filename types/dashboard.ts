@@ -16,6 +16,7 @@ export interface Report {
     name?: string;
     companyName?: string;
     project?: string;
+    solutions?: string[];
     status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
     leadIndustry?: string;
     leadDesignation?: string;

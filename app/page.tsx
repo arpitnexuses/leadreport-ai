@@ -26,33 +26,77 @@ export default function Home() {
   const [userRole, setUserRole] = useState<'admin' | 'project_user' | 'client'>('client');
   const [availableProjects, setAvailableProjects] = useState<string[]>([]);
   const [availableReportOwners, setAvailableReportOwners] = useState<string[]>([]);
+  const [projectSolutions, setProjectSolutions] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const loadReports = async () => {
       try {
         const data = await getReports();
         setReports(data);
-        
-        // Extract unique projects from reports
-        const projects = Array.from(
-          new Set(
-            data
-              .map(r => r.leadData?.project)
-              .filter(p => p && p !== 'N/A' && p !== 'Unassigned' && p.trim() !== '')
-          )
-        ) as string[];
+
+        let projects: string[] = [];
+        let owners: string[] = [];
+        let solutionsByProject: Record<string, string[]> = {};
+
+        try {
+          const optionsResponse = await fetch('/api/form-options', {
+            method: 'GET',
+            credentials: 'include',
+          });
+
+          if (optionsResponse.ok) {
+            const options = await optionsResponse.json();
+            projects = options.projects || [];
+            owners = options.reportOwners || [];
+            solutionsByProject = options.projectSolutions || {};
+          }
+        } catch (optionsError) {
+          console.warn('Page: Failed to load form options, falling back to report-derived options.', optionsError);
+        }
+
+        if (projects.length === 0) {
+          projects = Array.from(
+            new Set(
+              data
+                .map(r => r.leadData?.project)
+                .filter(p => p && p !== 'N/A' && p !== 'Unassigned' && p.trim() !== '')
+            )
+          ) as string[];
+        }
+
+        if (owners.length === 0) {
+          owners = Array.from(
+            new Set(
+              data
+                .map(r => r.reportOwnerName)
+                .filter(name => name && name.trim() !== '')
+            )
+          ) as string[];
+        }
+
+        if (Object.keys(solutionsByProject).length === 0) {
+          solutionsByProject = data.reduce((acc, report) => {
+            const project = report.leadData?.project?.trim();
+            if (!project || project === 'N/A' || project === 'Unassigned') {
+              return acc;
+            }
+
+            const existing = new Set(acc[project] || []);
+            (report.leadData?.solutions || []).forEach((solution: string) => {
+              const cleaned = solution?.trim();
+              if (cleaned) {
+                existing.add(cleaned);
+              }
+            });
+            acc[project] = Array.from(existing).sort();
+            return acc;
+          }, {} as Record<string, string[]>);
+        }
+
         setAvailableProjects(projects);
-        
-        // Extract unique report owners from reports
-        const owners = Array.from(
-          new Set(
-            data
-              .map(r => r.reportOwnerName)
-              .filter(name => name && name.trim() !== '')
-          )
-        ) as string[];
         setAvailableReportOwners(owners);
-        
+        setProjectSolutions(solutionsByProject);
+
         console.log('Page: Loaded', data.length, 'reports,', projects.length, 'projects,', owners.length, 'owners');
       } catch (error) {
         console.error('Failed to load reports:', error);
@@ -200,6 +244,7 @@ export default function Home() {
             isPending={isPending}
             projects={availableProjects}
             reportOwners={availableReportOwners}
+            projectSolutions={projectSolutions}
           />
         );
       case 'pipeline':

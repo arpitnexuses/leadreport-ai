@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X, Tags, Eye } from "lucide-react";
 import { updateLeadStatus, updateReportOwner, deleteReportById } from "@/app/actions";
 import { LEAD_STATUS_ORDER, getLeadStatusLabel, normalizeLeadStatus } from "@/lib/lead-status";
 
@@ -17,6 +18,7 @@ interface Report {
   meetingPlatform?: string;
   leadData?: {
     project?: string;
+    solutions?: string[];
     status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
   };
 }
@@ -28,22 +30,49 @@ interface PipelineTableProps {
 
 export function PipelineTable({ reports, userRole }: PipelineTableProps) {
   const canManageOwnerAndDelete = userRole !== 'client';
+  const canAssignSolutions = userRole !== 'client';
   const [tableReports, setTableReports] = useState<Report[]>(reports);
+  const [projectSolutions, setProjectSolutions] = useState<Record<string, string[]>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [selectedSolution, setSelectedSolution] = useState<string>('all');
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
   const [editingOwnerId, setEditingOwnerId] = useState<string | null>(null);
   const [ownerDraft, setOwnerDraft] = useState('');
   const [isOwnerSaving, setIsOwnerSaving] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
+  const [assigningReport, setAssigningReport] = useState<Report | null>(null);
+  const [assigningSolutions, setAssigningSolutions] = useState<string[]>([]);
+  const [isAssigningSaving, setIsAssigningSaving] = useState(false);
 
   useEffect(() => {
     setTableReports(reports);
   }, [reports]);
 
+  useEffect(() => {
+    const loadProjectSolutions = async () => {
+      try {
+        const response = await fetch('/api/form-options', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setProjectSolutions(data.projectSolutions || {});
+      } catch (error) {
+        console.error('Failed to load project solutions for pipeline actions:', error);
+      }
+    };
+
+    loadProjectSolutions();
+  }, []);
+
+  useEffect(() => {
+    setSelectedSolution('all');
+  }, [selectedProject]);
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
@@ -152,6 +181,63 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     }
   };
 
+  const openAssignSolutionsDialog = (report: Report) => {
+    if (!canAssignSolutions) return;
+    setAssigningReport(report);
+    setAssigningSolutions(report.leadData?.solutions || []);
+  };
+
+  const handleAssignSolutionToggle = (solution: string) => {
+    setAssigningSolutions((prev) =>
+      prev.includes(solution)
+        ? prev.filter((value) => value !== solution)
+        : [...prev, solution]
+    );
+  };
+
+  const handleAssignSolutionsSave = async () => {
+    if (!assigningReport) return;
+
+    try {
+      setIsAssigningSaving(true);
+      const updateResponse = await fetch(`/api/reports/${assigningReport._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          solutions: assigningSolutions,
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        throw new Error('Failed to assign solutions');
+      }
+
+      setTableReports((prev) =>
+        prev.map((item) =>
+          item._id === assigningReport._id
+            ? {
+                ...item,
+                leadData: {
+                  ...item.leadData,
+                  solutions: assigningSolutions,
+                },
+              }
+            : item
+        )
+      );
+
+      setAssigningReport(null);
+      setAssigningSolutions([]);
+    } catch (error) {
+      console.error('Failed to assign solutions:', error);
+      alert('Failed to assign solutions for this lead');
+    } finally {
+      setIsAssigningSaving(false);
+    }
+  };
+
   const statusMeta = {
     hot: {
       icon: Flame,
@@ -217,6 +303,16 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     )
   ).sort();
 
+  const uniqueSolutions = Array.from(
+    new Set(
+      tableReports
+        .filter((report) => selectedProject === 'all' || report.leadData?.project?.trim() === selectedProject)
+        .flatMap((report) => report.leadData?.solutions || [])
+        .map((solution) => solution?.trim())
+        .filter((solution): solution is string => !!solution)
+    )
+  ).sort();
+
   const ownerSuggestions = uniqueOwners
     .filter((owner) =>
       owner.toLowerCase().includes(ownerDraft.toLowerCase()) &&
@@ -227,8 +323,9 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
   const filteredReports = tableReports.filter(report => {
     const matchesSearch = report.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProject = selectedProject === 'all' || report.leadData?.project?.trim() === selectedProject;
+    const matchesSolution = selectedSolution === 'all' || (report.leadData?.solutions || []).includes(selectedSolution);
     const matchesOwner = selectedOwner === 'all' || report.reportOwnerName?.trim() === selectedOwner;
-    return matchesSearch && matchesProject && matchesOwner;
+    return matchesSearch && matchesProject && matchesSolution && matchesOwner;
   });
 
   // Calculate status counts based on filtered reports
@@ -357,49 +454,87 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
             />
           </div>
           
-          {/* Project Filter */}
-          <div className="relative sm:w-80">
-            <Select value={selectedProject} onValueChange={setSelectedProject}>
+          {/* Project Filter (Admin only) */}
+          {userRole === 'admin' && (
+            <div className="relative sm:w-56">
+              <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <SelectTrigger className="h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {selectedProject === 'all' ? 'All Projects' : selectedProject}
+                    </span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="w-56 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
+                  <SelectItem
+                    value="all"
+                    className="rounded-lg p-3 pr-10 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-3 pr-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30">
+                        <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">All Projects</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Show all leads</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                  {uniqueProjects.map((project) => (
+                    <SelectItem
+                      key={project}
+                      value={project}
+                      className="rounded-lg p-3 pr-10 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                    >
+                      <div className="flex items-center gap-3 pr-2">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/30">
+                          <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                            {project.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-900 dark:text-white truncate">{project}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {tableReports.filter(r => r.leadData?.project?.trim() === project).length} leads
+                          </div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Solution Filter */}
+          <div className="relative sm:w-56">
+            <Select
+              value={selectedSolution}
+              onValueChange={setSelectedSolution}
+            >
               <SelectTrigger className="h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-gray-500" />
                   <span className="text-gray-700 dark:text-gray-300">
-                    {selectedProject === 'all' ? 'All Projects' : selectedProject}
+                    {selectedSolution === 'all' ? 'All Solutions' : selectedSolution}
                   </span>
                 </div>
               </SelectTrigger>
-              <SelectContent className="w-80 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
-                <SelectItem 
-                  value="all" 
-                  className="rounded-lg p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30">
-                      <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">All Projects</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">Show all leads</div>
-                    </div>
-                  </div>
+              <SelectContent className="w-56 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
+                <SelectItem value="all" className="rounded-lg p-3 pr-10 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800">
+                  <div className="font-medium text-gray-900 dark:text-white">All Solutions</div>
                 </SelectItem>
-                {uniqueProjects.map((project) => (
-                  <SelectItem 
-                    key={project} 
-                    value={project}
-                    className="rounded-lg p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                {uniqueSolutions.map((solution) => (
+                  <SelectItem
+                    key={solution}
+                    value={solution}
+                    className="rounded-lg p-3 pr-10 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-50 dark:bg-purple-900/30">
-                        <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
-                          {project.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-gray-900 dark:text-white truncate">{project}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {tableReports.filter(r => r.leadData?.project?.trim() === project).length} leads
-                        </div>
+                    <div className="flex items-center justify-between gap-3 pr-2">
+                      <div className="font-medium text-gray-900 dark:text-white truncate">{solution}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {tableReports.filter((r) => (r.leadData?.solutions || []).includes(solution)).length}
                       </div>
                     </div>
                   </SelectItem>
@@ -409,7 +544,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
           </div>
 
           {/* Owner Filter */}
-          <div className="relative sm:w-80">
+          <div className="relative sm:w-56">
             <Select value={selectedOwner} onValueChange={setSelectedOwner}>
               <SelectTrigger className="h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900">
                 <div className="flex items-center gap-2">
@@ -419,12 +554,12 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                   </span>
                 </div>
               </SelectTrigger>
-              <SelectContent className="w-80 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
+              <SelectContent className="w-56 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
                 <SelectItem 
                   value="all" 
-                  className="rounded-lg p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                  className="rounded-lg p-3 pr-10 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 pr-2">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30">
                       <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     </div>
@@ -438,9 +573,9 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                   <SelectItem 
                     key={owner} 
                     value={owner}
-                    className="rounded-lg p-3 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
+                    className="rounded-lg p-3 pr-10 cursor-pointer transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 focus:bg-gray-50 dark:focus:bg-gray-800"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 pr-2">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30">
                         <span className="text-sm font-semibold text-green-600 dark:text-green-400">
                           {owner.charAt(0).toUpperCase()}
@@ -461,15 +596,26 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         </div>
         
         {/* Active Filters Display */}
-        {(selectedProject !== 'all' || selectedOwner !== 'all' || searchQuery) && (
+        {((userRole === 'admin' && selectedProject !== 'all') || selectedSolution !== 'all' || selectedOwner !== 'all' || searchQuery) && (
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             <span>Active filters:</span>
-            {selectedProject !== 'all' && (
+            {userRole === 'admin' && selectedProject !== 'all' && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
                 Project: {selectedProject}
                 <button
                   onClick={() => setSelectedProject('all')}
                   className="ml-1 hover:text-purple-900 dark:hover:text-purple-100"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {selectedSolution !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                Solution: {selectedSolution}
+                <button
+                  onClick={() => setSelectedSolution('all')}
+                  className="ml-1 hover:text-amber-900 dark:hover:text-amber-100"
                 >
                   ×
                 </button>
@@ -500,6 +646,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
             <button
               onClick={() => {
                 setSelectedProject('all');
+                setSelectedSolution('all');
                 setSelectedOwner('all');
                 setSearchQuery('');
               }}
@@ -516,22 +663,25 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Created
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Email
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Report Owner
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Project
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                  Solutions
+                </th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Lead Status
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Actions
                 </th>
               </tr>
@@ -635,6 +785,19 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       {report.leadData?.project || '-'}
                     </td>
+                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                      {report.leadData?.solutions && report.leadData.solutions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {report.leadData.solutions.map((solution) => (
+                            <span key={solution} className="inline-flex items-center rounded-md bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-xs dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
+                              {solution}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="py-4 px-6">
                       <style jsx>{`
                         [data-radix-select-item-indicator] {
@@ -690,25 +853,40 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                       </Select>
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="h-8 w-8 p-0 border border-blue-200 bg-blue-50/50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
                           onClick={() => window.open(`/report/${report._id}`, '_blank')}
+                          title="View Report"
+                          aria-label="View report"
                         >
-                          View Report
+                          <Eye className="w-4 h-4" />
                         </Button>
+                        {canAssignSolutions && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 border border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-900/40 dark:hover:text-amber-300"
+                            onClick={() => openAssignSolutionsDialog(report)}
+                            title="Assign Solutions"
+                            aria-label="Assign solutions"
+                          >
+                            <Tags className="w-4 h-4" />
+                          </Button>
+                        )}
                         {canManageOwnerAndDelete && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                            className="h-8 w-8 p-0 border border-red-200 bg-red-50/50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/40 dark:hover:text-red-300"
                             onClick={() => handleDeleteReport(report._id)}
                             disabled={deletingReportId === report._id}
+                            title={deletingReportId === report._id ? 'Deleting...' : 'Delete Report'}
+                            aria-label={deletingReportId === report._id ? 'Deleting report' : 'Delete report'}
                           >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            {deletingReportId === report._id ? 'Deleting...' : 'Delete'}
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
@@ -720,6 +898,71 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
           </table>
         </div>
       </div>
+
+      <Dialog
+        open={!!assigningReport}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssigningReport(null);
+            setAssigningSolutions([]);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[540px]">
+          <DialogHeader>
+            <DialogTitle>Assign Solutions</DialogTitle>
+          </DialogHeader>
+
+          {assigningReport && (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Select one or more solutions for <span className="font-medium">{assigningReport.email}</span>.
+              </p>
+              <div className="rounded-lg border p-3 max-h-64 overflow-y-auto space-y-2">
+                {(() => {
+                  const projectName = assigningReport.leadData?.project?.trim() || '';
+                  const options = projectName ? (projectSolutions[projectName] || []) : [];
+                  if (options.length === 0) {
+                    return (
+                      <p className="text-sm text-gray-500">
+                        No configured solutions for this project. Add them in Project Settings first.
+                      </p>
+                    );
+                  }
+
+                  return options.map((solution) => (
+                    <label key={solution} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={assigningSolutions.includes(solution)}
+                        onChange={() => handleAssignSolutionToggle(solution)}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{solution}</span>
+                    </label>
+                  ));
+                })()}
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAssigningReport(null);
+                    setAssigningSolutions([]);
+                  }}
+                  disabled={isAssigningSaving}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleAssignSolutionsSave} disabled={isAssigningSaving}>
+                  {isAssigningSaving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

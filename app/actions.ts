@@ -146,6 +146,7 @@ interface LeadData {
     [key: string]: string;
   };
   project?: string;
+  solutions?: string[];
   leadIndustry?: string;
   leadDesignation?: string;
   leadBackground?: string;
@@ -505,6 +506,7 @@ async function generateAIReport(apolloData: ApolloResponse) {
     engagementTimeline: [],
     status: 'warm',
     tags: [],
+    solutions: [],
     nextFollowUp: null,
     customFields: {},
     // Custom form fields (will be populated from existing report if available)
@@ -630,6 +632,7 @@ export async function initiateReport(formData: FormData) {
   const meetingObjective = formData.get("meetingObjective") as string
   const problemPitch = formData.get("problemPitch") as string
   const project = formData.get("project") as string
+  const solutions = formData.get("solutions") as string
   const leadIndustry = formData.get("leadIndustry") as string
   const leadDesignation = formData.get("leadDesignation") as string
   const leadBackground = formData.get("leadBackground") as string
@@ -637,6 +640,11 @@ export async function initiateReport(formData: FormData) {
   const companyWebsite = formData.get("companyWebsite") as string
   const initialNote = formData.get("initialNote") as string
   const initialActivity = formData.get("initialActivity") as string
+
+  const parsedSolutions = (solutions || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value, index, array) => value !== "" && array.indexOf(value) === index);
 
   if (!email || !email.includes('@')) {
     throw new Error("Please provide a valid email address")
@@ -707,6 +715,7 @@ export async function initiateReport(formData: FormData) {
       companyDetails: { industry: "", employees: "", headquarters: "", website: "" },
       leadScoring: { rating: "", score: 88, qualificationCriteria: {} },
       project: projectName,
+      solutions: parsedSolutions,
       leadIndustry: leadIndustry || "",
       leadDesignation: leadDesignation || "",
       leadBackground: leadBackground || "",
@@ -810,6 +819,7 @@ async function processReport(email: string, reportId: string) {
             meetingObjective: existingReport?.meetingObjective,
             problemPitch: existingReport?.problemPitch,
             'leadData.project': existingReport?.leadData?.project || 'N/A',
+            'leadData.solutions': existingReport?.leadData?.solutions || [],
             'leadData.leadIndustry': existingReport?.leadData?.leadIndustry,
             'leadData.leadDesignation': existingReport?.leadData?.leadDesignation,
             'leadData.leadBackground': existingReport?.leadData?.leadBackground,
@@ -888,6 +898,7 @@ async function processReport(email: string, reportId: string) {
             }
           },
           project: '',
+          solutions: [],
           notes: [],
           engagementTimeline: [],
           status: 'warm',
@@ -916,6 +927,7 @@ async function processReport(email: string, reportId: string) {
       // Preserve the project field from the existing report
       const originalProject = existingReport?.leadData?.project;
       leadData.project = originalProject && originalProject.trim() !== '' ? originalProject : 'Unassigned';
+      leadData.solutions = existingReport?.leadData?.solutions || [];
 
       // Preserve notes and engagement timeline from initial form submission
       leadData.notes = existingReport?.leadData?.notes || [];
@@ -1212,6 +1224,7 @@ export async function getReports() {
         name: report.leadData?.name || '',
         companyName: report.leadData?.companyName || report.companyName || '',
         project: project,
+        solutions: report.leadData?.solutions || [],
         status: report.leadData?.status || 'warm'
       }
     };
