@@ -28,6 +28,8 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProjectFilter, setSelectedProjectFilter] = useState<string>('all');
+  const [selectedUserTypeFilter, setSelectedUserTypeFilter] = useState<'all' | 'team' | 'client'>('all');
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -193,15 +195,27 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
 
   const filteredUsers = users.filter((user) => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return true;
+    const matchesSearch = !query || (() => {
+      const roleLabel = user.role === 'admin' ? 'admin' : user.role === 'client' ? 'client' : 'project user';
+      const projectsText = (user.assignedProjects || []).join(' ').toLowerCase();
+      return (
+        user.email.toLowerCase().includes(query) ||
+        roleLabel.includes(query) ||
+        projectsText.includes(query)
+      );
+    })();
 
-    const roleLabel = user.role === 'admin' ? 'admin' : user.role === 'client' ? 'client' : 'project user';
-    const projectsText = (user.assignedProjects || []).join(' ').toLowerCase();
-    return (
-      user.email.toLowerCase().includes(query) ||
-      roleLabel.includes(query) ||
-      projectsText.includes(query)
-    );
+    const matchesProject =
+      selectedProjectFilter === 'all'
+        ? true
+        : (user.assignedProjects || []).includes(selectedProjectFilter);
+
+    const matchesUserType =
+      selectedUserTypeFilter === 'all' ||
+      (selectedUserTypeFilter === 'client' && user.role === 'client') ||
+      (selectedUserTypeFilter === 'team' && (user.role === 'admin' || user.role === 'project_user'));
+
+    return matchesSearch && matchesProject && matchesUserType;
   });
 
   if (loading) {
@@ -344,9 +358,11 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
 
       <Card>
         <div className="mb-4 rounded-lg border bg-blue-50 dark:bg-blue-950/30 p-4">
-          <Label htmlFor="user-search" className="text-sm font-semibold">
-            Search Users
-          </Label>
+          <div>
+            <Label htmlFor="user-search" className="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200">
+              Search
+            </Label>
+          </div>
           <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input
@@ -356,6 +372,74 @@ export function UserManagement({ availableProjects }: UserManagementProps) {
               placeholder="Search by email, role, or project..."
               className="h-11 pl-10 text-base bg-white dark:bg-gray-900"
             />
+          </div>
+
+          <div className="my-4 h-px bg-blue-200/80 dark:bg-blue-800/70" />
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+              Project Filter
+            </p>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={selectedProjectFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setSelectedProjectFilter('all')}
+            >
+              All Projects
+            </Button>
+            {availableProjects.map((project) => (
+              <Button
+                key={project}
+                type="button"
+                variant={selectedProjectFilter === project ? 'default' : 'outline'}
+                size="sm"
+                className="rounded-full"
+                onClick={() => setSelectedProjectFilter(project)}
+              >
+                {project}
+              </Button>
+            ))}
+          </div>
+
+          <div className="my-4 h-px bg-blue-200/80 dark:bg-blue-800/70" />
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-300">
+              User Type
+            </p>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={selectedUserTypeFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setSelectedUserTypeFilter('all')}
+            >
+              All Users
+            </Button>
+            <Button
+              type="button"
+              variant={selectedUserTypeFilter === 'team' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setSelectedUserTypeFilter('team')}
+            >
+              Team
+            </Button>
+            <Button
+              type="button"
+              variant={selectedUserTypeFilter === 'client' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setSelectedUserTypeFilter('client')}
+            >
+              Client
+            </Button>
           </div>
         </div>
         <CardHeader>
