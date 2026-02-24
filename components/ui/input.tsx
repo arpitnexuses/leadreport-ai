@@ -34,6 +34,50 @@ export type MeetingDetailsSection =
   | "meeting-details"
   | "internal-notes";
 
+const TIMEZONE_OPTIONS = [
+  { value: "Pacific/Honolulu", label: "(UTC-10:00) Honolulu - Hawaii" },
+  { value: "America/Anchorage", label: "(UTC-09:00) Anchorage - Alaska" },
+  { value: "America/Los_Angeles", label: "(UTC-08:00) Los Angeles - Pacific Time" },
+  { value: "America/Phoenix", label: "(UTC-07:00) Phoenix - Arizona" },
+  { value: "America/Denver", label: "(UTC-07:00) Denver - Mountain Time" },
+  { value: "America/Mexico_City", label: "(UTC-06:00) Mexico City - Central Time" },
+  { value: "America/Chicago", label: "(UTC-06:00) Chicago - Central Time" },
+  { value: "America/Toronto", label: "(UTC-05:00) Toronto - Eastern Time" },
+  { value: "America/New_York", label: "(UTC-05:00) New York - Eastern Time" },
+  { value: "America/Puerto_Rico", label: "(UTC-04:00) San Juan - AST (Atlantic Standard Time)" },
+  { value: "America/Halifax", label: "(UTC-04:00) Halifax - Atlantic Time" },
+  { value: "America/Santo_Domingo", label: "(UTC-04:00) Santo Domingo - Atlantic Time" },
+  { value: "America/Sao_Paulo", label: "(UTC-03:00) Sao Paulo - Brasilia Time" },
+  { value: "America/Argentina/Buenos_Aires", label: "(UTC-03:00) Buenos Aires" },
+  { value: "Europe/London", label: "(UTC+00:00) London - UK Time" },
+  { value: "Europe/Paris", label: "(UTC+01:00) Paris - Central European Time" },
+  { value: "Europe/Berlin", label: "(UTC+01:00) Berlin - Central European Time" },
+  { value: "Europe/Athens", label: "(UTC+02:00) Athens - Eastern European Time" },
+  { value: "Africa/Cairo", label: "(UTC+02:00) Cairo" },
+  { value: "Africa/Johannesburg", label: "(UTC+02:00) Johannesburg" },
+  { value: "Europe/Moscow", label: "(UTC+03:00) Moscow" },
+  { value: "Africa/Nairobi", label: "(UTC+03:00) Nairobi - East Africa Time" },
+  { value: "Asia/Riyadh", label: "(UTC+03:00) Riyadh - AST (Arabia Standard Time)" },
+  { value: "Asia/Qatar", label: "(UTC+03:00) Doha - Arabia Standard Time" },
+  { value: "Asia/Kuwait", label: "(UTC+03:00) Kuwait City - Arabia Standard Time" },
+  { value: "Asia/Dubai", label: "(UTC+04:00) Dubai - Gulf Time" },
+  { value: "Asia/Karachi", label: "(UTC+05:00) Karachi - Pakistan Time" },
+  { value: "Asia/Kolkata", label: "(UTC+05:30) Mumbai / New Delhi - India Time" },
+  { value: "Asia/Dhaka", label: "(UTC+06:00) Dhaka - Bangladesh Time" },
+  { value: "Asia/Bangkok", label: "(UTC+07:00) Bangkok - Indochina Time" },
+  { value: "Asia/Jakarta", label: "(UTC+07:00) Jakarta - Western Indonesia Time" },
+  { value: "Asia/Singapore", label: "(UTC+08:00) Singapore" },
+  { value: "Asia/Manila", label: "(UTC+08:00) Manila - Philippines Time" },
+  { value: "Asia/Hong_Kong", label: "(UTC+08:00) Hong Kong" },
+  { value: "Asia/Shanghai", label: "(UTC+08:00) Shanghai - China Time" },
+  { value: "Asia/Seoul", label: "(UTC+09:00) Seoul - Korea Time" },
+  { value: "Asia/Tokyo", label: "(UTC+09:00) Tokyo - Japan Time" },
+  { value: "Australia/Perth", label: "(UTC+08:00) Perth - Western Australia Time" },
+  { value: "Australia/Adelaide", label: "(UTC+09:30) Adelaide - Central Australia Time" },
+  { value: "Australia/Sydney", label: "(UTC+10:00) Sydney - Eastern Australia Time" },
+  { value: "Pacific/Auckland", label: "(UTC+12:00) Auckland - New Zealand Time" },
+];
+
 export const MeetingDetailsForm = ({
   disabled = false,
   visibleSections,
@@ -221,18 +265,12 @@ export const MeetingDetailsForm = ({
               disabled={disabled}
               className="pl-12 h-14 text-sm rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900 w-full"
             >
-              <option value="">Select Timezone</option>
-              <option value="America/New_York">EST (UTC-5)</option>
-              <option value="America/Chicago">CST (UTC-6)</option>
-              <option value="America/Denver">MST (UTC-7)</option>
-              <option value="America/Los_Angeles">PST (UTC-8)</option>
-              <option value="Europe/London">GMT (UTC+0)</option>
-              <option value="Europe/Paris">CET (UTC+1)</option>
-              <option value="Asia/Dubai">GST (UTC+4)</option>
-              <option value="Asia/Kolkata">IST (UTC+5:30)</option>
-              <option value="Asia/Singapore">SGT (UTC+8)</option>
-              <option value="Asia/Tokyo">JST (UTC+9)</option>
-              <option value="Australia/Sydney">AEDT (UTC+11)</option>
+              <option value="">Select timezone (city)</option>
+              {TIMEZONE_OPTIONS.map((timezone) => (
+                <option key={timezone.value} value={timezone.value}>
+                  {timezone.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
