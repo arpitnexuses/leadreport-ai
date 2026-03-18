@@ -10,7 +10,7 @@ interface Report {
   isCompleted: boolean;
   leadData?: {
     project?: string;
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'lost';
   };
 }
 

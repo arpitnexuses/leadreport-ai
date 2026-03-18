@@ -140,7 +140,7 @@ interface LeadData {
     createdAt: Date;
   }[];
   tags: string[];
-  status: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
+  status: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'lost';
   nextFollowUp: Date | null;
   customFields: {
     [key: string]: string;
@@ -1211,6 +1211,10 @@ export async function getReports() {
       project = project.trim();
     }
 
+    // Extract first name and last name
+    const firstName = report.apolloData?.person?.first_name || '';
+    const lastName = report.apolloData?.person?.last_name || '';
+
     return {
       _id: report._id.toString(),
       email: report.email || '',
@@ -1220,9 +1224,12 @@ export async function getReports() {
       meetingDate: report.meetingDate || undefined,
       meetingPlatform: report.meetingPlatform || undefined,
       companyName: report.leadData?.companyName || report.companyName || '',
+      firstName: firstName,
+      lastName: lastName,
       leadData: {
         name: report.leadData?.name || '',
         companyName: report.leadData?.companyName || report.companyName || '',
+        position: report.leadData?.position || report.apolloData?.person?.title || '',
         project: project,
         solutions: report.leadData?.solutions || [],
         status: report.leadData?.status || 'warm'

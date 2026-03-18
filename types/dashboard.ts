@@ -12,12 +12,15 @@ export interface Report {
   meetingLocation?: string;
   meetingObjective?: string;
   companyName?: string;
+  firstName?: string;
+  lastName?: string;
   leadData?: {
     name?: string;
     companyName?: string;
+    position?: string;
     project?: string;
     solutions?: string[];
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'lost';
     leadIndustry?: string;
     leadDesignation?: string;
     leadBackground?: string;

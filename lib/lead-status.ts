@@ -4,6 +4,8 @@ export const LEAD_STATUS_ORDER = [
   "meeting_scheduled",
   "meeting_rescheduled",
   "meeting_done",
+  "contact_later",
+  "lost",
 ] as const;
 
 export type LeadStatus = (typeof LEAD_STATUS_ORDER)[number];
@@ -14,6 +16,8 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   meeting_scheduled: "Meeting Scheduled",
   meeting_rescheduled: "Meeting Rescheduled",
   meeting_done: "Meeting Done",
+  contact_later: "Contact Later",
+  lost: "Lost",
 };
 
 export const LEAD_STATUS_UI: Record<
@@ -60,6 +64,20 @@ export const LEAD_STATUS_UI: Record<
     activeSegmentClass: "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.25)]",
     inactiveSegmentClass: "bg-emerald-100/50",
     chartColor: "#10B981",
+  },
+  contact_later: {
+    textClass: "text-purple-600",
+    badgeClass: "bg-purple-50 text-purple-600",
+    activeSegmentClass: "bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.25)]",
+    inactiveSegmentClass: "bg-purple-100/50",
+    chartColor: "#A855F7",
+  },
+  lost: {
+    textClass: "text-gray-600",
+    badgeClass: "bg-gray-50 text-gray-600",
+    activeSegmentClass: "bg-gray-500 shadow-[0_0_10px_rgba(107,114,128,0.25)]",
+    inactiveSegmentClass: "bg-gray-100/50",
+    chartColor: "#6B7280",
   },
 };
 

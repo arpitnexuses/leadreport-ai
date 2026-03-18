@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X, Tags, Eye } from "lucide-react";
+import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X, Tags, Eye, Clock, XCircle } from "lucide-react";
 import { updateLeadStatus, updateReportOwner, deleteReportById } from "@/app/actions";
 import { LEAD_STATUS_ORDER, getLeadStatusLabel, normalizeLeadStatus } from "@/lib/lead-status";
 
@@ -16,10 +16,16 @@ interface Report {
   createdAt: string;
   meetingDate?: string;
   meetingPlatform?: string;
+  firstName?: string;
+  lastName?: string;
+  companyName?: string;
   leadData?: {
+    name?: string;
+    companyName?: string;
+    position?: string;
     project?: string;
     solutions?: string[];
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'lost';
   };
 }
 
@@ -91,6 +97,10 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         return 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 border-yellow-200 dark:from-yellow-900/20 dark:to-yellow-800/20 dark:text-yellow-300 dark:border-yellow-700';
       case 'meeting_done':
         return 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 dark:from-green-900/20 dark:to-green-800/20 dark:text-green-300 dark:border-green-700';
+      case 'contact_later':
+        return 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200 dark:from-purple-900/20 dark:to-purple-800/20 dark:text-purple-300 dark:border-purple-700';
+      case 'lost':
+        return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-gray-200 dark:from-gray-900/20 dark:to-gray-800/20 dark:text-gray-300 dark:border-gray-700';
       default:
         return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-gray-200 dark:from-gray-900/20 dark:to-gray-800/20 dark:text-gray-300 dark:border-gray-700';
     }
@@ -109,6 +119,10 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         return <RotateCcw className="w-4 h-4" />;
       case 'meeting_done':
         return <CheckCircle className="w-4 h-4" />;
+      case 'contact_later':
+        return <Clock className="w-4 h-4" />;
+      case 'lost':
+        return <XCircle className="w-4 h-4" />;
       default:
         return <Thermometer className="w-4 h-4" />;
     }
@@ -274,6 +288,20 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       iconClass: 'text-green-600 dark:text-green-400',
       subtitle: 'Finished',
     },
+    contact_later: {
+      icon: Clock,
+      accentClass: 'hover:bg-purple-50 dark:hover:bg-purple-950/50 focus:bg-purple-50 dark:focus:bg-purple-950/50 data-[state=checked]:bg-purple-100 dark:data-[state=checked]:bg-purple-950/70',
+      iconWrapClass: 'bg-purple-500/10 dark:bg-purple-500/20',
+      iconClass: 'text-purple-600 dark:text-purple-400',
+      subtitle: 'Follow up later',
+    },
+    lost: {
+      icon: XCircle,
+      accentClass: 'hover:bg-gray-50 dark:hover:bg-gray-950/50 focus:bg-gray-50 dark:focus:bg-gray-950/50 data-[state=checked]:bg-gray-100 dark:data-[state=checked]:bg-gray-950/70',
+      iconWrapClass: 'bg-gray-500/10 dark:bg-gray-500/20',
+      iconClass: 'text-gray-600 dark:text-gray-400',
+      subtitle: 'No longer pursuing',
+    },
   } as const;
 
   // Get unique projects for filter dropdown
@@ -321,7 +349,16 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     .slice(0, 6);
 
   const filteredReports = tableReports.filter(report => {
-    const matchesSearch = report.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const fullName = `${report.firstName || ''} ${report.lastName || ''}`.trim();
+    const leadName = report.leadData?.name || '';
+    const companyName = report.leadData?.companyName || report.companyName || '';
+    const searchLower = searchQuery.toLowerCase();
+    
+    const matchesSearch = 
+      fullName.toLowerCase().includes(searchLower) ||
+      leadName.toLowerCase().includes(searchLower) ||
+      companyName.toLowerCase().includes(searchLower);
+    
     const matchesProject = selectedProject === 'all' || report.leadData?.project?.trim() === selectedProject;
     const matchesSolution = selectedSolution === 'all' || (report.leadData?.solutions || []).includes(selectedSolution);
     const matchesOwner = selectedOwner === 'all' || report.reportOwnerName?.trim() === selectedOwner;
@@ -376,6 +413,22 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       iconColor: 'text-green-600 dark:text-green-400',
       textColor: 'text-green-700 dark:text-green-300',
       borderColor: 'border-green-200 dark:border-green-700',
+    },
+    contact_later: {
+      label: 'Contact Later',
+      icon: Clock,
+      iconBgColor: 'bg-purple-50 dark:bg-purple-950/30',
+      iconColor: 'text-purple-600 dark:text-purple-400',
+      textColor: 'text-purple-700 dark:text-purple-300',
+      borderColor: 'border-purple-200 dark:border-purple-700',
+    },
+    lost: {
+      label: 'Lost',
+      icon: XCircle,
+      iconBgColor: 'bg-gray-50 dark:bg-gray-950/30',
+      iconColor: 'text-gray-600 dark:text-gray-400',
+      textColor: 'text-gray-700 dark:text-gray-300',
+      borderColor: 'border-gray-200 dark:border-gray-700',
     }
   } as const;
 
@@ -403,7 +456,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       </div>
 
       {/* Status Count Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
         {statusCards.map((card) => {
           const IconComponent = card.icon;
           const percentage = totalLeads > 0 ? Math.round((card.count / totalLeads) * 100) : 0;
@@ -447,7 +500,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search by email..."
+              placeholder="Search by name or company..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900"
@@ -664,13 +717,19 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
             <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                  Created
+                  First Name
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                  Email
+                  Last Name
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                  Report Owner
+                  Company
+                </th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                  Title
+                </th>
+                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                  Lead Status
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Project
@@ -679,7 +738,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                   Solutions
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                  Lead Status
+                  Report Owner
                 </th>
                 <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   Actions
@@ -692,10 +751,86 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                 return (
                   <tr key={report._id.toString()} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {formatDate(report.createdAt)}
+                      {report.firstName || report.leadData?.name?.split(' ')[0] || '-'}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.email}
+                      {report.lastName || report.leadData?.name?.split(' ').slice(1).join(' ') || '-'}
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                      {report.leadData?.companyName || report.companyName || '-'}
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                      {report.leadData?.position || '-'}
+                    </td>
+                    <td className="py-4 px-6">
+                      <style jsx>{`
+                        [data-radix-select-item-indicator] {
+                          display: none !important;
+                        }
+                        .select-item-no-indicator [data-radix-select-item-indicator] {
+                          display: none !important;
+                        }
+                        .select-item-no-indicator > span:last-child {
+                          display: none !important;
+                        }
+                      `}</style>
+                      <Select
+                        value={leadStatus}
+                        onValueChange={(value) => handleStatusUpdate(report._id, value)}
+                      >
+                        <SelectTrigger className={`w-48 h-9 rounded-lg border-0 shadow-sm transition-all duration-200 hover:shadow-md focus:ring-2 focus:ring-blue-500/20 focus:shadow-lg ${getStatusColor(leadStatus)}`}>
+                          <div className="flex items-center gap-2.5">
+                            {getStatusIcon(leadStatus)}
+                            <span className="font-medium text-sm whitespace-nowrap">
+                              {getLeadStatusLabel(leadStatus)}
+                            </span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent className="w-64 rounded-lg border shadow-xl bg-white dark:bg-gray-900 p-2">
+                          {LEAD_STATUS_ORDER.map((status) => {
+                            const statusConfig = statusMeta[status];
+                            const StatusIcon = statusConfig.icon;
+                            return (
+                              <SelectItem
+                                key={status}
+                                value={status}
+                                className={`select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 border-0 ${statusConfig.accentClass}`}
+                                style={{ position: 'relative' }}
+                              >
+                                <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
+                                  <div className={`flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 ${statusConfig.iconWrapClass}`}>
+                                    <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.iconClass}`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                                      {getLeadStatusLabel(status)}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                      {statusConfig.subtitle}
+                                    </div>
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                      {report.leadData?.project || '-'}
+                    </td>
+                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                      {report.leadData?.solutions && report.leadData.solutions.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {report.leadData.solutions.map((solution) => (
+                            <span key={solution} className="inline-flex items-center rounded-md bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-xs dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
+                              {solution}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       {editingOwnerId === report._id ? (
@@ -783,76 +918,6 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                       )}
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.leadData?.project || '-'}
-                    </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.leadData?.solutions && report.leadData.solutions.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {report.leadData.solutions.map((solution) => (
-                            <span key={solution} className="inline-flex items-center rounded-md bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-xs dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
-                              {solution}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6">
-                      <style jsx>{`
-                        [data-radix-select-item-indicator] {
-                          display: none !important;
-                        }
-                        .select-item-no-indicator [data-radix-select-item-indicator] {
-                          display: none !important;
-                        }
-                        .select-item-no-indicator > span:last-child {
-                          display: none !important;
-                        }
-                      `}</style>
-                      <Select
-                        value={leadStatus}
-                        onValueChange={(value) => handleStatusUpdate(report._id, value)}
-                      >
-                        <SelectTrigger className={`w-48 h-9 rounded-lg border-0 shadow-sm transition-all duration-200 hover:shadow-md focus:ring-2 focus:ring-blue-500/20 focus:shadow-lg ${getStatusColor(leadStatus)}`}>
-                          <div className="flex items-center gap-2.5">
-                            {getStatusIcon(leadStatus)}
-                            <span className="font-medium text-sm whitespace-nowrap">
-                              {getLeadStatusLabel(leadStatus)}
-                            </span>
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent className="w-64 rounded-lg border shadow-xl bg-white dark:bg-gray-900 p-2">
-                          {LEAD_STATUS_ORDER.map((status) => {
-                            const statusConfig = statusMeta[status];
-                            const StatusIcon = statusConfig.icon;
-                            return (
-                              <SelectItem
-                                key={status}
-                                value={status}
-                                className={`select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 border-0 ${statusConfig.accentClass}`}
-                                style={{ position: 'relative' }}
-                              >
-                                <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                                  <div className={`flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 ${statusConfig.iconWrapClass}`}>
-                                    <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.iconClass}`} />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                                      {getLeadStatusLabel(status)}
-                                    </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                      {statusConfig.subtitle}
-                                    </div>
-                                  </div>
-                                </div>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
@@ -916,7 +981,9 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
           {assigningReport && (
             <div className="space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Select one or more solutions for <span className="font-medium">{assigningReport.email}</span>.
+                Select one or more solutions for <span className="font-medium">
+                  {assigningReport.leadData?.name || `${assigningReport.firstName || ''} ${assigningReport.lastName || ''}`.trim() || assigningReport.email}
+                </span>.
               </p>
               <div className="rounded-lg border p-3 max-h-64 overflow-y-auto space-y-2">
                 {(() => {

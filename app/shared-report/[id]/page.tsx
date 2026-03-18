@@ -799,27 +799,26 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-5 gap-2 h-2 mb-3">
+              <div className="grid grid-cols-7 gap-2 h-2 mb-3">
                 {pipelineStages.map((stage, index) => {
                   const stageStyle = LEAD_STATUS_UI[stage];
-                  const isReached = index <= currentStageIndex;
+                  const isCurrent = index === currentStageIndex;
                   return (
                     <div
                       key={stage}
-                      className={`rounded-full transition-all ${isReached ? stageStyle.activeSegmentClass : stageStyle.inactiveSegmentClass}`}
+                      className={`rounded-full transition-all ${isCurrent ? stageStyle.activeSegmentClass : stageStyle.inactiveSegmentClass}`}
                     />
                   );
                 })}
               </div>
-              <div className="grid grid-cols-5 gap-2 px-0.5">
+              <div className="grid grid-cols-7 gap-2 px-0.5">
                 {pipelineStages.map((stage, index) => {
                   const stageStyle = LEAD_STATUS_UI[stage];
                   const isCurrent = index === currentStageIndex;
-                  const isPast = index < currentStageIndex;
                   return (
                     <span
                       key={stage}
-                      className={`text-xs uppercase text-center ${isCurrent ? `font-black underline underline-offset-2 ${stageStyle.textClass}` : isPast ? `font-bold ${stageStyle.textClass}` : "font-bold text-gray-400"}`}
+                      className={`text-xs uppercase text-center ${isCurrent ? `font-black underline underline-offset-2 ${stageStyle.textClass}` : "font-bold text-gray-400"}`}
                     >
                       {getLeadStatusLabel(stage)}
                     </span>
