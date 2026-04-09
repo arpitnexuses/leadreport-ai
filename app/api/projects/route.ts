@@ -123,6 +123,9 @@ export async function GET(request: NextRequest) {
           meeting_scheduled: 0,
           meeting_rescheduled: 0,
           meeting_done: 0,
+          contact_later: 0,
+          client_rejected: 0,
+          lost: 0,
         } as Record<string, number>,
       };
       return acc;

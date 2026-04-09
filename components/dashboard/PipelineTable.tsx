@@ -25,7 +25,7 @@ interface Report {
     position?: string;
     project?: string;
     solutions?: string[];
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'lost';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_rejected' | 'lost';
   };
 }
 
@@ -99,6 +99,8 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         return 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 dark:from-green-900/20 dark:to-green-800/20 dark:text-green-300 dark:border-green-700';
       case 'contact_later':
         return 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200 dark:from-purple-900/20 dark:to-purple-800/20 dark:text-purple-300 dark:border-purple-700';
+      case 'client_rejected':
+        return 'bg-gradient-to-r from-rose-50 to-rose-100 text-rose-700 border-rose-200 dark:from-rose-900/20 dark:to-rose-800/20 dark:text-rose-300 dark:border-rose-700';
       case 'lost':
         return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-gray-200 dark:from-gray-900/20 dark:to-gray-800/20 dark:text-gray-300 dark:border-gray-700';
       default:
@@ -121,6 +123,8 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         return <CheckCircle className="w-4 h-4" />;
       case 'contact_later':
         return <Clock className="w-4 h-4" />;
+      case 'client_rejected':
+        return <X className="w-4 h-4" />;
       case 'lost':
         return <XCircle className="w-4 h-4" />;
       default:
@@ -295,6 +299,13 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       iconClass: 'text-purple-600 dark:text-purple-400',
       subtitle: 'Follow up later',
     },
+    client_rejected: {
+      icon: X,
+      accentClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/50 focus:bg-rose-50 dark:focus:bg-rose-950/50 data-[state=checked]:bg-rose-100 dark:data-[state=checked]:bg-rose-950/70',
+      iconWrapClass: 'bg-rose-500/10 dark:bg-rose-500/20',
+      iconClass: 'text-rose-600 dark:text-rose-400',
+      subtitle: 'Rejected by client',
+    },
     lost: {
       icon: XCircle,
       accentClass: 'hover:bg-gray-50 dark:hover:bg-gray-950/50 focus:bg-gray-50 dark:focus:bg-gray-950/50 data-[state=checked]:bg-gray-100 dark:data-[state=checked]:bg-gray-950/70',
@@ -422,6 +433,14 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       textColor: 'text-purple-700 dark:text-purple-300',
       borderColor: 'border-purple-200 dark:border-purple-700',
     },
+    client_rejected: {
+      label: 'Client Rejected',
+      icon: X,
+      iconBgColor: 'bg-rose-50 dark:bg-rose-950/30',
+      iconColor: 'text-rose-600 dark:text-rose-400',
+      textColor: 'text-rose-700 dark:text-rose-300',
+      borderColor: 'border-rose-200 dark:border-rose-700',
+    },
     lost: {
       label: 'Lost',
       icon: XCircle,
@@ -456,7 +475,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       </div>
 
       {/* Status Count Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
         {statusCards.map((card) => {
           const IconComponent = card.icon;
           const percentage = totalLeads > 0 ? Math.round((card.count / totalLeads) * 100) : 0;

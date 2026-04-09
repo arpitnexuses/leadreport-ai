@@ -1813,7 +1813,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-7 gap-2 h-2 mb-3">
+              <div className="grid grid-cols-8 gap-2 h-2 mb-3">
                 {pipelineStages.map((stage, index) => {
                   const stageStyle = LEAD_STATUS_UI[stage];
                   const isCurrent = index === currentStageIndex;
@@ -1825,7 +1825,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                   );
                 })}
               </div>
-              <div className="grid grid-cols-7 gap-2 px-0.5">
+              <div className="grid grid-cols-8 gap-2 px-0.5">
                 {pipelineStages.map((stage, index) => {
                   const stageStyle = LEAD_STATUS_UI[stage];
                   const isCurrent = index === currentStageIndex;

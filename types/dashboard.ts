@@ -20,7 +20,7 @@ export interface Report {
     position?: string;
     project?: string;
     solutions?: string[];
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'lost';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_rejected' | 'lost';
     leadIndustry?: string;
     leadDesignation?: string;
     leadBackground?: string;

@@ -5,6 +5,7 @@ export const LEAD_STATUS_ORDER = [
   "meeting_rescheduled",
   "meeting_done",
   "contact_later",
+  "client_rejected",
   "lost",
 ] as const;
 
@@ -17,6 +18,7 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   meeting_rescheduled: "Meeting Rescheduled",
   meeting_done: "Meeting Done",
   contact_later: "Contact Later",
+  client_rejected: "Client Rejected",
   lost: "Lost",
 };
 
@@ -71,6 +73,13 @@ export const LEAD_STATUS_UI: Record<
     activeSegmentClass: "bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.25)]",
     inactiveSegmentClass: "bg-purple-100/50",
     chartColor: "#A855F7",
+  },
+  client_rejected: {
+    textClass: "text-rose-600",
+    badgeClass: "bg-rose-50 text-rose-600",
+    activeSegmentClass: "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.25)]",
+    inactiveSegmentClass: "bg-rose-100/50",
+    chartColor: "#F43F5E",
   },
   lost: {
     textClass: "text-gray-600",
