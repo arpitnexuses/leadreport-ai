@@ -14,7 +14,7 @@ interface Report {
     name?: string;
     companyName?: string;
     project?: string;
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_rejected' | 'lost';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_manage' | 'client_unavailable' | 'client_rejected' | 'lost';
   };
 }
 
@@ -43,6 +43,10 @@ export function RecentLeadsTable({ reports }: RecentLeadsTableProps) {
         return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-700';
       case 'meeting_done':
         return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700';
+      case 'client_manage':
+        return 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-700';
+      case 'client_unavailable':
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-700';
       case 'client_rejected':
         return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-700';
       default:
@@ -62,6 +66,10 @@ export function RecentLeadsTable({ reports }: RecentLeadsTableProps) {
         return <RotateCcw className="w-3 h-3" />;
       case 'meeting_done':
         return <CheckCircle className="w-3 h-3" />;
+      case 'client_manage':
+        return <Users className="w-3 h-3" />;
+      case 'client_unavailable':
+        return <X className="w-3 h-3" />;
       case 'client_rejected':
         return <X className="w-3 h-3" />;
       default:
@@ -81,6 +89,10 @@ export function RecentLeadsTable({ reports }: RecentLeadsTableProps) {
         return 'Rescheduled';
       case 'meeting_done':
         return 'Completed';
+      case 'client_manage':
+        return 'Client Manage';
+      case 'client_unavailable':
+        return 'Client Unavailable';
       case 'client_rejected':
         return 'Client Rejected';
       default:

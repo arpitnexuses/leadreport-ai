@@ -124,6 +124,8 @@ export async function GET(request: NextRequest) {
           meeting_rescheduled: 0,
           meeting_done: 0,
           contact_later: 0,
+          client_manage: 0,
+          client_unavailable: 0,
           client_rejected: 0,
           lost: 0,
         } as Record<string, number>,

@@ -140,7 +140,7 @@ interface LeadData {
     createdAt: Date;
   }[];
   tags: string[];
-  status: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_rejected' | 'lost';
+  status: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_manage' | 'client_unavailable' | 'client_rejected' | 'lost';
   nextFollowUp: Date | null;
   customFields: {
     [key: string]: string;

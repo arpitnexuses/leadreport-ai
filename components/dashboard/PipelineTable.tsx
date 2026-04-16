@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X, Tags, Eye, Clock, XCircle } from "lucide-react";
+import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X, Tags, Eye, Clock, XCircle, UserCheck, UserX } from "lucide-react";
 import { updateLeadStatus, updateReportOwner, deleteReportById } from "@/app/actions";
 import { LEAD_STATUS_ORDER, getLeadStatusLabel, normalizeLeadStatus } from "@/lib/lead-status";
 
@@ -25,7 +25,7 @@ interface Report {
     position?: string;
     project?: string;
     solutions?: string[];
-    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_rejected' | 'lost';
+    status?: 'hot' | 'warm' | 'meeting_scheduled' | 'meeting_rescheduled' | 'meeting_done' | 'contact_later' | 'client_manage' | 'client_unavailable' | 'client_rejected' | 'lost';
   };
 }
 
@@ -99,6 +99,10 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         return 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 dark:from-green-900/20 dark:to-green-800/20 dark:text-green-300 dark:border-green-700';
       case 'contact_later':
         return 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200 dark:from-purple-900/20 dark:to-purple-800/20 dark:text-purple-300 dark:border-purple-700';
+      case 'client_manage':
+        return 'bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-700 border-cyan-200 dark:from-cyan-900/20 dark:to-cyan-800/20 dark:text-cyan-300 dark:border-cyan-700';
+      case 'client_unavailable':
+        return 'bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 border-indigo-200 dark:from-indigo-900/20 dark:to-indigo-800/20 dark:text-indigo-300 dark:border-indigo-700';
       case 'client_rejected':
         return 'bg-gradient-to-r from-rose-50 to-rose-100 text-rose-700 border-rose-200 dark:from-rose-900/20 dark:to-rose-800/20 dark:text-rose-300 dark:border-rose-700';
       case 'lost':
@@ -123,6 +127,10 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         return <CheckCircle className="w-4 h-4" />;
       case 'contact_later':
         return <Clock className="w-4 h-4" />;
+      case 'client_manage':
+        return <UserCheck className="w-4 h-4" />;
+      case 'client_unavailable':
+        return <UserX className="w-4 h-4" />;
       case 'client_rejected':
         return <X className="w-4 h-4" />;
       case 'lost':
@@ -299,6 +307,20 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       iconClass: 'text-purple-600 dark:text-purple-400',
       subtitle: 'Follow up later',
     },
+    client_manage: {
+      icon: UserCheck,
+      accentClass: 'hover:bg-cyan-50 dark:hover:bg-cyan-950/50 focus:bg-cyan-50 dark:focus:bg-cyan-950/50 data-[state=checked]:bg-cyan-100 dark:data-[state=checked]:bg-cyan-950/70',
+      iconWrapClass: 'bg-cyan-500/10 dark:bg-cyan-500/20',
+      iconClass: 'text-cyan-600 dark:text-cyan-400',
+      subtitle: 'Client managing internally',
+    },
+    client_unavailable: {
+      icon: UserX,
+      accentClass: 'hover:bg-indigo-50 dark:hover:bg-indigo-950/50 focus:bg-indigo-50 dark:focus:bg-indigo-950/50 data-[state=checked]:bg-indigo-100 dark:data-[state=checked]:bg-indigo-950/70',
+      iconWrapClass: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+      iconClass: 'text-indigo-600 dark:text-indigo-400',
+      subtitle: 'Client not reachable',
+    },
     client_rejected: {
       icon: X,
       accentClass: 'hover:bg-rose-50 dark:hover:bg-rose-950/50 focus:bg-rose-50 dark:focus:bg-rose-950/50 data-[state=checked]:bg-rose-100 dark:data-[state=checked]:bg-rose-950/70',
@@ -433,6 +455,22 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       textColor: 'text-purple-700 dark:text-purple-300',
       borderColor: 'border-purple-200 dark:border-purple-700',
     },
+    client_manage: {
+      label: 'Client Manage',
+      icon: UserCheck,
+      iconBgColor: 'bg-cyan-50 dark:bg-cyan-950/30',
+      iconColor: 'text-cyan-600 dark:text-cyan-400',
+      textColor: 'text-cyan-700 dark:text-cyan-300',
+      borderColor: 'border-cyan-200 dark:border-cyan-700',
+    },
+    client_unavailable: {
+      label: 'Client Unavailable',
+      icon: UserX,
+      iconBgColor: 'bg-indigo-50 dark:bg-indigo-950/30',
+      iconColor: 'text-indigo-600 dark:text-indigo-400',
+      textColor: 'text-indigo-700 dark:text-indigo-300',
+      borderColor: 'border-indigo-200 dark:border-indigo-700',
+    },
     client_rejected: {
       label: 'Client Rejected',
       icon: X,
@@ -458,12 +496,10 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
       label: meta.label,
       count: statusCounts[status] || 0,
       icon: meta.icon,
-      bgColor: 'bg-white dark:bg-gray-800',
       iconBgColor: meta.iconBgColor,
       iconColor: meta.iconColor,
       textColor: meta.textColor,
-      borderColor: meta.borderColor,
-      countColor: 'text-gray-900 dark:text-white'
+      borderColor: meta.borderColor
     };
   });
 
@@ -474,41 +510,42 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         <p className="text-gray-600 dark:text-gray-300">Track and manage your lead reports</p>
       </div>
 
-      {/* Status Count Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
+      {/* Compact Status Overview */}
+      <div className="mb-8 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Status Distribution
+          </p>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Total: <span className="font-semibold text-gray-700 dark:text-gray-200">{totalLeads}</span>
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-2">
         {statusCards.map((card) => {
           const IconComponent = card.icon;
-          const percentage = totalLeads > 0 ? Math.round((card.count / totalLeads) * 100) : 0;
-          
+
           return (
             <div
               key={card.status}
-              className={`${card.bgColor} ${card.borderColor} border-2 rounded-xl p-6 transition-all duration-200 hover:shadow-lg hover:scale-105 shadow-sm`}
+              className={`min-w-[170px] ${card.borderColor} border rounded-lg bg-gray-50/70 dark:bg-gray-900/40 px-3 py-2`}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl ${card.iconBgColor}`}>
-                  <IconComponent className={`w-6 h-6 ${card.iconColor}`} />
-                </div>
-                <div className="text-right">
-                  <div className={`text-3xl font-bold ${card.countColor}`}>
-                    {card.count}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`p-1.5 rounded-md ${card.iconBgColor}`}>
+                    <IconComponent className={`w-3.5 h-3.5 ${card.iconColor}`} />
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {percentage}% of total
-                  </div>
+                  <p className={`text-xs font-semibold truncate ${card.textColor}`} title={card.label}>
+                    {card.label}
+                  </p>
                 </div>
-              </div>
-              <div>
-                <h3 className={`font-semibold text-sm ${card.textColor}`}>
-                  {card.label}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {card.count === 1 ? 'lead' : 'leads'} in pipeline
-                </p>
+                <div className="text-right shrink-0">
+                  <p className="text-2xl leading-none font-bold text-gray-900 dark:text-white">{card.count}</p>
+                </div>
               </div>
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Filters Section */}

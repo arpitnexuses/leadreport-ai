@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useRef, useState, use } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingOverlay } from "@/components/dashboard/LoadingOverlay";
@@ -159,6 +159,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+  const activePipelineStageRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -267,6 +268,15 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  useEffect(() => {
+    if (!report) return;
+    activePipelineStageRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [report?.leadData?.status]);
+
   if (loading) {
     return <LoadingOverlay isVisible={true} statusMessage="Loading shared report..." />;
   }
@@ -325,6 +335,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
   const pipelineStages = LEAD_STATUS_ORDER;
   const currentStageIndex = Math.max(pipelineStages.indexOf(currentLeadStatus), 0);
   const currentStageAppearance = LEAD_STATUS_UI[currentLeadStatus];
+  const pipelineGridTemplate = `repeat(${pipelineStages.length}, minmax(100px, 1fr))`;
 
   return (
     <div className="h-screen flex flex-col overflow-hidden print:h-auto print:overflow-visible" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", backgroundColor: '#F5F5F7', color: '#1D1D1F' }}>
@@ -799,31 +810,42 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-8 gap-2 h-2 mb-3">
-                {pipelineStages.map((stage, index) => {
-                  const stageStyle = LEAD_STATUS_UI[stage];
-                  const isCurrent = index === currentStageIndex;
-                  return (
-                    <div
-                      key={stage}
-                      className={`rounded-full transition-all ${isCurrent ? stageStyle.activeSegmentClass : stageStyle.inactiveSegmentClass}`}
-                    />
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-8 gap-2 px-0.5">
-                {pipelineStages.map((stage, index) => {
-                  const stageStyle = LEAD_STATUS_UI[stage];
-                  const isCurrent = index === currentStageIndex;
-                  return (
-                    <span
-                      key={stage}
-                      className={`text-xs uppercase text-center ${isCurrent ? `font-black underline underline-offset-2 ${stageStyle.textClass}` : "font-bold text-gray-400"}`}
-                    >
-                      {getLeadStatusLabel(stage)}
-                    </span>
-                  );
-                })}
+              <div className="overflow-x-auto pb-1">
+                <div className="min-w-max">
+                  <div
+                    className="grid gap-2 h-2 mb-3"
+                    style={{ gridTemplateColumns: pipelineGridTemplate }}
+                  >
+                    {pipelineStages.map((stage, index) => {
+                      const stageStyle = LEAD_STATUS_UI[stage];
+                      const isCurrent = index === currentStageIndex;
+                      return (
+                        <div
+                          key={stage}
+                          className={`rounded-full transition-all ${isCurrent ? stageStyle.activeSegmentClass : stageStyle.inactiveSegmentClass}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div
+                    className="grid gap-2 px-0.5"
+                    style={{ gridTemplateColumns: pipelineGridTemplate }}
+                  >
+                    {pipelineStages.map((stage, index) => {
+                      const stageStyle = LEAD_STATUS_UI[stage];
+                      const isCurrent = index === currentStageIndex;
+                      return (
+                        <span
+                          key={stage}
+                          ref={isCurrent ? activePipelineStageRef : null}
+                          className={`text-[11px] leading-tight text-center whitespace-normal break-words ${isCurrent ? `font-black underline underline-offset-2 ${stageStyle.textClass}` : "font-bold text-gray-400"}`}
+                        >
+                          {getLeadStatusLabel(stage)}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
