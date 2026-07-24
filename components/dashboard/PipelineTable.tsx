@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, X, Eye, Clock, XCircle, UserCheck, UserX, Loader2, Download } from "lucide-react";
+import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, X, Eye, Clock, XCircle, UserCheck, UserX, Loader2, Download, ChevronDown, FileSpreadsheet, FileText } from "lucide-react";
 import { updateLeadStatus, updateReportOwner, deleteReportById } from "@/app/actions";
 import { LEAD_STATUS_ORDER, LEAD_STATUS_UI, getLeadStatusLabel, normalizeLeadStatus, type LeadStatus } from "@/lib/lead-status";
 import { getSharedReportUrl } from "@/lib/brand";
 import { exportPipelineTablePdf } from "@/lib/export-pipeline-pdf";
+import { exportPipelineTableCsv } from "@/lib/export-pipeline-csv";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const getMonthKey = (dateStr: string) => {
   const date = new Date(dateStr);
@@ -64,7 +66,8 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
   const [isOwnerSaving, setIsOwnerSaving] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
   const [savingSolutionsId, setSavingSolutionsId] = useState<string | null>(null);
-  const [isExportingTable, setIsExportingTable] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<"csv" | "pdf" | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   useEffect(() => {
     setTableReports(reports);
@@ -207,28 +210,50 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     }
   };
 
+  const exportFilters = {
+    searchQuery,
+    selectedProject,
+    selectedSolution,
+    selectedOwner,
+    selectedMonth,
+    formatMonthLabel,
+  };
+
   const handleExportTablePdf = async () => {
     if (filteredReports.length === 0) return;
 
     try {
-      setIsExportingTable(true);
+      setExportingFormat("pdf");
+      setExportMenuOpen(false);
       await exportPipelineTablePdf(
         filteredReports,
-        {
-          searchQuery,
-          selectedProject,
-          selectedSolution,
-          selectedOwner,
-          selectedMonth,
-          formatMonthLabel,
-        },
+        exportFilters,
         window.location.origin
       );
     } catch (error) {
       console.error("Failed to export pipeline PDF:", error);
       alert(error instanceof Error ? error.message : "Failed to export pipeline PDF");
     } finally {
-      setIsExportingTable(false);
+      setExportingFormat(null);
+    }
+  };
+
+  const handleExportTableCsv = () => {
+    if (filteredReports.length === 0) return;
+
+    try {
+      setExportingFormat("csv");
+      setExportMenuOpen(false);
+      exportPipelineTableCsv(
+        filteredReports,
+        exportFilters,
+        window.location.origin
+      );
+    } catch (error) {
+      console.error("Failed to export pipeline CSV:", error);
+      alert(error instanceof Error ? error.message : "Failed to export pipeline CSV");
+    } finally {
+      setExportingFormat(null);
     }
   };
 
@@ -588,24 +613,46 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Lead Pipeline</h1>
           <p className="text-gray-600 dark:text-gray-300">Track and manage your lead reports</p>
         </div>
-        <Button
-          variant="outline"
-          className="h-11 shrink-0 rounded-xl border-gray-200 dark:border-gray-700"
-          onClick={() => void handleExportTablePdf()}
-          disabled={isExportingTable || filteredReports.length === 0}
-        >
-          {isExportingTable ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Exporting...
-            </>
-          ) : (
-            <>
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF ({filteredReports.length})
-            </>
-          )}
-        </Button>
+        <Popover open={exportMenuOpen} onOpenChange={setExportMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="h-11 shrink-0 rounded-xl border-gray-200 dark:border-gray-700"
+              disabled={exportingFormat !== null || filteredReports.length === 0}
+            >
+              {exportingFormat ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Exporting {exportingFormat.toUpperCase()}...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export ({filteredReports.length})
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-52 p-1 dark:bg-gray-900 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => void handleExportTableCsv()}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportTablePdf()}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+            >
+              <FileText className="h-4 w-4" />
+              Export PDF
+            </button>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Compact Status Overview */}
