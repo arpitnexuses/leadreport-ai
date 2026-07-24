@@ -19,6 +19,11 @@ import {
   getLeadStatusLabel,
   normalizeLeadStatus
 } from "@/lib/lead-status";
+import {
+  NEXUSES_BRAND_NAME,
+  NEXUSES_LOGO_DARK_URL,
+  getSharedReportUrl,
+} from "@/lib/brand";
 
 interface LeadData {
   name: string;
@@ -150,7 +155,7 @@ interface LeadReport {
 }
 
 // Toggle to temporarily disable PDF downloads on shared report page.
-const SHOW_SHARED_PDF_DOWNLOAD = false;
+const SHOW_SHARED_PDF_DOWNLOAD = true;
 
 export default function SharedReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -223,7 +228,7 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${report?.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-shared-report.pdf`;
+      a.download = `${report?.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-nexuses-report.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -348,8 +353,8 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
       }}>
         <div className="flex items-center gap-4">
           <img 
-            src="https://cdn-nexlink.s3.us-east-2.amazonaws.com/Nexuses-full-logo-dark_8d412ea3-bf11-4fc6-af9c-bee7e51ef494.png" 
-            alt="Nexuses Logo" 
+            src={NEXUSES_LOGO_DARK_URL}
+            alt={`${NEXUSES_BRAND_NAME} Logo`} 
             className="h-5"
           />
         </div>
@@ -379,7 +384,20 @@ export default function SharedReportPage({ params }: { params: Promise<{ id: str
 
 
       {/* Main Content */}
-      <main className="flex-1 mt-14 p-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 mt-14 p-6 overflow-y-auto max-w-[1600px] mx-auto w-full print:mt-0">
+        <div className="hidden print:flex pdf-print-branding items-center justify-between mb-4 pb-3 border-b border-gray-200">
+          <img
+            src={NEXUSES_LOGO_DARK_URL}
+            alt={`${NEXUSES_BRAND_NAME} Logo`}
+            className="h-7"
+          />
+          <div className="text-right">
+            <p className="text-xs font-semibold text-gray-700">{NEXUSES_BRAND_NAME} Lead Report</p>
+            <p id="pdf-public-url" className="text-[10px] text-gray-500 break-all max-w-[420px]">
+              {typeof window !== "undefined" ? getSharedReportUrl(window.location.origin, id) : ""}
+            </p>
+          </div>
+        </div>
         {/* Three Column Grid */}
         <div className="grid grid-cols-12 gap-5">
           {/* LEFT SIDEBAR: Lead & CRM Context */}

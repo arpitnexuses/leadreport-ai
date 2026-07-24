@@ -4,10 +4,25 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, Check, X, Tags, Eye, Clock, XCircle, UserCheck, UserX } from "lucide-react";
+import { Search, Flame, Thermometer, Calendar, RotateCcw, CheckCircle, Filter, Pencil, Trash2, User, X, Eye, Clock, XCircle, UserCheck, UserX, Loader2, Download } from "lucide-react";
 import { updateLeadStatus, updateReportOwner, deleteReportById } from "@/app/actions";
-import { LEAD_STATUS_ORDER, getLeadStatusLabel, normalizeLeadStatus } from "@/lib/lead-status";
+import { LEAD_STATUS_ORDER, LEAD_STATUS_UI, getLeadStatusLabel, normalizeLeadStatus, type LeadStatus } from "@/lib/lead-status";
+import { getSharedReportUrl } from "@/lib/brand";
+import { exportPipelineTablePdf } from "@/lib/export-pipeline-pdf";
+
+const getMonthKey = (dateStr: string) => {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const formatMonthLabel = (monthKey: string) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+};
 
 interface Report {
   _id: string;
@@ -43,13 +58,13 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [selectedSolution, setSelectedSolution] = useState<string>('all');
   const [selectedOwner, setSelectedOwner] = useState<string>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [editingOwnerId, setEditingOwnerId] = useState<string | null>(null);
   const [ownerDraft, setOwnerDraft] = useState('');
   const [isOwnerSaving, setIsOwnerSaving] = useState(false);
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
-  const [assigningReport, setAssigningReport] = useState<Report | null>(null);
-  const [assigningSolutions, setAssigningSolutions] = useState<string[]>([]);
-  const [isAssigningSaving, setIsAssigningSaving] = useState(false);
+  const [savingSolutionsId, setSavingSolutionsId] = useState<string | null>(null);
+  const [isExportingTable, setIsExportingTable] = useState(false);
 
   useEffect(() => {
     setTableReports(reports);
@@ -84,60 +99,11 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    const normalizedStatus = normalizeLeadStatus(status);
-    switch (normalizedStatus) {
-      case 'hot':
-        return 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-red-200 dark:from-red-900/20 dark:to-red-800/20 dark:text-red-300 dark:border-red-700';
-      case 'warm':
-        return 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 border-orange-200 dark:from-orange-900/20 dark:to-orange-800/20 dark:text-orange-300 dark:border-orange-700';
-      case 'meeting_scheduled':
-        return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 dark:text-blue-300 dark:border-blue-700';
-      case 'meeting_rescheduled':
-        return 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-700 border-yellow-200 dark:from-yellow-900/20 dark:to-yellow-800/20 dark:text-yellow-300 dark:border-yellow-700';
-      case 'meeting_done':
-        return 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border-green-200 dark:from-green-900/20 dark:to-green-800/20 dark:text-green-300 dark:border-green-700';
-      case 'contact_later':
-        return 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200 dark:from-purple-900/20 dark:to-purple-800/20 dark:text-purple-300 dark:border-purple-700';
-      case 'client_manage':
-        return 'bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-700 border-cyan-200 dark:from-cyan-900/20 dark:to-cyan-800/20 dark:text-cyan-300 dark:border-cyan-700';
-      case 'client_unavailable':
-        return 'bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 border-indigo-200 dark:from-indigo-900/20 dark:to-indigo-800/20 dark:text-indigo-300 dark:border-indigo-700';
-      case 'client_rejected':
-        return 'bg-gradient-to-r from-rose-50 to-rose-100 text-rose-700 border-rose-200 dark:from-rose-900/20 dark:to-rose-800/20 dark:text-rose-300 dark:border-rose-700';
-      case 'lost':
-        return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-gray-200 dark:from-gray-900/20 dark:to-gray-800/20 dark:text-gray-300 dark:border-gray-700';
-      default:
-        return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border-gray-200 dark:from-gray-900/20 dark:to-gray-800/20 dark:text-gray-300 dark:border-gray-700';
-    }
-  };
+  const getStatusDotColor = (status: LeadStatus) => LEAD_STATUS_UI[status].chartColor;
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadgeClass = (status: string) => {
     const normalizedStatus = normalizeLeadStatus(status);
-    switch (normalizedStatus) {
-      case 'hot':
-        return <Flame className="w-4 h-4" />;
-      case 'warm':
-        return <Thermometer className="w-4 h-4" />;
-      case 'meeting_scheduled':
-        return <Calendar className="w-4 h-4" />;
-      case 'meeting_rescheduled':
-        return <RotateCcw className="w-4 h-4" />;
-      case 'meeting_done':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'contact_later':
-        return <Clock className="w-4 h-4" />;
-      case 'client_manage':
-        return <UserCheck className="w-4 h-4" />;
-      case 'client_unavailable':
-        return <UserX className="w-4 h-4" />;
-      case 'client_rejected':
-        return <X className="w-4 h-4" />;
-      case 'lost':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Thermometer className="w-4 h-4" />;
-    }
+    return `${LEAD_STATUS_UI[normalizedStatus].badgeClass} dark:bg-opacity-20`;
   };
 
   const handleStatusUpdate = async (reportId: string, newStatus: string) => {
@@ -207,62 +173,165 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     }
   };
 
-  const openAssignSolutionsDialog = (report: Report) => {
-    if (!canAssignSolutions) return;
-    setAssigningReport(report);
-    setAssigningSolutions(report.leadData?.solutions || []);
-  };
-
-  const handleAssignSolutionToggle = (solution: string) => {
-    setAssigningSolutions((prev) =>
-      prev.includes(solution)
-        ? prev.filter((value) => value !== solution)
-        : [...prev, solution]
-    );
-  };
-
-  const handleAssignSolutionsSave = async () => {
-    if (!assigningReport) return;
-
+  const saveSolutions = async (reportId: string, solutions: string[], previousSolutions: string[]) => {
     try {
-      setIsAssigningSaving(true);
-      const updateResponse = await fetch(`/api/reports/${assigningReport._id}`, {
+      setSavingSolutionsId(reportId);
+      const updateResponse = await fetch(`/api/reports/${reportId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          solutions: assigningSolutions,
-        }),
+        body: JSON.stringify({ solutions }),
       });
 
       if (!updateResponse.ok) {
-        throw new Error('Failed to assign solutions');
+        throw new Error('Failed to update solutions');
       }
-
+    } catch (error) {
+      console.error('Failed to update solutions:', error);
       setTableReports((prev) =>
         prev.map((item) =>
-          item._id === assigningReport._id
+          item._id === reportId
             ? {
                 ...item,
                 leadData: {
                   ...item.leadData,
-                  solutions: assigningSolutions,
+                  solutions: previousSolutions,
                 },
               }
             : item
         )
       );
-
-      setAssigningReport(null);
-      setAssigningSolutions([]);
-    } catch (error) {
-      console.error('Failed to assign solutions:', error);
-      alert('Failed to assign solutions for this lead');
     } finally {
-      setIsAssigningSaving(false);
+      setSavingSolutionsId(null);
     }
   };
+
+  const handleExportTablePdf = async () => {
+    if (filteredReports.length === 0) return;
+
+    try {
+      setIsExportingTable(true);
+      await exportPipelineTablePdf(
+        filteredReports,
+        {
+          searchQuery,
+          selectedProject,
+          selectedSolution,
+          selectedOwner,
+          selectedMonth,
+          formatMonthLabel,
+        },
+        window.location.origin
+      );
+    } catch (error) {
+      console.error("Failed to export pipeline PDF:", error);
+      alert(error instanceof Error ? error.message : "Failed to export pipeline PDF");
+    } finally {
+      setIsExportingTable(false);
+    }
+  };
+
+  const handleSolutionToggle = async (report: Report, solution: string) => {
+    if (!canAssignSolutions) return;
+
+    const previousSolutions = report.leadData?.solutions || [];
+    const nextSolutions = previousSolutions.includes(solution)
+      ? previousSolutions.filter((value) => value !== solution)
+      : [...previousSolutions, solution];
+
+    setTableReports((prev) =>
+      prev.map((item) =>
+        item._id === report._id
+          ? {
+              ...item,
+              leadData: {
+                ...item.leadData,
+                solutions: nextSolutions,
+              },
+            }
+          : item
+      )
+    );
+
+    await saveSolutions(report._id, nextSolutions, previousSolutions);
+  };
+
+  const handleAddSolution = async (report: Report, solutionText: string) => {
+    if (!canAssignSolutions) return;
+
+    const trimmed = solutionText.trim();
+    if (!trimmed) return;
+
+    const previousSolutions = report.leadData?.solutions || [];
+    if (previousSolutions.includes(trimmed)) return;
+
+    const nextSolutions = [...previousSolutions, trimmed];
+
+    setTableReports((prev) =>
+      prev.map((item) =>
+        item._id === report._id
+          ? {
+              ...item,
+              leadData: {
+                ...item.leadData,
+                solutions: nextSolutions,
+              },
+            }
+          : item
+      )
+    );
+
+    await saveSolutions(report._id, nextSolutions, previousSolutions);
+  };
+
+  const getProjectSolutionOptions = (report: Report) => {
+    const projectName = report.leadData?.project?.trim() || '';
+    return projectName ? (projectSolutions[projectName] || []) : [];
+  };
+
+  const getSolutionSuggestions = (report: Report) => {
+    const projectOptions = getProjectSolutionOptions(report);
+    return Array.from(new Set([...projectOptions, ...uniqueSolutions])).sort();
+  };
+
+  const renderSolutionTags = (solutions: string[], report?: Report) => (
+    <div className="flex flex-wrap items-center gap-1">
+      {solutions.map((solution) => (
+        <span
+          key={solution}
+          className="group/tag inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+        >
+          {solution}
+          {canAssignSolutions && report && (
+            <span
+              role="button"
+              tabIndex={0}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleSolutionToggle(report, solution);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleSolutionToggle(report, solution);
+                }
+              }}
+              className="rounded p-0.5 opacity-0 group-hover/tag:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-opacity cursor-pointer"
+              aria-label={`Remove ${solution}`}
+            >
+              <X className="w-2.5 h-2.5" />
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
 
   const statusMeta = {
     hot: {
@@ -364,6 +433,14 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     )
   ).sort();
 
+  const availableMonths = Array.from(
+    new Set(
+      tableReports
+        .map((report) => getMonthKey(report.createdAt))
+        .filter(Boolean)
+    )
+  ).sort((a, b) => b.localeCompare(a));
+
   const uniqueSolutions = Array.from(
     new Set(
       tableReports
@@ -395,7 +472,8 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
     const matchesProject = selectedProject === 'all' || report.leadData?.project?.trim() === selectedProject;
     const matchesSolution = selectedSolution === 'all' || (report.leadData?.solutions || []).includes(selectedSolution);
     const matchesOwner = selectedOwner === 'all' || report.reportOwnerName?.trim() === selectedOwner;
-    return matchesSearch && matchesProject && matchesSolution && matchesOwner;
+    const matchesMonth = selectedMonth === 'all' || getMonthKey(report.createdAt) === selectedMonth;
+    return matchesSearch && matchesProject && matchesSolution && matchesOwner && matchesMonth;
   });
 
   // Calculate status counts based on filtered reports
@@ -505,9 +583,29 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Lead Pipeline</h1>
-        <p className="text-gray-600 dark:text-gray-300">Track and manage your lead reports</p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Lead Pipeline</h1>
+          <p className="text-gray-600 dark:text-gray-300">Track and manage your lead reports</p>
+        </div>
+        <Button
+          variant="outline"
+          className="h-11 shrink-0 rounded-xl border-gray-200 dark:border-gray-700"
+          onClick={() => void handleExportTablePdf()}
+          disabled={isExportingTable || filteredReports.length === 0}
+        >
+          {isExportingTable ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Export PDF ({filteredReports.length})
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Compact Status Overview */}
@@ -702,10 +800,34 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Month Filter */}
+          <div className="relative sm:w-56">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="h-12 rounded-xl border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 bg-white dark:bg-gray-900">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {selectedMonth === 'all' ? 'All Months' : formatMonthLabel(selectedMonth)}
+                  </span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="w-56 max-h-60 rounded-xl border shadow-xl bg-white dark:bg-gray-900">
+                <SelectItem value="all" className="rounded-lg p-3 pr-10 cursor-pointer">
+                  <div className="font-medium text-gray-900 dark:text-white">All Months</div>
+                </SelectItem>
+                {availableMonths.map((monthKey) => (
+                  <SelectItem key={monthKey} value={monthKey} className="rounded-lg p-3 pr-10 cursor-pointer">
+                    <div className="font-medium text-gray-900 dark:text-white">{formatMonthLabel(monthKey)}</div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         {/* Active Filters Display */}
-        {((userRole === 'admin' && selectedProject !== 'all') || selectedSolution !== 'all' || selectedOwner !== 'all' || searchQuery) && (
+        {((userRole === 'admin' && selectedProject !== 'all') || selectedSolution !== 'all' || selectedOwner !== 'all' || selectedMonth !== 'all' || searchQuery) && (
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             <span>Active filters:</span>
             {userRole === 'admin' && selectedProject !== 'all' && (
@@ -741,6 +863,17 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                 </button>
               </span>
             )}
+            {selectedMonth !== 'all' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-900/30 text-slate-700 dark:text-slate-300">
+                Month: {formatMonthLabel(selectedMonth)}
+                <button
+                  onClick={() => setSelectedMonth('all')}
+                  className="ml-1 hover:text-slate-900 dark:hover:text-slate-100"
+                >
+                  ×
+                </button>
+              </span>
+            )}
             {searchQuery && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                 Search: &quot;{searchQuery}&quot;
@@ -757,6 +890,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                 setSelectedProject('all');
                 setSelectedSolution('all');
                 setSelectedOwner('all');
+                setSelectedMonth('all');
                 setSearchQuery('');
               }}
               className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
@@ -767,58 +901,61 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
         )}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
-              <tr>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   First Name
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Last Name
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Company
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Title
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Lead Status
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Project
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Solutions
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">
                   Report Owner
                 </th>
-                <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                <th className="h-9 px-3 text-left text-xs font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap w-[100px]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody>
               {filteredReports.map((report) => {
                 const leadStatus = normalizeLeadStatus(report.leadData?.status);
                 return (
-                  <tr key={report._id.toString()} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                  <tr
+                    key={report._id.toString()}
+                    className="group border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-[#f7f6f3] dark:hover:bg-gray-800/60 transition-colors"
+                  >
+                    <td className="h-9 px-3 text-[13px] text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {report.firstName || report.leadData?.name?.split(' ')[0] || '-'}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                    <td className="h-9 px-3 text-[13px] text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {report.lastName || report.leadData?.name?.split(' ').slice(1).join(' ') || '-'}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                    <td className="h-9 px-3 text-[13px] text-gray-900 dark:text-gray-100 whitespace-nowrap max-w-[180px] truncate">
                       {report.leadData?.companyName || report.companyName || '-'}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                    <td className="h-9 px-3 text-[13px] text-gray-600 dark:text-gray-400 whitespace-nowrap max-w-[140px] truncate">
                       {report.leadData?.position || '-'}
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="h-9 px-3">
                       <style jsx>{`
                         [data-radix-select-item-indicator] {
                           display: none !important;
@@ -834,35 +971,35 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                         value={leadStatus}
                         onValueChange={(value) => handleStatusUpdate(report._id, value)}
                       >
-                        <SelectTrigger className={`w-48 h-9 rounded-lg border-0 shadow-sm transition-all duration-200 hover:shadow-md focus:ring-2 focus:ring-blue-500/20 focus:shadow-lg ${getStatusColor(leadStatus)}`}>
-                          <div className="flex items-center gap-2.5">
-                            {getStatusIcon(leadStatus)}
-                            <span className="font-medium text-sm whitespace-nowrap">
+                        <SelectTrigger className={`h-7 w-auto min-w-[130px] max-w-[170px] rounded px-2 border-0 shadow-none ring-0 focus:ring-1 focus:ring-gray-200 dark:focus:ring-gray-600 ${getStatusBadgeClass(leadStatus)}`}>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="h-1.5 w-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: getStatusDotColor(leadStatus) }}
+                            />
+                            <span className="text-xs font-medium truncate">
                               {getLeadStatusLabel(leadStatus)}
                             </span>
                           </div>
                         </SelectTrigger>
-                        <SelectContent className="w-64 rounded-lg border shadow-xl bg-white dark:bg-gray-900 p-2">
+                        <SelectContent className="w-56 rounded-md border border-gray-200 dark:border-gray-700 shadow-md bg-white dark:bg-gray-900 p-1">
                           {LEAD_STATUS_ORDER.map((status) => {
                             const statusConfig = statusMeta[status];
-                            const StatusIcon = statusConfig.icon;
                             return (
                               <SelectItem
                                 key={status}
                                 value={status}
-                                className={`select-item-no-indicator rounded-md p-3 cursor-pointer transition-all duration-200 border-0 ${statusConfig.accentClass}`}
+                                className={`select-item-no-indicator rounded px-2 py-1.5 cursor-pointer transition-colors border-0 ${statusConfig.accentClass}`}
                                 style={{ position: 'relative' }}
                               >
-                                <div className="flex items-center gap-3 w-full" style={{ position: 'relative', zIndex: 1 }}>
-                                  <div className={`flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 ${statusConfig.iconWrapClass}`}>
-                                    <StatusIcon className={`w-3.5 h-3.5 ${statusConfig.iconClass}`} />
-                                  </div>
+                                <div className="flex items-center gap-2 w-full" style={{ position: 'relative', zIndex: 1 }}>
+                                  <span
+                                    className="h-1.5 w-1.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: LEAD_STATUS_UI[status].chartColor }}
+                                  />
                                   <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                                    <div className="text-xs font-medium text-gray-900 dark:text-white truncate">
                                       {getLeadStatusLabel(status)}
-                                    </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                      {statusConfig.subtitle}
                                     </div>
                                   </div>
                                 </div>
@@ -872,27 +1009,58 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                         </SelectContent>
                       </Select>
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                    <td className="h-9 px-3 text-[13px] text-gray-600 dark:text-gray-400 whitespace-nowrap max-w-[120px] truncate">
                       {report.leadData?.project || '-'}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      {report.leadData?.solutions && report.leadData.solutions.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {report.leadData.solutions.map((solution) => (
-                            <span key={solution} className="inline-flex items-center rounded-md bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-xs dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
-                              {solution}
-                            </span>
-                          ))}
+                    <td className="h-9 px-3 min-w-[180px] max-w-[280px]">
+                      {canAssignSolutions ? (
+                        <div className="flex flex-wrap items-center gap-1 min-h-[24px] rounded px-1 py-0.5 -mx-1 hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                          {renderSolutionTags(report.leadData?.solutions || [], report)}
+                          <input
+                            type="text"
+                            list={`pipeline-solution-suggestions-${report._id}`}
+                            disabled={savingSolutionsId === report._id}
+                            placeholder={
+                              (report.leadData?.solutions?.length ?? 0) > 0
+                                ? 'Add more...'
+                                : 'Type solution...'
+                            }
+                            className="min-w-[72px] flex-1 bg-transparent text-[11px] text-gray-900 placeholder:text-gray-400 outline-none disabled:opacity-50 dark:text-gray-100"
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault();
+                                const value = event.currentTarget.value;
+                                event.currentTarget.value = '';
+                                void handleAddSolution(report, value);
+                              }
+                            }}
+                            onBlur={(event) => {
+                              const value = event.target.value;
+                              if (!value.trim()) return;
+                              event.target.value = '';
+                              void handleAddSolution(report, value);
+                            }}
+                          />
+                          <datalist id={`pipeline-solution-suggestions-${report._id}`}>
+                            {getSolutionSuggestions(report).map((solution) => (
+                              <option key={solution} value={solution} />
+                            ))}
+                          </datalist>
+                          {savingSolutionsId === report._id && (
+                            <Loader2 className="w-3 h-3 shrink-0 animate-spin text-gray-400" />
+                          )}
                         </div>
+                      ) : (report.leadData?.solutions?.length ?? 0) > 0 ? (
+                        renderSolutionTags(report.leadData?.solutions || [])
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-300 dark:text-gray-600">-</span>
                       )}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
+                    <td className="h-9 px-3 text-[13px] text-gray-900 dark:text-gray-100">
                       {editingOwnerId === report._id ? (
-                        <div className="w-[340px] rounded-xl border border-blue-100 bg-blue-50/40 p-2.5 shadow-sm">
+                        <div className="w-[280px] rounded-md border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900">
                           <div className="relative">
-                            <User className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                            <User className="pointer-events-none absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
                             <Input
                               value={ownerDraft}
                               onChange={(e) => setOwnerDraft(e.target.value)}
@@ -907,7 +1075,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                                 }
                               }}
                               list="pipeline-owner-suggestions"
-                              className="h-8 border-blue-200 bg-white pl-8"
+                              className="h-7 border-gray-200 bg-white pl-7 text-xs dark:border-gray-700 dark:bg-gray-800"
                               placeholder="Type owner name..."
                               autoFocus
                             />
@@ -925,7 +1093,7 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                                   key={owner}
                                   type="button"
                                   onClick={() => setOwnerDraft(owner)}
-                                  className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                                  className="rounded px-1.5 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                                 >
                                   {owner}
                                 </button>
@@ -933,81 +1101,68 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                             </div>
                           )}
 
-                          <div className="mt-2 flex items-center justify-end gap-2">
+                          <div className="mt-1.5 flex items-center justify-end gap-1">
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs"
+                              variant="ghost"
+                              className="h-6 px-2 text-[11px] text-gray-500"
                               onClick={() => {
                                 setEditingOwnerId(null);
                                 setOwnerDraft('');
                               }}
                               disabled={isOwnerSaving}
                             >
-                              <X className="w-3.5 h-3.5 mr-1" />
                               Cancel
                             </Button>
                             <Button
                               size="sm"
-                              className="h-7 px-2 text-xs"
+                              variant="ghost"
+                              className="h-6 px-2 text-[11px] text-gray-900 dark:text-gray-100"
                               onClick={() => handleOwnerSave(report._id)}
                               disabled={isOwnerSaving || !ownerDraft.trim()}
                             >
-                              <Check className="w-3.5 h-3.5 mr-1" />
                               {isOwnerSaving ? 'Saving...' : 'Save'}
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span>{report.reportOwnerName || '-'}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate max-w-[120px]">{report.reportOwnerName || '-'}</span>
                           {canManageOwnerAndDelete && (
                             <button
                               onClick={() => handleOwnerEditStart(report)}
-                              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                              className="opacity-40 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity"
                               aria-label="Edit report owner"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-3 h-3" />
                             </button>
                           )}
                         </div>
                       )}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-1">
+                    <td className="h-9 px-3">
+                      <div className="flex items-center gap-0.5 opacity-40 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 border border-blue-200 bg-blue-50/50 text-blue-600 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
-                          onClick={() => window.open(`/report/${report._id}`, '_blank')}
-                          title="View Report"
-                          aria-label="View report"
+                          className="h-7 w-7 p-0 text-gray-500 hover:text-gray-900 hover:bg-gray-200/60 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => window.open(getSharedReportUrl(window.location.origin, report._id), '_blank')}
+                          title="Open public report"
+                          aria-label="Open public report"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
                         </Button>
-                        {canAssignSolutions && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 border border-amber-200 bg-amber-50/50 text-amber-600 hover:bg-amber-100 hover:text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-900/40 dark:hover:text-amber-300"
-                            onClick={() => openAssignSolutionsDialog(report)}
-                            title="Assign Solutions"
-                            aria-label="Assign solutions"
-                          >
-                            <Tags className="w-4 h-4" />
-                          </Button>
-                        )}
                         {canManageOwnerAndDelete && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 border border-red-200 bg-red-50/50 text-red-600 hover:bg-red-100 hover:text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/40 dark:hover:text-red-300"
+                            className="h-7 w-7 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-950/30"
                             onClick={() => handleDeleteReport(report._id)}
                             disabled={deletingReportId === report._id}
                             title={deletingReportId === report._id ? 'Deleting...' : 'Delete Report'}
                             aria-label={deletingReportId === report._id ? 'Deleting report' : 'Delete report'}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
                       </div>
@@ -1019,73 +1174,6 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
           </table>
         </div>
       </div>
-
-      <Dialog
-        open={!!assigningReport}
-        onOpenChange={(open) => {
-          if (!open) {
-            setAssigningReport(null);
-            setAssigningSolutions([]);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[540px]">
-          <DialogHeader>
-            <DialogTitle>Assign Solutions</DialogTitle>
-          </DialogHeader>
-
-          {assigningReport && (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                Select one or more solutions for <span className="font-medium">
-                  {assigningReport.leadData?.name || `${assigningReport.firstName || ''} ${assigningReport.lastName || ''}`.trim() || assigningReport.email}
-                </span>.
-              </p>
-              <div className="rounded-lg border p-3 max-h-64 overflow-y-auto space-y-2">
-                {(() => {
-                  const projectName = assigningReport.leadData?.project?.trim() || '';
-                  const options = projectName ? (projectSolutions[projectName] || []) : [];
-                  if (options.length === 0) {
-                    return (
-                      <p className="text-sm text-gray-500">
-                        No configured solutions for this project. Add them in Project Settings first.
-                      </p>
-                    );
-                  }
-
-                  return options.map((solution) => (
-                    <label key={solution} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={assigningSolutions.includes(solution)}
-                        onChange={() => handleAssignSolutionToggle(solution)}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{solution}</span>
-                    </label>
-                  ));
-                })()}
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setAssigningReport(null);
-                    setAssigningSolutions([]);
-                  }}
-                  disabled={isAssigningSaving}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleAssignSolutionsSave} disabled={isAssigningSaving}>
-                  {isAssigningSaving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 } 

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
-
 import jsPDF from 'jspdf';
+import {
+  NEXUSES_BRAND_NAME,
+  NEXUSES_LOGO_DARK_URL,
+  getSharedReportUrl,
+} from '@/lib/brand';
 
 // Dynamic imports for Puppeteer to avoid build issues
 // process.env.AWS_LAMBDA_FUNCTION_VERSION is a good indicator of Vercel/AWS env
@@ -10,6 +14,12 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Helper function to get base URL
 function getBaseUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '');
+  }
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return process.env.NODE_ENV === 'development'
     ? 'http://localhost:3000'
@@ -17,10 +27,23 @@ function getBaseUrl() {
 }
 
 // Fallback PDF generation using jsPDF
-async function generateSimplePDF(report: any): Promise<Buffer> {
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+async function generateSimplePDF(report: any, reportId: string): Promise<Buffer> {
   const doc = new jsPDF();
   const leadData = report.leadData;
   const aiContent = report.aiContent || {};
+  const publicUrl = getSharedReportUrl(getBaseUrl(), reportId);
+  const logoBase64 = await fetchImageAsBase64(NEXUSES_LOGO_DARK_URL);
 
   // Helper functions
   const hasNumericKeys = (obj: any): boolean => {
@@ -110,21 +133,27 @@ async function generateSimplePDF(report: any): Promise<Buffer> {
 
   let yPos = 20;
 
-  // Helper to check if we need a new page
-  const checkPageBreak = (spaceNeeded: number = 40): void => {
-    if (yPos + spaceNeeded > 270) {
-      doc.addPage();
-      yPos = 20;
-    }
-  };
+  if (logoBase64) {
+    doc.addImage(logoBase64, 'PNG', 20, yPos - 4, 42, 10);
+    yPos += 14;
+  } else {
+    doc.setFontSize(16);
+    doc.setTextColor(29, 29, 31);
+    doc.text(NEXUSES_BRAND_NAME, 20, yPos);
+    yPos += 10;
+  }
 
-  // Header
-  doc.setFontSize(24);
-  doc.setTextColor(30, 64, 175);
-  doc.text(`${leadData.name} - Shared Report`, 20, yPos);
-  yPos += 15;
+  doc.setFontSize(9);
+  doc.setTextColor(107, 114, 128);
+  doc.text(publicUrl, 20, yPos);
+  yPos += 12;
 
-  doc.setFontSize(14);
+  doc.setFontSize(18);
+  doc.setTextColor(29, 29, 31);
+  doc.text(`${leadData.name} - Lead Report`, 20, yPos);
+  yPos += 12;
+
+  doc.setFontSize(12);
   doc.setTextColor(75, 85, 99);
   doc.text(`${leadData.position} at ${leadData.companyName}`, 20, yPos);
   yPos += 10;
@@ -138,12 +167,18 @@ async function generateSimplePDF(report: any): Promise<Buffer> {
   })}`, 20, yPos);
   yPos += 8;
 
-  // Report owner if available
   if (report.reportOwnerName || report.email) {
     doc.text(`Shared by: ${report.reportOwnerName || report.email.split('@')[0]}`, 20, yPos);
     yPos += 8;
   }
-  yPos += 10;
+  yPos += 6;
+
+  const checkPageBreak = (spaceNeeded: number = 40): void => {
+    if (yPos + spaceNeeded > 270) {
+      doc.addPage();
+      yPos = 20;
+    }
+  };
 
   // Lead Score & Status
   checkPageBreak(30);
@@ -473,7 +508,7 @@ async function generateSimplePDF(report: any): Promise<Buffer> {
     doc.setFontSize(10);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      `Page ${i} of ${pageCount} - © ${new Date().getFullYear()} Lead Report AI`,
+      `Page ${i} of ${pageCount} - © ${new Date().getFullYear()} ${NEXUSES_BRAND_NAME}`,
       20,
       doc.internal.pageSize.height - 10
     );
@@ -552,6 +587,13 @@ async function generatePuppeteerPDF(reportId: string): Promise<Buffer | null> {
     console.log('Waiting for content to load');
     await page.waitForSelector('main', { timeout: 15000 });
 
+    await page.evaluate((url: string) => {
+      const urlElement = document.getElementById('pdf-public-url');
+      if (urlElement) {
+        urlElement.textContent = url;
+      }
+    }, reportUrl);
+
     // Wait for any images to load
     await page.evaluate(async () => {
       const selectors = Array.from(document.querySelectorAll('img'));
@@ -589,13 +631,22 @@ async function generatePuppeteerPDF(reportId: string): Promise<Buffer | null> {
         }
 
         /* Hide UI Elements */
-        header, 
+        header:not(.pdf-print-branding), 
         button,
         a[href^="javascript"],
         .no-print,
         [data-print-hide],
-        .print\\:hidden {
+        .print\\:hidden:not(.pdf-print-branding) {
           display: none !important;
+        }
+
+        .pdf-print-branding {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          margin-bottom: 16px !important;
+          padding-bottom: 12px !important;
+          border-bottom: 1px solid #e5e7eb !important;
         }
 
         /* Container Overrides */
@@ -737,20 +788,20 @@ export async function GET(
       return new NextResponse(puppeteerPdf as any, {
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${report.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-shared-report.pdf"`,
+          'Content-Disposition': `attachment; filename="${report.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-nexuses-report.pdf"`,
         },
       });
     }
 
     // Fallback to jsPDF
     console.log('Falling back to jsPDF');
-    const jspdfBuffer = await generateSimplePDF(report);
+    const jspdfBuffer = await generateSimplePDF(report, id);
     console.log('jsPDF generation successful');
 
     return new NextResponse(jspdfBuffer as any, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${report.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-shared-report.pdf"`,
+        'Content-Disposition': `attachment; filename="${report.leadData.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-nexuses-report.pdf"`,
       },
     });
   } catch (error: unknown) {
