@@ -11,6 +11,7 @@ import { getSharedReportUrl } from "@/lib/brand";
 import { exportPipelineTablePdf } from "@/lib/export-pipeline-pdf";
 import { exportPipelineTableCsv } from "@/lib/export-pipeline-csv";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import Link from "next/link";
 
 const getMonthKey = (dateStr: string) => {
   const date = new Date(dateStr);
@@ -1199,6 +1200,22 @@ export function PipelineTable({ reports, userRole }: PipelineTableProps) {
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </Button>
+                        {canManageOwnerAndDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="h-7 w-7 p-0 text-gray-500 hover:text-gray-900 hover:bg-gray-200/60 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700"
+                          >
+                            <Link
+                              href={`/report/${report._id}?edit=true`}
+                              title="Edit report"
+                              aria-label="Edit report"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Link>
+                          </Button>
+                        )}
                         {canManageOwnerAndDelete && (
                           <Button
                             variant="ghost"

@@ -82,7 +82,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState, useEffect, use, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   LEAD_STATUS_ORDER,
@@ -232,6 +232,9 @@ const ReportLoader = dynamic(
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const shouldStartInEditMode = searchParams.get("edit") === "true";
+  const hasAutoEnteredEditMode = useRef(false);
   const activePipelineStageRef = useRef<HTMLSpanElement | null>(null);
   const [report, setReport] = useState<LeadReport | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -307,6 +310,21 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       setIsEditing(false);
     }
   }, [canEditReport, isEditing]);
+
+  useEffect(() => {
+    if (
+      shouldStartInEditMode &&
+      canEditReport &&
+      report &&
+      editedLeadData &&
+      !hasAutoEnteredEditMode.current
+    ) {
+      setOriginalLeadData(JSON.parse(JSON.stringify(editedLeadData)));
+      setOriginalEditedData(JSON.parse(JSON.stringify(editedData)));
+      setIsEditing(true);
+      hasAutoEnteredEditMode.current = true;
+    }
+  }, [shouldStartInEditMode, canEditReport, report, editedLeadData, editedData]);
 
   useEffect(() => {
     if (report) {
